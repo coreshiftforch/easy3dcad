@@ -26,7 +26,7 @@ import { thin, sectionSegs, buildLoops, nestLoops, safeZ, pointInPoly } from '..
 import { makeGizmo, AXIS_VEC } from '../geom/gizmo.js';
 import { makeBoss, bossSolid, bossPts, BOSS, BOSS_TYPES, ENTRY } from '../geom/boss.js';
 import { PRESS_NOTE, BOSS_NOTE, travelNote } from './notes.js';
-import { splitByStep } from '../geom/split.js';
+import { splitByStep, pickShellAt } from '../geom/split.js';
 import { capFlat } from '../geom/caps.js';
 import { roomBox, roomSquare, roomFits, cutRoom } from '../geom/room.js';
 
@@ -664,11 +664,16 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
     scene.add(sliceGroup);
   }
 
-  /* 三角形の並びを2つつなぐ */
-  function joinF32(a, b) {
-    if (!b || !b.length) return a;
-    const out = new Float32Array(a.length + b.length);
-    out.set(a, 0); out.set(b, a.length);
+  /* 三角形の並びをいくつでもつなぐ（かたまりの付けかえで3つ以上わたすことがある） */
+  function joinF32(...parts) {
+    const use = parts.filter(p => p && p.length);
+    if (!use.length) return new Float32Array(0);
+    if (use.length === 1) return use[0];
+    let n = 0;
+    for (const p of use) n += p.length;
+    const out = new Float32Array(n);
+    let w = 0;
+    for (const p of use) { out.set(p, w); w += p.length; }
     return out;
   }
 
@@ -710,7 +715,13 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
     const foot = bossPts(bossType, BOSS_DIM, 40).map(q => [q[0] + cx, q[1] + cy]);
     const footIn = foot.every(q => inCut(q, outers));
     const post = bossSolid(bossType, BOSS_DIM, zg, cx, cy, !footIn);
-    const upper = joinF32(joinF32(r.upper, capFlat(outers, footIn ? foot : null, zg, false)), post);
+    /* ★ふたを張って閉じた殻にしてから、かたまりに分ける。
+         U字のように腕が2本あるかたちだと、切り口より上が2つ以上に分かれる。
+         クリッカーが入るのは1つだけなので、のこりは宙に浮いた部品になる。
+         それらは下パーツにくっつけて、下から生えたままにする。 */
+    const upShell = joinF32(r.upper, capFlat(outers, footIn ? foot : null, zg, false));
+    const picked = pickShellAt(upShell, cx, cy);
+    const upper = joinF32(picked.keep, post);
 
     /* ★下パーツはスイッチの部屋を抜く。抜く前に、ふたを張って閉じた立体にしておくこと
          （開いた殻のまま抜くと、壁を張る相手のふちが取れない）。
@@ -722,10 +733,13 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
     const lo0 = joinF32(r.lower, capFlat(outers, roomIn ? roomSquare(box) : null, zg, true));
     /* ★まわりの肉が足りないと、部屋は下まで突きぬける（そうしないと口が開く） */
     const fits = roomIn ? roomFits(lo0, box) : true;
-    const lower = roomIn ? cutRoom(lo0, box) : lo0;
+    /* ★のこったかたまりは、部屋を抜いたあとに足す（部屋はクリッカーのある
+         かたまりの下にあるので、こちらを切る必要はない）。 */
+    const lower = joinF32(roomIn ? cutRoom(lo0, box) : lo0, ...picked.strays);
 
     splitInfo = {
       upper, lower, through: roomIn && !fits, narrow: !roomIn, footIn,
+      strays: picked.strays.length,
       upperTris: upper.length / 9, lowerTris: lower.length / 9,
       ms: Math.round(performance.now() - t0),
     };

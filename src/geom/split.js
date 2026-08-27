@@ -85,6 +85,144 @@ function pushTri(out, P) {
   for (const p of P) out.push(p[0], p[1], p[2]);
 }
 
+/* ══════════════════════════════════════════════════════════════
+   切ったあとの「かたまり」を分ける
+
+   ふつうは切ると上下2つになる。けれど U字（コの字）のように腕が
+   2本あるかたちだと、切り口より上が **2つ以上に分かれる**。
+   クリッカーが入るのはそのうち1つだけで、のこりは宙に浮いた
+   バラバラの部品になってしまう。
+
+   そこで「クリッカーのあるかたまり」だけを上パーツに残し、
+   のこりは下パーツにくっつける（下から生えたままにする）。
+   ══════════════════════════════════════════════════════════════ */
+
+/* つながっている面ごとに分ける。
+   ★頂点は座標を 0.001mm に丸めて突きあわせる。切ってできる点は同じ式で
+     出しているので ふつうは ぴったり一致するが、丸めておけば わずかな
+     ゆれで かたまりが余計に割れるのを防げる。 */
+export function shells(pos, eps = 1e-3) {
+  const nTri = pos.length / 9;
+  if (nTri < 2) return nTri ? [pos] : [];
+
+  const parent = new Int32Array(nTri);
+  for (let i = 0; i < nTri; i++) parent[i] = i;
+  const find = a => { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; };
+  const join = (a, b) => { a = find(a); b = find(b); if (a !== b) parent[b] = a; };
+
+  /* 同じ頂点を使う三角形どうしをつなぐ */
+  const seen = new Map();
+  const q = v => Math.round(v / eps);
+  for (let t = 0; t < nTri; t++) {
+    for (let k = 0; k < 3; k++) {
+      const i = t * 9 + k * 3;
+      const key = q(pos[i]) + ',' + q(pos[i + 1]) + ',' + q(pos[i + 2]);
+      const prev = seen.get(key);
+      if (prev === undefined) seen.set(key, t);
+      else join(prev, t);
+    }
+  }
+
+  /* かたまりごとに三角形を集める */
+  const bucket = new Map();
+  for (let t = 0; t < nTri; t++) {
+    const r = find(t);
+    let arr = bucket.get(r);
+    if (!arr) { arr = []; bucket.set(r, arr); }
+    arr.push(t);
+  }
+  if (bucket.size === 1) return [pos];
+
+  const out = [];
+  for (const tris of bucket.values()) {
+    const a = new Float32Array(tris.length * 9);
+    let w = 0;
+    for (const t of tris) for (let k = 0; k < 9; k++) a[w++] = pos[t * 9 + k];
+    out.push(a);
+  }
+  return out;
+}
+
+/* 三角形を真上から見て、その中に点 (x,y) が入っているか。
+
+   ★立った面（横から見える壁）は真上から見ると線になり、面積が0になる。
+     面積0のまま符号だけで判定すると「どの点も内側」と答えてしまい、
+     どのかたまりにも当たってしまう。先に面積を見て、潰れていれば外す。 */
+function triHasXY(pos, t, x, y) {
+  const i = t * 9;
+  const ax = pos[i],     ay = pos[i + 1];
+  const bx = pos[i + 3], by = pos[i + 4];
+  const cx = pos[i + 6], cy = pos[i + 7];
+  const area2 = (bx - ax) * (cy - ay) - (cx - ax) * (by - ay);
+  if (Math.abs(area2) < 1e-9) return false;      // 真上から見て潰れている
+  const d1 = (x - bx) * (ay - by) - (ax - bx) * (y - by);
+  const d2 = (x - cx) * (by - cy) - (bx - cx) * (y - cy);
+  const d3 = (x - ax) * (cy - ay) - (cx - ax) * (y - ay);
+  const hasNeg = d1 < 0 || d2 < 0 || d3 < 0;
+  const hasPos = d1 > 0 || d2 > 0 || d3 > 0;
+  return !(hasNeg && hasPos);
+}
+
+/* かたまりが (x,y) を真上から覆っているか */
+function coversXY(part, x, y) {
+  for (let t = 0, n = part.length / 9; t < n; t++) if (triHasXY(part, t, x, y)) return true;
+  return false;
+}
+
+/* かたまり same が本体 base の真上（または真下）に乗っているか。
+
+   ★これが要る理由：上パーツには「別のかたまりだが、上パーツに乗っている
+     もの」がある。たとえば なまえプレートの文字は、土台とは別の立体として
+     書き出されていて、面で接しているだけ。これを下パーツへ落とすと、
+     文字だけ台に取り残されてしまう（実際にそうなった）。
+     真上から見て本体に重なっていれば、乗りものとみなして上に残す。 */
+function sitsOn(part, base) {
+  const n = part.length / 9;
+  const step = Math.max(1, Math.floor(n / 24));   // 何枚か拾えば十分
+  for (let t = 0; t < n; t += step) {
+    const i = t * 9;
+    const cx = (part[i] + part[i + 3] + part[i + 6]) / 3;
+    const cy = (part[i + 1] + part[i + 4] + part[i + 7]) / 3;
+    if (coversXY(base, cx, cy)) return true;
+  }
+  return false;
+}
+
+/* クリッカーのあるかたまりを残す。のこり（strays）は
+   呼びもとで下パーツにくっつける。
+
+   ・かたまりが1つなら そのまま返す（ふつうのかたち）
+   ・(x,y) を真上から見て覆っているかたまりが「クリッカーのあるほう」
+   ・そのかたまりに乗っているだけのもの（文字・かざり）も上に残す
+   ・どちらでもないもの（U字の もう1本の腕）だけを下パーツへ回す
+   ・クリッカーがどれにも当たらなければ いちばん大きいものを残す（安全側） */
+export function pickShellAt(pos, x, y) {
+  const parts = shells(pos);
+  if (parts.length <= 1) return { keep: pos, strays: [] };
+
+  let hit = -1;
+  for (let i = 0; i < parts.length && hit < 0; i++) if (coversXY(parts[i], x, y)) hit = i;
+  if (hit < 0) {
+    hit = 0;
+    for (let i = 1; i < parts.length; i++) if (parts[i].length > parts[hit].length) hit = i;
+  }
+
+  const base = parts[hit];
+  const keep = [base], strays = [];
+  for (let i = 0; i < parts.length; i++) {
+    if (i === hit) continue;
+    (sitsOn(parts[i], base) ? keep : strays).push(parts[i]);
+  }
+
+  if (keep.length === 1) return { keep: base, strays };
+  let n = 0;
+  for (const p of keep) n += p.length;
+  const merged = new Float32Array(n);
+  let w = 0;
+  for (const p of keep) { merged.set(p, w); w += p.length; }
+  return { keep: merged, strays };
+}
+
 /* d の符号が s のがわだけを残した多角形 */
 function clipSide(P, d, s) {
   const poly = [];

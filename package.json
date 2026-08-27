@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check:kana": "node 検算/kana-check.mjs"
+    "check:kana": "node 検算/kana-check.mjs",
+    "check:split": "node 検算/split-shells.mjs"
   },
   "devDependencies": {
     "vite": "^8.2.2"

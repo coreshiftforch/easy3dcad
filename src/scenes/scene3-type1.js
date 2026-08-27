@@ -19,7 +19,7 @@ import { findNecks } from '../geom/necks.js';
 import { SHAPES, USES_SIZE, makeLoop, scaleLoop } from '../geom/loop.js';
 import { thin, sectionSegs, sectionSegsY, buildLoops, nestLoops, safeZ, pointInPoly } from '../geom/section.js';
 import { grooveGeometry, offsetLoop, DEFAULT_SIDE, DEFAULT_FLOOR } from '../geom/groove.js';
-import { splitByStep } from '../geom/split.js';
+import { splitByStep, pickShellAt } from '../geom/split.js';
 import { capUpper, capLower } from '../geom/caps.js';
 import { cutRoom, roomBox, roomSquare, roomFits } from '../geom/room.js';
 import { makeRim, rimAt, rimFlat, rimHeightFn, rimSmooth, rimClear } from '../geom/rim.js';
@@ -1129,9 +1129,15 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
     const foot = bossFoot();
     const footIn = foot.every(p => pointInPoly(p, plug));
     const post = bossSolid(bossType, bossDim, zBot + floor, swPos.x, swPos.y, !footIn);
-    const upper = joinF32(joinF32(r.upper,
+    /* ★ふたを張って閉じた殻にしてから、かたまりに分ける。
+         U字のように腕が2本あるかたちだと、切り口より上が2つ以上に分かれる。
+         クリッカーが入るのは1つだけなので、のこりは宙に浮いた部品になる。
+         それらは下パーツにくっつけて、下から生えたままにする。 */
+    const upShell = joinF32(r.upper,
       capUpper(outers, plug, zTop, zBot + floor, flat ? null : { segs: r.rimUp, cx, cy },
-        footIn ? foot : null)), post);
+        footIn ? foot : null));
+    const picked = pickShellAt(upShell, swPos.x, swPos.y);
+    const upper = joinF32(picked.keep, post);
     /* ★下パーツはスイッチの部屋を抜く。抜く前に、ふたを張って閉じた立体にしておくこと
          （開いた殻のまま抜くと、壁を張る相手のふちが取れない）。
          器の床には、部屋の天井ぶんの四角い穴を空けておく。 */
@@ -1149,9 +1155,12 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
     /* ★肉が足りないと、部屋は下まで突きぬける（そうしないと口が開く）。
          そのときは知らせる。 */
     const fits = cutIt ? roomFits(lo0, box) : true;
-    const lower = cutIt ? cutRoom(lo0, box) : lo0;
+    /* ★のこったかたまりは、部屋を抜いたあとに足す（部屋はクリッカーのある
+         かたまりの下にあるので、こちらを切る必要はない）。 */
+    const lower = joinF32(cutIt ? cutRoom(lo0, box) : lo0, ...picked.strays);
     splitInfo = {
       upper, lower, through: cutIt && !fits, narrow: withRoom && !roomIn,
+      strays: picked.strays.length,
       upperTris: upper.length / 9, lowerTris: lower.length / 9,
       capTris: (upper.length - r.upper.length) / 9,
       ms: Math.round(performance.now() - t0),
@@ -1186,10 +1195,16 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
   }
 
   /* 三角形の並びを2つつなぐ */
-  function joinF32(a, b) {
-    if (!b.length) return a;
-    const out = new Float32Array(a.length + b.length);
-    out.set(a, 0); out.set(b, a.length);
+  /* いくつでもつなげる（かたまりの付けかえで3つ以上わたすことがある） */
+  function joinF32(...parts) {
+    const use = parts.filter(p => p && p.length);
+    if (!use.length) return new Float32Array(0);
+    if (use.length === 1) return use[0];
+    let n = 0;
+    for (const p of use) n += p.length;
+    const out = new Float32Array(n);
+    let w = 0;
+    for (const p of use) { out.set(p, w); w += p.length; }
     return out;
   }
 
