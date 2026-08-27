@@ -1,35 +1,25 @@
-/* 色。明るい画面と暗い画面の両方に合わせる */
+/* ══════════════════════════════════════════════
+   色。なまえプレート／QRキーホルダー（public/css/common.css）と
+   同じ値を使う。あちらは単一HTMLで public/ に置いてあり、
+   こちらは Vite が束ねるので、ファイルそのものは共有できない。
+   ★片方だけ変えると3ページで色がずれる。直すときは両方直すこと。
+   ══════════════════════════════════════════════ */
 :root {
-  --bg:      #f4f6f9;
-  --card:    #ffffff;
-  --ink:     #1d2430;
-  --dim:     #6b7684;
-  --line:    #c8d0da;
-  --accent:  #2b6fd6;
-  --accent-bg: #e8f0fc;
-  --ok:      #1f7a4d;
-  --ok-bg:   #e6f5ed;
-  --warn:    #8a5a00;
-  --warn-bg: #fdf1da;
-  --err:     #b3261e;
-  --err-bg:  #fdeceb;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg:      #171b21;
-    --card:    #1f242c;
-    --ink:     #e6eaf0;
-    --dim:     #97a1ae;
-    --line:    #3a434f;
-    --accent:  #7aa8ef;
-    --accent-bg: #22304a;
-    --ok:      #7ed3a6;
-    --ok-bg:   #1e3229;
-    --warn:    #e8c07a;
-    --warn-bg: #33291a;
-    --err:     #f2a5a0;
-    --err-bg:  #3a2321;
-  }
+  --bg:          #0f172a;   /* common: --bg */
+  --card:        #1e293b;   /* common: --panel */
+  --sunk:        #0f172a;   /* common: --panel2（へこんで見えるところ） */
+  --ink:         #f1f5f9;   /* common: --text */
+  --dim:         #94a3b8;   /* common: --muted */
+  --line:        #334155;   /* common: --line */
+  --accent:      #3b82f6;   /* common: --accent2。ふち・文字に使う（暗い地でも読める） */
+  --accent-fill: #2563eb;   /* common: --accent。ベタ塗りのボタンに使う */
+  --accent-bg:   #17325e;   /* common: 選ばれたカードの地色 */
+  --ok:          #34d399;
+  --ok-bg:       #052e22;
+  --warn:        #fbbf24;
+  --warn-bg:     #251c0a;
+  --err:         #fca5a5;
+  --err-bg:      #3f1414;
 }
 
 * { box-sizing: border-box; }
@@ -38,14 +28,39 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", system-ui, sans-serif;
   -webkit-text-size-adjust: 100%;
+  /* ヘッダーを上に固定し、その下のこりぜんぶをシーンが使う */
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
 }
-#app { min-height: 100dvh; }
+
+/* ── ヘッダー（3ページ共通の見た目）───────────────── */
+.app-head {
+  flex: none;
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+.app-head .title { font-size: 16px; font-weight: bold; }
+.app-head .spacer { margin-left: auto; }
+.app-head .home-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--sunk); border: 1px solid var(--line); border-radius: 9px;
+  color: var(--dim); font-size: 12px; font-weight: bold;
+  padding: 7px 12px; text-decoration: none; cursor: pointer;
+}
+.app-head .home-link:hover { color: var(--ink); border-color: var(--accent); }
+
+#app { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
 .scene {
-  min-height: 100dvh;
-  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  flex: 1;
+  min-height: 0;
+  padding: 14px 16px max(14px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -73,7 +88,7 @@ body {
   gap: 10px;
   padding: 24px;
   border: 2.5px dashed var(--line);
-  border-radius: 20px;
+  border-radius: 16px;
   background: var(--card);
   color: var(--ink);
   font: inherit;
@@ -109,7 +124,7 @@ body {
   min-height: 64px;
   padding: 16px 22px;
   border: 2px solid var(--line);
-  border-radius: 16px;
+  border-radius: 12px;
   background: var(--card);
   color: var(--ink);
   font: inherit;
@@ -178,7 +193,7 @@ body {
    ══════════════════════════════════════════════ */
 /* ★シーン2は「1画面におさめる」。min-height だけだと、プレビューが出たときに
      背が伸びてスクロールしてしまう。高さを決めておくと、3Dの窓のほうが縮む。 */
-.scene2 { height: 100dvh; gap: 12px; }
+.scene2 { gap: 12px; }   /* 高さは #app に合わせる（ヘッダーのぶん引かれる） */
 
 .topbar {
   display: flex;
@@ -218,8 +233,8 @@ body {
   flex: 1 1 auto;
   min-height: 160px;
   border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--card);
+  border-radius: 14px;
+  background: var(--sunk);
   overflow: hidden;
 }
 .viewer canvas { display: block; width: 100%; height: 100%; }
@@ -299,9 +314,9 @@ body {
   width: 100%;
   min-height: 52px;
   padding: 12px 34px;
-  border: 2px solid var(--accent);
+  border: 2px solid var(--accent-fill);
   border-radius: 12px;
-  background: var(--accent);
+  background: var(--accent-fill);
   color: #fff;
   font: inherit;
   font-weight: 700;
@@ -345,7 +360,7 @@ body {
 /* ══════════════════════════════════════════════
    シーン3：溝を決める（タイプ1・フロー①）
    ══════════════════════════════════════════════ */
-.scene3 { height: 100dvh; gap: 12px; }
+.scene3 { gap: 12px; }   /* 高さは #app に合わせる（ヘッダーのぶん引かれる） */
 
 .s3-body {
   flex: 1 1 auto;
@@ -387,8 +402,9 @@ body {
   place-items: center;
   width: 20px; height: 20px;
   border-radius: 50%;
-  background: var(--line);
-  color: var(--card);
+  background: var(--sunk);
+  border: 2px solid var(--line);
+  color: var(--dim);
   font-size: 11px;
 }
 .flow li.on {
@@ -397,7 +413,7 @@ body {
   color: var(--accent);
   font-weight: 700;
 }
-.flow li.on b { background: var(--accent); color: #fff; }
+.flow li.on b { background: var(--accent-fill); border-color: var(--accent); color: #fff; }
 /* まだ作っていないフロー（タイプ2の②〜④）。薄くして、押せないことを見せる */
 .flow li.todo { opacity: .45; }
 
@@ -409,7 +425,7 @@ body {
   position: relative;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: var(--card);
+  background: var(--sunk);
   overflow: hidden;
 }
 .view canvas { display: block; width: 100%; height: 100%; }
@@ -495,9 +511,9 @@ body {
   align-self: flex-end;
   min-height: 48px;
   padding: 12px 30px;
-  border: 2px solid var(--accent);
+  border: 2px solid var(--accent-fill);
   border-radius: 12px;
-  background: var(--accent);
+  background: var(--accent-fill);
   color: #fff;
   font: inherit;
   font-weight: 700;
@@ -643,7 +659,7 @@ body {
   left: 50%;
   padding: 6px 16px;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-fill);
   color: #fff;
   font-size: 15px;
   font-weight: 700;
@@ -659,6 +675,17 @@ body {
 @media (max-width: 899px) {
   .views.three { flex-direction: column; }
   .views.three .col { flex-direction: row; }
+
+  /* ★body を overflow:hidden にしてページ全体が伸びなくなったので、
+       中身が長いときは操作パネルの中をスクロールさせる。
+       （なまえプレート／QRの .panel と同じふるまい） */
+  .panel {
+    flex: 0 1 auto;
+    min-height: 0;
+    max-height: 52dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }
 
 .pos-bars[hidden] { display: none; }
@@ -749,7 +776,7 @@ body {
 
 /* ── シーン4：書き出し ─────────────────────────
      右がわは最初から開いている（選ぶものがそろっている画面なので）。 */
-.scene4 { height: 100dvh; gap: 12px; }
+.scene4 { gap: 12px; }   /* 高さは #app に合わせる（ヘッダーのぶん引かれる） */
 .scene4 .right { display: flex; overflow: auto; }
 .scene4 .panel { flex: none; }
 .scene4 .fname {

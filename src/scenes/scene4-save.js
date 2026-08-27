@@ -153,7 +153,8 @@ export function mountScene4(root, { model, parts, onBack } = {}) {
     if (plate) { scene.remove(plate); plate.geometry.dispose(); plate.material.dispose(); plate = null; }
     if (lay === 'print') {
       const w = Math.ceil(Math.max(size.x, size.y) * 1.6 / 10) * 10;
-      plate = new THREE.GridHelper(w, w / 10, 0xc3cbd6, 0xe2e7ee);
+      /* 暗い地に合わせた目盛りの色（なまえプレート／QRの床と同じ落ちつき） */
+      plate = new THREE.GridHelper(w, w / 10, 0x64748b, 0x334155);
       /* ★GridHelper は XZ 平面に寝ている。こちらは Z が上なので起こす */
       plate.rotation.x = Math.PI / 2;
       plate.position.set(target.x, target.y, 0);
