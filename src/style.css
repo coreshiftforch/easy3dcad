@@ -1,19 +1,28 @@
 /* ══════════════════════════════════════════════
-   色。なまえプレート／QRキーホルダー（public/css/common.css）と
-   同じ値を使う。あちらは単一HTMLで public/ に置いてあり、
-   こちらは Vite が束ねるので、ファイルそのものは共有できない。
-   ★片方だけ変えると3ページで色がずれる。直すときは両方直すこと。
+   色。値そのものは public/css/tokens.css にあり、clicker.html が
+   <link> で読んでいる。なまえプレート／QR／トップも同じファイルを
+   （common.css の @import で）読むので、色の出どころは1か所きり。
+   ★色を変えたいときは public/css/tokens.css を直す。ここではない。
+
+   ここでやっているのは「クリッカーで使う名前を付ける」だけ。
+   名前が common.css と違うのは、もともと別のアプリだったから。
    ══════════════════════════════════════════════ */
 :root {
-  --bg:          #0f172a;   /* common: --bg */
-  --card:        #1e293b;   /* common: --panel */
-  --sunk:        #0f172a;   /* common: --panel2（へこんで見えるところ） */
-  --ink:         #f1f5f9;   /* common: --text */
-  --dim:         #94a3b8;   /* common: --muted */
-  --line:        #334155;   /* common: --line */
-  --accent:      #3b82f6;   /* common: --accent2。ふち・文字に使う（暗い地でも読める） */
-  --accent-fill: #2563eb;   /* common: --accent。ベタ塗りのボタンに使う */
-  --accent-bg:   #17325e;   /* common: 選ばれたカードの地色 */
+  --bg:          var(--c-bg);        /* common: --bg */
+  --card:        var(--c-panel);     /* common: --panel */
+  --sunk:        var(--c-panel2);    /* common: --panel2（へこんで見えるところ） */
+  --ink:         var(--c-text);      /* common: --text */
+  --dim:         var(--c-muted);     /* common: --muted */
+  --line:        var(--c-line);      /* common: --line */
+  --accent:      var(--c-accent2);   /* ふち・文字に使う（暗い地でも読める） */
+  --accent-fill: var(--c-accent);    /* ベタ塗りのボタンに使う */
+
+  /* ここから下はクリッカーだけの色。共通の4ページには相手がいない。
+     ★知らせの色（ok/warn/err）は、なまえプレート／QR の --ok / --warn /
+       --danger とは値が違う。あちらは地に置く色、こちらは暗い地に乗せる
+       文字の色として選んである。揃えると見た目が変わるので、
+       いまは別のままにしてある。 */
+  --accent-bg:   #17325e;   /* 選ばれたカードの地色 */
   --ok:          #34d399;
   --ok-bg:       #052e22;
   --warn:        #fbbf24;
@@ -85,7 +94,11 @@ body {
   gap: 14px;
   min-height: 0;
 }
-.side { display: flex; }
+/* ★「側」の名前は シーン3の窓（.view.side＝正面から）と かぶっている。
+     こちらは シーン1の「モデルを作る」を置く列なので、必ず .stage の
+     直下だけに当てること。裸の .side にすると窓のほうにも当たる
+     （order を裸で書いて、シーン3の2つの窓が左右入れかわった）。 */
+.stage > .side { display: flex; }
 
 /* ── インポート枠 ─────────────────────────────── */
 .dropzone {
@@ -189,12 +202,14 @@ body {
 .notice .go { border-color: var(--accent); background: var(--accent-bg); }
 
 /* ── パソコン（横に広い画面）─────────────────────
-     インポート枠を大きく、「モデルを作る」は右に置く */
+     インポート枠を大きく、「モデルを作る」は左に置く。
+     ★操作するものは左、見るものは右。4ページとも同じ並びにしてある
+       （なまえプレート／QR は common.css の .main が row-reverse）。 */
 @media (min-width: 760px) {
   .scene { padding: 24px; gap: 18px; }
   .stage { flex-direction: row; align-items: stretch; gap: 20px; }
-  .dropzone { min-height: 340px; }
-  .side { flex-direction: column; justify-content: center; width: 220px; flex: none; }
+  .dropzone { min-height: 340px; order: 2; }
+  .stage > .side { flex-direction: column; justify-content: center; width: 220px; flex: none; order: 1; }
   .make-btn { min-height: 92px; font-size: 20px; }
   .notice { max-width: 900px; }
 }
@@ -338,19 +353,23 @@ body {
 .ok-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 
 /* ── 横に広い画面 ─────────────────────────────
-     右がわは幅0で置いておき、選ばれたら開く。
+     操作のがわ（.right）は幅0で置いておき、選ばれたら開く。
      ★display:none から出すと動きがつかないので、flex-basis を動かす。
-       3Dの窓が細くなるぶん、モデルは左へすべっていく。 */
+       3Dの窓が細くなるぶん、モデルは右へすべっていく。
+     ★名前は .right のままだが、置き場所は order で左にしている。
+       4ページとも「操作は左・3Dは右」で揃えるため。 */
 @media (min-width: 760px) {
   .split { flex-direction: row; gap: 0; }
+  .split > .right { order: 1; }
+  .split > .left  { order: 2; }
   .right {
     display: flex;
     flex: 0 0 0%;
     overflow: hidden;
     opacity: 0;
-    transition: flex-basis .45s ease, margin-left .45s ease, opacity .3s ease .1s;
+    transition: flex-basis .45s ease, margin-right .45s ease, opacity .3s ease .1s;
   }
-  .scene2.picked .right { flex-basis: 38%; margin-left: 16px; opacity: 1; }
+  .scene2.picked .right { flex-basis: 38%; margin-right: 16px; opacity: 1; }
   .ph-box  { max-width: 260px; }
   .ok-btn  { width: auto; }
 }
@@ -533,7 +552,9 @@ body {
 .next-btn:hover { filter: brightness(1.06); }
 .next-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 
-/* 横に広い画面：フローを左、窓をまんなか、操作を右 */
+/* 横に広い画面：フローと操作パネルを左にまとめ、窓を右に置く。
+   ★DOM は フロー → 窓 → パネル の順に書いてあるので、order で並べかえる。
+     4ページとも「操作は左・3Dは右」で揃えるため。 */
 @media (min-width: 900px) {
   .s3-body { flex-direction: row; gap: 14px; }
   .flow {
@@ -541,10 +562,11 @@ body {
     flex-direction: column;
     gap: 8px;
     overflow: visible;
+    order: 1;
   }
   .flow li { flex: none; font-size: 13px; padding: 10px 12px; }
-  .views { flex: 1 1 auto; }
-  .panel { flex: 0 0 375px; overflow-y: auto; }
+  .panel { flex: 0 0 375px; overflow-y: auto; order: 2; }
+  .views { flex: 1 1 auto; order: 3; }
 }
 
 /* 向きを変えるボタン（90°ずつ） */
@@ -825,6 +847,6 @@ body {
 @media (min-width: 760px) {
   /* ★シーン2の右がわは「選ぶまで幅0・透明」で置いてある。シーン4はいつも開いて
        いるので、幅も透明も戻すこと（opacity を戻し忘れて、まるごと見えなかった）。 */
-  .scene4 .right { flex: 0 0 34%; margin-left: 16px; opacity: 1; overflow: auto; }
+  .scene4 .right { flex: 0 0 34%; margin-right: 16px; opacity: 1; overflow: auto; }
   .scene4 .ok-btn { width: 100%; }
 }

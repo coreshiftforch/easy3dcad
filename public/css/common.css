@@ -15,25 +15,30 @@
      </div>
    ============================================================ */
 
+/* 色は4ページ共通。値は public/css/tokens.css にある（★直すのはあちら） */
+@import url('./tokens.css');
+
 *, *::before, *::after {
   box-sizing: border-box; margin: 0; padding: 0;
   -webkit-tap-highlight-color: transparent;
 }
 
 :root {
-  --bg:      #0f172a;
-  --panel:   #1e293b;
-  --panel2:  #0f172a;
-  --line:    #334155;
-  --text:    #f1f5f9;
-  --muted:   #94a3b8;
-  --accent:  #2563eb;
-  --accent2: #3b82f6;
-  --ok:      #047857;
-  --ok2:     #34d399;
-  --warn:    #f59e0b;
-  --danger:  #f87171;
-  --side-w:  380px;   /* PC幅のときの左パネルの幅 */
+  /* 色は tokens.css から。ここでは このページで使う名前を付けるだけ */
+  --bg:      var(--c-bg);
+  --panel:   var(--c-panel);
+  --panel2:  var(--c-panel2);
+  --line:    var(--c-line);
+  --text:    var(--c-text);
+  --muted:   var(--c-muted);
+  --accent:  var(--c-accent);
+  --accent2: var(--c-accent2);
+  --ok:      var(--c-ok);
+  --ok2:     var(--c-ok2);
+  --warn:    var(--c-warn);
+  --danger:  var(--c-danger);
+
+  --side-w:  380px;   /* PC幅のときの左パネルの幅（色ではないのでここに残す） */
 }
 
 html, body { height: 100%; }
