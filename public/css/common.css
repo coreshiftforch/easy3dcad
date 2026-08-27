@@ -68,6 +68,18 @@ header .title { font-size: 16px; font-weight: bold; }
 }
 .home-link:hover { color: var(--text); border-color: var(--accent2); }
 
+/* ひらがな切替（kana.js がヘッダーの右はしに足す） */
+.kana-toggle {
+  margin-left: auto; flex: none;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 9px;
+  color: var(--muted); font: inherit; font-size: 12px; font-weight: bold;
+  padding: 7px 12px; cursor: pointer; white-space: nowrap;
+}
+.kana-toggle:hover { color: var(--text); border-color: var(--accent2); }
+.kana-toggle[aria-pressed="true"] { background: var(--accent); border-color: var(--accent2); color: #fff; }
+/* ヘッダーが無いページ（トップ）では右上に浮かせる */
+.kana-toggle-float { position: fixed; top: 14px; right: 14px; z-index: 20; margin-left: 0; }
+
 /* ── 本体（スマホ：たて1列 ／ PC：左パネル＋3Dビュー）─────── */
 .main {
   flex: 1; min-height: 0;

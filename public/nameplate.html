@@ -31,14 +31,14 @@
 
 <header>
   <a class="home-link" href="index.html">◀ メニュー</a>
-  <span class="title">🪪 なまえプレートをつくろう</span>
+  <span class="title">🪪 名前プレートをつくろう</span>
 </header>
 
 <div class="main">
 
 <div class="stage">
   <canvas id="canvas"></canvas>
-  <div class="stage-hint">ゆび1本：まわす ／ 2本：ズーム</div>
+  <div class="stage-hint">指1本：回す ／ 2本：ズーム</div>
   <div class="stage-warn" id="floatWarn" style="display:none;"></div>
   <div id="celebrate"></div>
 </div>
@@ -53,26 +53,26 @@
 
   <!-- ① 土台 -->
   <div class="step-page" data-page="0">
-    <div class="panel-title">① どだいを えらぼう</div>
+    <div class="panel-title">① 土台を えらぼう</div>
     <div class="shape-grid" id="shapeGrid"></div>
 
     <div class="slider-row">
-      <div class="lab"><span>よこの ながさ</span><b id="baseWVal">– mm</b></div>
+      <div class="lab"><span>横の 長さ</span><b id="baseWVal">– mm</b></div>
       <input type="range" id="sliderBaseW" min="70" max="140" step="2" value="100">
     </div>
     <div class="slider-row">
-      <div class="lab"><span>たての ながさ</span><b id="baseHVal">– mm</b></div>
+      <div class="lab"><span>縦の 長さ</span><b id="baseHVal">– mm</b></div>
       <input type="range" id="sliderBaseH" min="70" max="140" step="2" value="100">
     </div>
     <div class="hint-line" id="baseSizeHint">できあがりは 50mm × 40mm までに おさまるよ</div>
-    <div style="text-align:center;"><button class="mini-btn" id="btnBaseReset">おおきさを もとに もどす</button></div>
+    <div style="text-align:center;"><button class="mini-btn" id="btnBaseReset">大きさを もとに 戻す</button></div>
 
-    <button class="mini-btn" id="btnSubToggle" style="width:100%;margin-top:12px;">▸ もうひとつ かさねる</button>
+    <button class="mini-btn" id="btnSubToggle" style="width:100%;margin-top:12px;">▸ もうひとつ 重ねる</button>
     <div id="subWrap" style="display:none;margin-top:8px;">
-      <div class="hint-line">かさねる かたちを えらんでね</div>
+      <div class="hint-line">重ねる 形を えらんでね</div>
       <div class="shape-grid" id="subGrid"></div>
       <div class="slider-row">
-        <div class="lab"><span>かさねる おおきさ</span><b id="subSVal">55%</b></div>
+        <div class="lab"><span>重ねる 大きさ</span><b id="subSVal">55%</b></div>
         <input type="range" id="sliderSubS" min="25" max="110" step="1" value="55">
       </div>
       <div class="slider-row">
@@ -84,14 +84,14 @@
         <input type="range" id="sliderSubY" min="-140" max="140" step="1" value="0">
       </div>
       <div class="slider-row">
-        <div class="lab"><span>かさねる かたむき</span><b id="subRVal">0°</b></div>
+        <div class="lab"><span>重ねる 傾き</span><b id="subRVal">0°</b></div>
         <input type="range" id="sliderSubR" min="-180" max="180" step="1" value="0">
       </div>
       <div id="joinMsg" class="hint-line" style="display:none;"></div>
     </div>
 
     <div class="qr-wrap">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">📱 スマホで ひらく（QRを よみとってね）</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">📱 スマホで ひらく（QRを 読みとってね）</div>
       <div id="qrCode"></div>
       <div id="qrUrl" class="qr-url"></div>
     </div>
@@ -99,10 +99,10 @@
 
   <!-- ② 文字 -->
   <div class="step-page" data-page="1">
-    <div class="panel-title">② なまえを いれよう <small>12もじまで</small></div>
+    <div class="panel-title">② 名前を 入れよう <small>12文字まで</small></div>
     <input type="text" id="charsInput" class="chars-input" maxlength="12" placeholder="なまえ">
-    <div class="hint-line" id="charsHint">ひらがな・カタカナ・えいご・すうじ・きごう（ ( ) _ - ! ? & @ など）が つかえるよ</div>
-    <div class="hint-line" id="fontStatus" style="color:#64748b;">フォント よみこみ中…</div>
+    <div class="hint-line" id="charsHint">ひらがな・カタカナ・英語・数字・記号（ ( ) _ - ! ? & @ など）が 使えるよ</div>
+    <div class="hint-line" id="fontStatus" style="color:#64748b;">フォント 読みこみ中…</div>
   </div>
 
   <!-- ③ フォント -->
@@ -113,9 +113,9 @@
 
   <!-- ④ 大きさ -->
   <div class="step-page" data-page="3">
-    <div class="panel-title">④ おおきさを えらぼう <small>ぜんぶ おなじ 大きさ</small></div>
+    <div class="panel-title">④ 大きさを えらぼう <small>ぜんぶ 同じ 大きさ</small></div>
     <div class="slider-row">
-      <div class="lab"><span>もじの おおきさ</span><b id="sizeVal">8.5 mm</b></div>
+      <div class="lab"><span>文字の 大きさ</span><b id="sizeVal">8.5 mm</b></div>
       <input type="range" id="sliderSize" min="10" max="56" step="1" value="26">
       <div id="sizeHint" style="font-size:12px;color:#fbbf24;margin-top:6px;"></div>
     </div>
@@ -123,7 +123,7 @@
 
   <!-- ⑤ 移動 -->
   <div class="step-page" data-page="4">
-    <div class="panel-title">⑤ もじを うごかそう</div>
+    <div class="panel-title">⑤ 文字を 動かそう</div>
     <div class="char-chips" data-chips="move"></div>
     <div class="slider-row">
       <div class="lab"><span>よこ ⬅➡</span></div>
@@ -133,40 +133,40 @@
       <div class="lab"><span>たて ⬆⬇</span></div>
       <input type="range" id="sliderY" min="-45" max="45" step="0.5" value="0">
     </div>
-    <div style="text-align:center;"><button class="mini-btn" id="btnCenter">はじめの ばしょに もどす</button></div>
+    <div style="text-align:center;"><button class="mini-btn" id="btnCenter">はじめの 場所に 戻す</button></div>
   </div>
 
   <!-- ⑥ 回転 -->
   <div class="step-page" data-page="5">
-    <div class="panel-title">⑥ もじを まわそう</div>
+    <div class="panel-title">⑥ 文字を 回そう</div>
     <div class="char-chips" data-chips="rot"></div>
     <div class="slider-row">
       <div class="lab"><span>かたむき</span><b id="rotVal">0°</b></div>
       <input type="range" id="sliderRot" min="-180" max="180" step="1" value="0">
     </div>
-    <div style="text-align:center;"><button class="mini-btn" id="btnRotReset">まっすぐに もどす</button></div>
+    <div style="text-align:center;"><button class="mini-btn" id="btnRotReset">まっすぐに 戻す</button></div>
   </div>
 
   <!-- ⑦ 高さ -->
   <div class="step-page" data-page="6">
-    <div class="panel-title">⑦ たかさを えらぼう <small>もじの あつさ</small></div>
+    <div class="panel-title">⑦ 高さを えらぼう <small>文字の 厚さ</small></div>
     <div class="char-chips" data-chips="depth"></div>
     <div class="opt-grid" id="depthOpts"></div>
   </div>
 
   <!-- ⑧ 色 -->
   <div class="step-page" data-page="7">
-    <div class="panel-title">⑧ いろを えらぼう</div>
+    <div class="panel-title">⑧ 色を えらぼう</div>
     <div class="seg" id="colorModeSeg">
-      <button data-mode="1" class="active">🎨 1いろ</button>
-      <button data-mode="2">🎨🎨 2いろ</button>
+      <button data-mode="1" class="active">🎨 1色</button>
+      <button data-mode="2">🎨🎨 2色</button>
     </div>
 
     <!-- 土台の色 -->
     <div class="color-card" data-card="base">
       <div class="color-card-head">
         <span class="cc-icon">🟦</span>
-        <span class="cc-title" id="baseColorTitle">ぜんたいの いろ</span>
+        <span class="cc-title" id="baseColorTitle">全体の 色</span>
         <span class="cc-current"><span class="cc-swatch" id="baseSwatch"></span><span class="cc-name" id="baseColorName"></span></span>
       </div>
       <div class="color-list" data-colors="base"></div>
@@ -176,7 +176,7 @@
     <div class="color-card for-text" id="textColorBlock" style="display:none;">
       <div class="color-card-head">
         <span class="cc-icon">🔤</span>
-        <span class="cc-title">なまえ（もじ）の いろ</span>
+        <span class="cc-title">名前（文字）の 色</span>
         <span class="cc-current"><span class="cc-swatch" id="textSwatch"></span><span class="cc-name" id="textColorName"></span></span>
       </div>
       <div class="color-list" data-colors="text"></div>
@@ -186,31 +186,31 @@
 
   <!-- ⑨ 穴 -->
   <div class="step-page" data-page="8">
-    <div class="panel-title">⑨ あなを つける <small>ボールチェーン用</small></div>
+    <div class="panel-title">⑨ 穴を つける <small>ボールチェーン用</small></div>
 
     <!-- 編集：穴の位置えらび＋かんせいボタン -->
     <div id="holeEdit">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">ひもを とおす あなの ばしょを えらぼう</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">ひもを とおす 穴の 場所を えらぼう</div>
       <div class="opt-grid" id="holeOpts">
         <button class="opt-btn" data-hole="none">なし</button>
-        <button class="opt-btn" data-hole="top">うえ</button>
-        <button class="opt-btn" data-hole="left">ひだり</button>
-        <button class="opt-btn" data-hole="right">みぎ</button>
+        <button class="opt-btn" data-hole="top">上</button>
+        <button class="opt-btn" data-hole="left">左</button>
+        <button class="opt-btn" data-hole="right">右</button>
       </div>
       <button class="action-btn purple" id="btnComplete"
-              style="margin-top:16px;padding:16px;font-size:20px;">🎉 かんせい！</button>
+              style="margin-top:16px;padding:16px;font-size:20px;">🎉 完成！</button>
     </div>
 
     <!-- 完成：アニメーションのあとに表示 -->
     <div id="resultPanel" style="display:none;">
       <div style="text-align:center;font-size:20px;font-weight:bold;margin-bottom:4px;">🎉 できあがり！</div>
-      <div class="hint-line" style="margin-bottom:12px;">3Dプリンターで つかえる データを ほぞんしよう</div>
+      <div class="hint-line" style="margin-bottom:12px;">3Dプリンターで 使える データを 保存しよう</div>
 
-      <button class="action-btn" id="btnSave3MF">📥 3MFで ほぞん <small style="display:block;font-weight:normal;font-size:11px;opacity:.85;">いろ付き・2色プリントできる</small></button>
-      <button class="action-btn green" id="btnSaveSTL">📥 STLで ほぞん <small style="display:block;font-weight:normal;font-size:11px;opacity:.85;">どの3Dプリンターでも つかえる</small></button>
+      <button class="action-btn" id="btnSave3MF">📥 3MFで 保存 <small style="display:block;font-weight:normal;font-size:11px;opacity:.85;">色付き・2色プリントできる</small></button>
+      <button class="action-btn green" id="btnSaveSTL">📥 STLで 保存 <small style="display:block;font-weight:normal;font-size:11px;opacity:.85;">どの3Dプリンターでも 使える</small></button>
 
       <div class="status-msg" id="statusMsg"></div>
-      <button class="action-btn grey" id="btnBackEdit" style="margin-top:10px;padding:12px;">◀ もどって なおす</button>
+      <button class="action-btn grey" id="btnBackEdit" style="margin-top:10px;padding:12px;">◀ 戻って なおす</button>
     </div>
   </div>
 
@@ -218,8 +218,8 @@
 
 <!-- ナビ -->
 <div class="nav">
-  <button class="back" id="btnBack">◀ もどる</button>
-  <button class="next" id="btnNext">つぎへ ▶</button>
+  <button class="back" id="btnBack">◀ 戻る</button>
+  <button class="next" id="btnNext">次へ ▶</button>
 </div>
 
 </div><!-- /.side -->
@@ -264,54 +264,54 @@ const HOLE_RIN  = 6.23;  // mm(前スケール): 中央の穴の半径（ボー�
 
 // 高さ（文字の押し出し）3段階
 const DEPTH_LEVELS = [
-  { depth: 1, name: 'ひくい', mm: '1mm' },
+  { depth: 1, name: '低い', mm: '1mm' },
   { depth: 3, name: 'ふつう', mm: '3mm' },
-  { depth: 5, name: 'たかい', mm: '5mm' },
+  { depth: 5, name: '高い', mm: '5mm' },
 ];
 
 // フィラメントの色（Bambu Lab 純正 PLA Basic・公式hex）
 // 使用プリンター: Bambu Lab P1S / 純正フィラメント
 const FILAMENTS = [
-  { name: 'くろ',    short: '黒', hex: 0x000000 },  // Black
-  { name: 'しろ',    short: '白', hex: 0xffffff },  // Jade White
-  { name: 'はいいろ', short: '灰', hex: 0x8e9089 },  // Gray
-  { name: 'みずいろ', short: '水', hex: 0x00b1b7 },  // Turquoise
-  { name: 'ぴんく',  short: '桃', hex: 0xf5547c },  // Hot Pink
-  { name: 'おれんじ', short: '橙', hex: 0xff6a13 },  // Orange
-  { name: 'みどり',  short: '緑', hex: 0x00ae42 },  // Bambu Green
+  { name: '黒',      short: '黒', hex: 0x000000 },  // Black
+  { name: '白',      short: '白', hex: 0xffffff },  // Jade White
+  { name: '灰色',    short: '灰', hex: 0x8e9089 },  // Gray
+  { name: '水色',    short: '水', hex: 0x00b1b7 },  // Turquoise
+  { name: 'ピンク',  short: '桃', hex: 0xf5547c },  // Hot Pink
+  { name: 'オレンジ', short: '橙', hex: 0xff6a13 },  // Orange
+  { name: '緑',      short: '緑', hex: 0x00ae42 },  // Bambu Green
 ];
 
 // ── 土台の形の定義 ───────────────────────────────────────────────
 // half: 文字を動かせる範囲（土台の内側のおよその半分の大きさ mm）
 const SHAPES = [
-  { id: 'roundrect', name: 'しかく',   half: { x: 72, y: 34 } },
-  { id: 'square',    name: 'ましかく', half: { x: 40, y: 40 } },
-  { id: 'longrect',  name: 'ながしかく', half: { x: 75, y: 19 } },
-  { id: 'circle',    name: 'まる',     half: { x: 42, y: 42 } },
-  { id: 'ellipse',   name: 'たまご',   half: { x: 62, y: 38 } },
-  { id: 'hexagon',   name: 'ろっかく', half: { x: 46, y: 40 } },
+  { id: 'roundrect', name: '四角',   half: { x: 72, y: 34 } },
+  { id: 'square',    name: '正方形', half: { x: 40, y: 40 } },
+  { id: 'longrect',  name: '長四角', half: { x: 75, y: 19 } },
+  { id: 'circle',    name: '丸',     half: { x: 42, y: 42 } },
+  { id: 'ellipse',   name: 'たまご', half: { x: 62, y: 38 } },
+  { id: 'hexagon',   name: '六角',   half: { x: 46, y: 40 } },
   { id: 'heart',     name: 'ハート',   half: { x: 40, y: 26 } },
-  { id: 'star',      name: 'ほし',     half: { x: 36, y: 30 } },
-  { id: 'cloud',     name: 'くも',     half: { x: 58, y: 22 } },
-  { id: 'fish',      name: 'さかな',   half: { x: 44, y: 24 } },
-  { id: 'cat',       name: 'ねこ',     half: { x: 40, y: 26 } },
-  { id: 'car',       name: 'くるま',   half: { x: 60, y: 15 } },
+  { id: 'star',      name: '星',     half: { x: 36, y: 30 } },
+  { id: 'cloud',     name: '雲',     half: { x: 58, y: 22 } },
+  { id: 'fish',      name: '魚',     half: { x: 44, y: 24 } },
+  { id: 'cat',       name: '猫',     half: { x: 40, y: 26 } },
+  { id: 'car',       name: '車',     half: { x: 60, y: 15 } },
   { id: 'bubble',    name: 'ふきだし', half: { x: 64, y: 32 } },
   { id: 'onigiri',   name: 'おにぎり', half: { x: 34, y: 22 } },
-  { id: 'flower',    name: 'はな',     half: { x: 34, y: 30 } },
+  { id: 'flower',    name: '花',     half: { x: 34, y: 30 } },
   { id: 'clover',    name: 'クローバー', half: { x: 46, y: 18 } },
   { id: 'ribbon',    name: 'リボン',   half: { x: 52, y: 16 } },
-  { id: 'train',     name: 'でんしゃ', half: { x: 62, y: 22 } },
-  { id: 'web',       name: 'くものす', half: { x: 36, y: 26 } },
+  { id: 'train',     name: '電車',   half: { x: 62, y: 22 } },
+  { id: 'web',       name: 'くもの巣', half: { x: 36, y: 26 } },
 ];
 
 // かさねる（合体）で使える形は、つなぎ目が読みやすい単純な図形だけにする
 const SUB_SHAPES = [
-  { id: 'none',     name: 'かさねない' },
-  { id: 'circle',   name: 'まる' },
-  { id: 'triangle', name: 'さんかく' },
-  { id: 'square',   name: 'しかく' },
-  { id: 'hexagon',  name: 'ろっかく' },
+  { id: 'none',     name: '重ねない' },
+  { id: 'circle',   name: '丸' },
+  { id: 'triangle', name: '三角' },
+  { id: 'square',   name: '四角' },
+  { id: 'hexagon',  name: '六角' },
   { id: 'diamond',  name: 'ダイヤ' },
 ];
 
@@ -1094,7 +1094,7 @@ canvas.addEventListener('pointerup', e => {
 // ══════════════════════════════════════════════════════════════════
 //  UI 構築
 // ══════════════════════════════════════════════════════════════════
-const STEP_CAPS = ['どだい', 'なまえ', 'フォント', 'おおきさ', 'うごかす', 'まわす', 'たかさ', 'いろ', 'あな'];
+const STEP_CAPS = ['土台', '名前', 'フォント', '大きさ', '動かす', '回す', '高さ', '色', '穴'];
 
 // ステップ丸
 const stepsEl = document.getElementById('steps');
@@ -1174,7 +1174,7 @@ function updateFloatWarn() {
   floatWarn.style.display = bad ? '' : 'none';
   if (bad) {
     const names = floatingChars.map(i => state.chars[i].char).join('');
-    floatWarn.textContent = `⚠「${names}」が どだいから はみ出してるよ！ 「うごかす」か「おおきさ」で なおしてね`;
+    floatWarn.textContent = `⚠「${names}」が 土台から はみ出してるよ！ 「動かす」か「大きさ」で なおしてね`;
   }
   refreshSaveButtons();
 }
@@ -1185,10 +1185,10 @@ function updateJoinMsg() {
   joinMsg.style.display = state.sub === 'none' ? 'none' : '';
   if (state.sub !== 'none') {
     if (!baseJoin.touching) {
-      joinMsg.textContent = '⚠ かたちが はなれているよ！ かさなるように うごかしてね';
+      joinMsg.textContent = '⚠ 形が はなれているよ！ 重なるように 動かしてね';
       joinMsg.style.color = '#f87171';
     } else if (baseJoin.widthMM < JOIN_MIN_MM) {
-      joinMsg.textContent = `⚠ くっつきかたが よわいよ（${baseJoin.widthMM.toFixed(1)}mm）。もっと ふかく かさねてね`;
+      joinMsg.textContent = `⚠ くっつきかたが 弱いよ（${baseJoin.widthMM.toFixed(1)}mm）。もっと 深く 重ねてね`;
       joinMsg.style.color = '#f87171';
     } else {
       joinMsg.textContent = `✓ しっかり くっついてるよ（${baseJoin.widthMM.toFixed(1)}mm）`;
@@ -1287,7 +1287,7 @@ function refreshChips() {
   document.querySelectorAll('[data-chips]').forEach(box => {
     box.innerHTML = '';
     if (!state.chars.length) {
-      box.innerHTML = '<span style="color:var(--muted);font-size:13px;">さきに ②で なまえを いれてね</span>';
+      box.innerHTML = '<span style="color:var(--muted);font-size:13px;">先に ②で 名前を 入れてね</span>';
       return;
     }
     state.chars.forEach((sel, i) => {
@@ -1367,7 +1367,7 @@ function updateSizeRange() {
   if (state.charSizeWanted < lo) state.charSizeWanted = lo;
   const f = fontDef(state.fontId);
   sizeHint.textContent = lo > CHAR_MIN
-    ? `「${f.name}」は せんが ほそいので ${(lo * MODEL_SCALE_XY).toFixed(1)}mm より 大きくするよ`
+    ? `「${f.name}」は 線が 細いので ${(lo * MODEL_SCALE_XY).toFixed(1)}mm より 大きくするよ`
     : '';
 }
 updateSizeRange();
@@ -1411,7 +1411,7 @@ const colorModeSeg = document.getElementById('colorModeSeg');
 function applyColorMode() {
   colorModeSeg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.mode === state.colorMode));
   document.getElementById('textColorBlock').style.display = state.colorMode === '2' ? 'block' : 'none';
-  document.getElementById('baseColorTitle').textContent = state.colorMode === '2' ? 'どだい（したの いた）の いろ' : 'ぜんたいの いろ';
+  document.getElementById('baseColorTitle').textContent = state.colorMode === '2' ? 'どだい（したの いた）の いろ' : '全体の 色';
 }
 colorModeSeg.querySelectorAll('button').forEach(btn => {
   btn.onclick = () => {
@@ -1703,10 +1703,10 @@ function save3MF() {
   try {
     downloadBlob(new Blob([export3MF()], { type: 'model/3mf' }),
                  `${plateFileBase()}_${nowStamp()}.3mf`);
-    setStatus('✓ 3MF を ほぞんしました');
+    setStatus('✓ 3MF を 保存しました');
   } catch (e) {
     console.error(e);
-    setStatus('⚠ ほぞんできませんでした');
+    setStatus('⚠ 保存できませんでした');
   }
 }
 
@@ -1717,10 +1717,10 @@ function saveSTL() {
     const data = new STLExporter().parse(modelGroup, { binary: true });
     downloadBlob(new Blob([data], { type: 'model/stl' }),
                  `${plateName()}_${nowStamp()}.stl`);
-    setStatus('✓ STL を ほぞんしました');
+    setStatus('✓ STL を 保存しました');
   } catch (e) {
     console.error(e);
-    setStatus('⚠ ほぞんできませんでした');
+    setStatus('⚠ 保存できませんでした');
   }
 }
 
@@ -1796,5 +1796,8 @@ refreshChips();
 renderFontPanel();
 goStep(0);
 </script>
+
+<!-- ひらがな切替（ヘッダー右上にボタンを足す） -->
+<script src="/js/kana.js"></script>
 </body>
 </html>

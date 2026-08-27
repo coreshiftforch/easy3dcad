@@ -56,6 +56,16 @@ body {
 }
 .app-head .home-link:hover { color: var(--ink); border-color: var(--accent); }
 
+/* ひらがな切替（kana.js がヘッダーの右はしに足す） */
+.kana-toggle {
+  margin-left: auto; flex: none;
+  background: var(--sunk); border: 1px solid var(--line); border-radius: 9px;
+  color: var(--dim); font: inherit; font-size: 12px; font-weight: bold;
+  padding: 7px 12px; cursor: pointer; white-space: nowrap;
+}
+.kana-toggle:hover { color: var(--ink); border-color: var(--accent); }
+.kana-toggle[aria-pressed="true"] { background: var(--accent-fill); border-color: var(--accent); color: #fff; }
+
 #app { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
 .scene {
