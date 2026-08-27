@@ -38,6 +38,7 @@
   var DB      = 'easy3dcad';           // IndexedDB の名前
   var STORE   = 'files';
   var VER     = 1;                     // 形を変えたら上げる（古い保存は捨てられる）
+  var HOME    = 'index.html';          // 「さいしょから」の行き先（3つから選ぶ画面）
   var KEEP_MS = 14 * 24 * 60 * 60 * 1000;   // 2週間より古い保存は使わない
   var WAIT_MS = 400;                   // これだけ何も起きなければ書く
 
@@ -193,7 +194,16 @@
         return Promise.resolve(null);
       }
       return ask(rec.label || '', ago(rec.at)).then(function (yes) {
-        if (!yes) { Resume.forget(page); return null; }
+        /* 「さいしょから」は、そのページの①ではなく **トップ（3つから選ぶ画面）** へ。
+           作り直すなら、まず何を作るかから選びたいため。
+           ★消しおわってから移ること。IndexedDB の削除は非同期なので、
+             待たずに移ると消し残ることがある。 */
+        if (!yes) {
+          return Resume.forget(page).then(function () {
+            location.href = HOME;
+            return new Promise(function () { });   // もう画面は組み立てない
+          });
+        }
         if (!rec.hasFile) return { data: rec.data, file: null, label: rec.label };
         return fileGet(page).then(function (f) {
           /* ファイルが消えていたら、つづきにできない（モデルが無い）。
@@ -268,12 +278,13 @@
       });
     },
 
-    /* 消す。「さいしょから」を選んだときと、最初の画面に戻ったとき。 */
+    /* 消す。「さいしょから」を選んだときと、最初の画面に戻ったとき。
+       IndexedDB のぶんが消えるまで待てるよう、Promise を返す。 */
     forget: function (page) {
       if (timers[page]) { clearTimeout(timers[page]); timers[page] = 0; }
       queued[page] = null;
       drop(page);
-      fileDrop(page);
+      return fileDrop(page);
     },
   };
 
