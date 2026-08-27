@@ -1829,13 +1829,19 @@ function syncControlsFromState() {
   syncHoleOpts();
 }
 
+const snapState = () => ({ ...state, chars: state.chars.map(c => ({ ...c })) });
+/* ★「まだ何もしていない」は、はじめの state と見くらべて決める。
+     「②以降か、名前を入れたときだけ」にしていたら、①で土台を選んだだけの
+     ときに何も覚えず、読み直しても聞かれなかった。 */
+const FRESH = JSON.stringify(snapState());
+
 function keepResume() {
-  // まだ何もしていない（①のまま・名前も空）なら、覚えることがない
-  if (state.step === 0 && !state.chars.length) { Resume.forget(RESUME); return; }
+  const now = snapState();
+  if (JSON.stringify(now) === FRESH) { Resume.forget(RESUME); return; }
   const nm = state.chars.map(c => c.char).join('');
   Resume.keep(RESUME, {
     label: MARU[state.step] + ' ' + STEP_CAPS[state.step] + (nm ? '　「' + nm + '」' : ''),
-    data: { ...state, chars: state.chars.map(c => ({ ...c })) },
+    data: now,
   });
 }
 // ★つまみ1つずつに足すのではなく、操作パネルと3Dの窓でまとめて受ける。

@@ -3000,15 +3000,19 @@ const MARU    = '①②③④⑤⑥⑦⑧';
 const sideEl  = document.querySelector('.side');
 const panelEl = document.getElementById('panel');
 
+/* ★「まだ何もしていない」は、はじめのつまみと見くらべて決める。
+     どれか1つでも動いていれば覚える（URLだけを見ていると取りこぼす）。 */
+const FRESH = JSON.stringify(Resume.readForm(panelEl));
+
 function keepResume(file) {
-  // まだ何もしていない（①のまま・URLも既定）なら、覚えることがない
-  if (qrStep === 0 && state.text === 'https://core-shift.jp' && !state.text2 && !state.box.mesh) {
+  const form = Resume.readForm(panelEl);
+  if (qrStep === 0 && !state.box.mesh && JSON.stringify(form) === FRESH) {
     Resume.forget(RESUME);
     return;
   }
   Resume.keep(RESUME, {
     label: MARU[qrStep] + ' ' + QR_STEPS[qrStep].short + '　' + (state.text || ''),
-    data: { step: qrStep, form: Resume.readForm(panelEl), map: state.box.map },
+    data: { step: qrStep, form, map: state.box.map },
     file,
   });
 }
