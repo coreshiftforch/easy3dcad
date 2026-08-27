@@ -1,0 +1,3014 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>QRキーホルダー ｜ かんたん3D CAD</title>
+<!-- ファイルを増やさないよう、アイコンはSVGを直接書いている（QRの目印の四角） -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f172a'/%3E%3Cg fill='%23fff'%3E%3Cpath d='M6 6h9v9H6zm2 2v5h5V8z'/%3E%3Cpath d='M17 6h9v9h-9zm2 2v5h5V8z'/%3E%3Cpath d='M6 17h9v9H6zm2 2v5h5v-5z'/%3E%3Crect x='17' y='17' width='3' height='3'/%3E%3Crect x='23' y='17' width='3' height='3'/%3E%3Crect x='20' y='20' width='3' height='3'/%3E%3Crect x='17' y='23' width='3' height='3'/%3E%3Crect x='23' y='23' width='3' height='3'/%3E%3C/g%3E%3C/svg%3E">
+
+<!-- QRコード生成（グローバル qrcode） -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+
+<!-- Three.js は ESモジュール。file:// では動かないので server.py 経由で開く -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<link rel="stylesheet" href="css/common.css">
+<style>
+/* ── QRキーホルダー固有の見た目 ────────────────────────
+   もとのアプリの class 名（.sec / .cards / .swatches / aria-pressed …）は
+   JSがそのまま触るので変えず、共通デザインの色・形にあてはめている。
+   ────────────────────────────────────────────────────── */
+
+/* いま作業しているシーンだけを出す */
+.sec { display: none; }
+.sec.now { display: block; }
+.sec > h2 {
+  margin: 0 0 10px; font-size: 15px; font-weight: bold;
+  display: flex; align-items: center; gap: 8px;
+}
+.sec > h2 .n {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-size: 12px; display: grid; place-items: center; flex: none;
+}
+
+/* ラベル＋数値の行 */
+label.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 0 3px; }
+label.row span { font-size: 13px; color: var(--text); }
+label.row b { font-size: 13px; color: var(--accent2); font-variant-numeric: tabular-nums; }
+.rt { display: flex; align-items: center; gap: 8px; }
+
+/* 小さい補助ボタン */
+button.mini {
+  padding: 5px 11px; border: 1px solid var(--line); background: var(--panel2); border-radius: 8px;
+  font: inherit; font-size: 11px; color: var(--muted); cursor: pointer; line-height: 1.6;
+}
+button.mini:hover { border-color: var(--accent2); color: var(--text); }
+
+/* 入力欄 */
+input[type=text] {
+  width: 100%; padding: 11px 12px; border: 2px solid var(--line); border-radius: 12px;
+  font-size: 14px; font-family: inherit; background: var(--panel2); color: var(--text);
+}
+input[type=text]:focus { outline: none; border-color: var(--accent2); }
+select {
+  width: 100%; padding: 10px 12px; border: 2px solid var(--line); border-radius: 10px;
+  font: inherit; font-size: 13px; background: var(--panel2); color: var(--text); cursor: pointer;
+}
+select:focus { outline: none; border-color: var(--accent2); }
+input[type=file] { width: 100%; font: inherit; font-size: 12px; color: var(--muted); margin-top: 5px; }
+
+/* 選択トグル（もとは aria-pressed で押した状態を表す） */
+.seg { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.seg button { flex: 1 1 0; min-width: 56px; }
+.seg button[aria-pressed=true] { border-color: var(--accent2); background: var(--accent); color: #fff; }
+
+.quick-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+/* おすすめレシピ */
+.recipe-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.recipe-grid button {
+  padding: 11px 10px; border: 2px solid var(--line); background: var(--panel2); border-radius: 10px;
+  font: inherit; font-size: 12px; line-height: 1.4; cursor: pointer; text-align: left; color: var(--text);
+}
+.recipe-grid button:hover { border-color: var(--accent2); background: #17325e; }
+.recipe-grid button small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+
+/* かたちのカード */
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cards button {
+  padding: 13px 8px; border: 2px solid var(--line); background: var(--panel2); border-radius: 12px;
+  font: inherit; cursor: pointer; text-align: center; color: var(--text);
+}
+.cards button svg { display: block; margin: 0 auto 6px; }
+.cards button[aria-pressed=true] { border-color: var(--accent2); background: #17325e; outline: 2px solid var(--accent); }
+.cards button small { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+/* 色見本 */
+.swatches { display: flex; gap: 7px; flex-wrap: wrap; }
+.swatches button {
+  width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; padding: 0;
+}
+.swatches button[aria-pressed=true] { border-color: var(--accent2); box-shadow: 0 0 0 3px rgba(59,130,246,.35); }
+
+/* 読みこんだ色 → フィラメントの割りあて */
+.maprow { display: flex; align-items: center; gap: 7px; margin: 8px 0; }
+.maprow .chip {
+  width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--line);
+  flex: none; background: none; padding: 0; font-size: 0;   /* 共通の .chip を打ち消す */
+}
+.maprow .arw { font-size: 12px; color: var(--muted); flex: none; }
+.maprow .swatches { gap: 5px; }
+.maprow .swatches button { width: 22px; height: 22px; border-width: 2px; }
+.maprow .swatches button.keep {
+  background: repeating-linear-gradient(45deg, var(--line) 0 4px, var(--panel2) 4px 8px);
+  font-size: 9px; color: var(--text);
+}
+
+/* 情報ボックス */
+.info {
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; font-size: 12px; color: var(--muted); line-height: 1.75;
+}
+.info b { color: var(--text); font-variant-numeric: tabular-nums; }
+.info .bad  { color: #fca5a5; font-weight: bold; }
+.info .good { color: var(--ok2); font-weight: bold; }
+
+/* ダウンロードボタン */
+.dl { display: grid; gap: 8px; }
+.dl button {
+  padding: 13px; border-radius: 12px; border: 2px solid var(--line); background: var(--panel2);
+  font: inherit; font-size: 14px; cursor: pointer; text-align: left; color: var(--text);
+}
+.dl button:hover { border-color: var(--accent2); }
+.dl button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: bold; }
+.dl button.primary:hover { background: var(--accent2); }
+.dl button small { display: block; font-size: 11px; opacity: .8; font-weight: normal; margin-top: 2px; }
+.dl button:disabled { opacity: .35; cursor: not-allowed; }
+
+/* くわしい設定（折りたたみ） */
+details.adv summary {
+  cursor: pointer; font-size: 13px; color: var(--accent2); font-weight: bold;
+  padding: 6px 0; user-select: none;
+}
+details.adv[open] summary { margin-bottom: 8px; }
+
+#err {
+  display: none; margin: 10px 0 0; padding: 10px 12px; border-radius: 10px;
+  background: #3f1414; border: 1px solid var(--danger); color: #fecaca; font-size: 12.5px;
+}
+
+/* ── 3Dビューに重ねるもの ───────────────────────────── */
+.stage canvas { display: block; width: 100%; height: 100%; }
+
+/* ★width:max-content が要る。left:50% だけだと、幅が「left から右端まで」に
+   しぼられてしまい、画面がせまいとボタンが潰れて縦書きになる（スマホで発覚） */
+#viewbar {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: 16px;
+  width: max-content; max-width: calc(100% - 24px);
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
+  background: rgba(30,41,59,.92); border: 1px solid var(--line); padding: 6px;
+  border-radius: 12px; backdrop-filter: blur(6px); z-index: 3;
+}
+#viewbar button {
+  white-space: nowrap;
+  padding: 9px 15px; border: 0; border-radius: 9px; background: transparent; font: inherit;
+  font-size: 12.5px; font-weight: bold; cursor: pointer; color: var(--muted);
+}
+#viewbar button:hover { color: var(--text); }
+#viewbar button[aria-pressed=true] { background: var(--accent); color: #fff; }
+
+/* QRプレビュー。2枚あるときは横に並べる（縦に積むとビューを覆ってしまう） */
+#qrpv {
+  position: absolute; right: 16px; top: 16px; padding: 9px;
+  display: flex; gap: 10px; z-index: 3;
+  background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.4);
+}
+#qrpv figure { margin: 0; width: 112px; }
+/* ★height:auto を必ず書くこと。上の `.stage canvas{height:100%}` は同じ強さで、
+   あとから書いた aspect-ratio より「高さの指定」のほうが優先されるため、
+   これが無いとQRが縦に引きのばされる */
+#qrpv canvas {
+  width: 100%; height: auto; aspect-ratio: 1; display: block; image-rendering: pixelated;
+  border: 1px solid #dfe4ea; border-radius: 6px; background: #fff;
+}
+#qrpv figcaption {
+  font-size: 12.5px; font-weight: bold; color: #1d2430; text-align: center;
+  margin-top: 6px; letter-spacing: .04em;
+}
+#qrpv:not(.two) figcaption { display: none; }
+
+#hint {
+  position: absolute; left: 16px; top: 16px; font-size: 11px; color: var(--muted);
+  background: rgba(15,23,42,.8); padding: 5px 10px; border-radius: 8px; pointer-events: none;
+}
+
+/* 指で触る画面：当たり判定を広げる／QRプレビューを小さく */
+@media (max-width: 900px) {
+  #qrpv { padding: 6px; gap: 6px; }
+  #qrpv figure { width: 78px; }
+  #qrpv figcaption { font-size: 11px; margin-top: 4px; }
+  #hint { display: none; }
+  #viewbar { bottom: 10px; padding: 5px; gap: 4px; }
+  #viewbar button { padding: 8px 11px; font-size: 12px; }
+  /* 色の割りあては「モデルの色→」を上の行に出して、色見本に幅をぜんぶ使わせる */
+  .maprow { flex-wrap: wrap; }
+  .maprow .swatches { flex: 1 1 100%; }
+  .recipe-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="title">🔳 QRキーホルダー</span>
+  <span class="spacer"></span>
+  <a class="home-link" href="index.html">◀ メニュー</a>
+</header>
+
+<div class="main">
+
+  <div class="stage" id="view">
+    <div id="hint">クリック＝QRを外す→もう1回で裏返す／ドラッグ＝回転／ホイール＝拡大</div>
+    <div id="qrpv">
+      <figure id="qrfig1"><canvas id="qrcv"></canvas><figcaption id="qrcap1">QR①</figcaption></figure>
+      <figure id="qrfig2" style="display:none"><canvas id="qrcv2"></canvas><figcaption id="qrcap2">QR②</figcaption></figure>
+    </div>
+    <div id="viewbar">
+      <button data-v="assembled" aria-pressed="true">組み立て</button>
+      <button data-v="exploded">分解</button>
+      <button data-v="print">印刷の並び</button>
+      <button data-toggle="coin" title="実物大の10円玉（φ23.5mm）をとなりに置きます">大きさ比較</button>
+    </div>
+  </div>
+
+  <div class="side">
+
+    <!-- ステップ表示（paintSteps が中身をつくる） -->
+    <div class="steps" id="steps"></div>
+
+    <div class="panel" id="panel">
+
+    <div class="sec" id="secUrl">
+      <h2><span class="n">1</span>URL・テキスト</h2>
+      <label class="row" for="url" style="margin-top:0"><span>おもて面</span></label>
+      <input type="text" id="url" value="https://core-shift.jp" spellcheck="false"
+             placeholder="https://example.com">
+      <label class="row" for="url2"><span>うら面<small style="opacity:.8">（空なら片面だけ）</small></span></label>
+      <input type="text" id="url2" value="" spellcheck="false"
+             placeholder="入れると、うら面にも別のQRが付きます">
+      <div class="quick-row">
+        <button type="button" class="mini" data-sample-url="https://core-shift.jp">サンプルURL</button>
+        <button type="button" class="mini" data-sample-url="">空にする</button>
+      </div>
+      <div id="err"></div>
+      <div class="info" id="qrinfo" style="margin-top:9px"></div>
+    </div>
+
+    <div id="secShape" class="sec">
+      <h2><span class="n">2</span>かたち</h2>
+      <div class="cards" id="kind">
+        <button data-v="key" aria-pressed="true">
+          <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.6">
+            <circle cx="15" cy="5" r="2.6"/><rect x="5" y="9" width="20" height="17" rx="4"/>
+            <rect x="9" y="13" width="12" height="9" rx="2"/></svg>
+          キーホルダー<small>磁石でQRが外せる</small>
+        </button>
+        <button data-v="stand">
+          <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.4"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 5.5 11.5 17c-2.5 5-1.5 7.5 2.5 7.5H25"/></svg>
+          スタンド<small>店頭に置く</small>
+        </button>
+      </div>
+      <div class="note">よく使う目的から始める場合は、下のプリセットで大きさと形をまとめて合わせられます。</div>
+      <div class="recipe-grid" id="recipes">
+        <button type="button" data-kind="key" data-size="42" data-url="https://core-shift.jp">
+          小さめキーホルダー<small>配布しやすい軽いサイズ</small>
+        </button>
+        <button type="button" data-kind="key" data-size="56" data-url="https://core-shift.jp">
+          読み取り安定<small>余白とQRを大きめに確認</small>
+        </button>
+        <button type="button" data-kind="stand" data-size="90" data-url="https://core-shift.jp">
+          店頭スタンド<small>机や受付に置くサイズ</small>
+        </button>
+        <button type="button" data-kind="key" data-size="48" data-url="https://core-shift.jp">
+          イベント配布<small>まとめ刷り前提の標準</small>
+        </button>
+      </div>
+    </div>
+
+    <div id="secSize" class="sec">
+      <h2><span class="n">3</span>大きさ</h2>
+      <label class="row"><span id="sizeLabel">本体の一辺</span>
+        <span class="rt"><button type="button" class="mini" id="sizeReset">既定に戻す</button><b id="sizeV">48 mm</b></span></label>
+      <input type="range" id="size" min="36" max="120" step="1" value="48">
+      <div class="note">QRの誤り訂正は <b>H（30%まで欠けても読める）で固定</b>。
+        3Dプリントは色や影のコントラストが弱く誤読しやすいので、
+        下げると（実機で試したとおり）読めなくなります。</div>
+    </div>
+
+    <div id="secLayout" class="sec">
+      <h2><span class="n">4</span>レイアウト</h2>
+      <div id="layKey">
+        <label class="row" for="slotTileFront"><span>QRタイルのおもて（凸）</span></label>
+        <select data-slot="tileFront" id="slotTileFront"></select>
+        <label class="row" for="slotTileBack"><span>QRタイルのうら（彫りこみ）</span></label>
+        <select data-slot="tileBack" id="slotTileBack"></select>
+        <label class="row" for="slotBodyBack"><span>ぜんたいのうら（彫りこみ）</span></label>
+        <select data-slot="bodyBack" id="slotBodyBack"></select>
+      </div>
+      <div id="layStand" style="display:none">
+        <label class="row" for="slotPlateFront"><span>プレートのおもて（凸）</span></label>
+        <select data-slot="plateFront" id="slotPlateFront"></select>
+        <label class="row" for="slotPlateBack"><span>プレートのうら（彫りこみ）</span></label>
+        <select data-slot="plateBack" id="slotPlateBack"></select>
+      </div>
+      <div class="note">もとのURLが空なら、その面は素のままになります。
+        <b>はめ込み（ロゴ）</b>を選ぶと、自分で作ったロゴの四角柱・円柱が落ちこむ受け口を開けます。</div>
+
+      <div id="boxPanel" style="display:none; margin-top:12px; border-top:1px dashed var(--line); padding-top:10px">
+        <label class="row"><span>入れかた</span></label>
+        <div class="seg" id="boxJoin">
+          <button data-v="flush" aria-pressed="true">地続き（すきま0）</button>
+          <button data-v="part">差し替え（すきまあり）</button>
+        </div>
+        <div class="note" id="joinNote">すきま0でぴったり入れます。<b>刷ると融合して1つの固まり</b>に
+          なるので、面はツライチで継ぎ目のすき間が出ません。色は「5 色」の
+          <b>ロゴ</b>で選べます（板と同じ色にすれば線も見えなくなります）。
+          あとから差し替えることはできません。</div>
+        <label class="row"><span>はめ込むもの（ロゴ）</span></label>
+        <div class="seg" id="boxKind">
+          <button data-v="rect" aria-pressed="true">四角柱</button>
+          <button data-v="round">円柱</button>
+        </div>
+        <label class="row"><span>どう決めるか</span></label>
+        <div class="seg" id="boxSrc">
+          <button data-v="size" aria-pressed="true">寸法を決める</button>
+          <button data-v="stl">3Dモデルを読みこむ</button>
+        </div>
+
+        <div id="boxSize">
+          <div id="boxRect">
+            <label class="row"><span>一辺（幅＝奥行き）</span><b id="bsideV">20.0 mm</b></label>
+            <input type="range" id="bside" min="4" max="120" step="0.5" value="20">
+          </div>
+          <div id="boxRound" style="display:none">
+            <label class="row"><span>直径</span><b id="bdiaV">20.0 mm</b></label>
+            <input type="range" id="bdia" min="4" max="120" step="0.5" value="20">
+          </div>
+          <label class="row"><span>高さ（Z）＝受け口の深さ</span><b id="bhV">2.0 mm</b></label>
+          <input type="range" id="bh" min="0.6" max="10" step="0.1" value="2">
+        </div>
+
+        <div id="boxStl" style="display:none">
+          <input type="file" id="stlFile" accept=".stl,.obj,.3mf">
+          <div id="boxMap" style="display:none; margin-top:10px">
+            <label class="row"><span>読みこんだ色 → 使うフィラメント</span></label>
+            <div id="boxMapRows"></div>
+            <div class="note">左が<b>モデルの色</b>、右が<b>使うフィラメント</b>。
+              読みこんだときに、いちばん近い色を自動で選んであります。
+              いちばん左の斜線は「<b>もとの色のまま</b>」です。</div>
+          </div>
+          <label class="row"><span>ロゴの向き（面から見て）</span></label>
+          <div class="seg" id="boxTurn">
+            <button data-v="0" aria-pressed="true">0°</button>
+            <button data-v="90">90°</button>
+            <button data-v="180">180°</button>
+            <button data-v="270">270°</button>
+          </div>
+          <div class="seg" id="boxFlip" style="margin-top:6px">
+            <button data-v="0" aria-pressed="true">そのまま</button>
+            <button data-v="1">裏返す</button>
+          </div>
+          <div class="note">読みこんだモデルは <b>+Z がわ（上）が見せたい面</b>として入れます。
+            逆さに作ってあって<b>絵が裏から出ている</b>ときは「裏返す」を押してください。<br>
+            四角柱で 90°／270° にすると、受け口の<b>タテヨコも入れかわります</b>。</div>
+          <label class="row"><span>倍率</span></label>
+          <div class="seg" id="boxScale">
+            <button data-v="1" aria-pressed="true">×1（mm）</button>
+            <button data-v="1000">×1000</button>
+            <button data-v="25.4">×25.4</button>
+          </div>
+          <label class="row"><span>高さ（厚み）</span></label>
+          <div class="seg" id="boxSquash">
+            <button data-v="1" aria-pressed="true">おさえる</button>
+            <button data-v="0">モデルのまま</button>
+          </div>
+          <div id="boxHmax">
+            <label class="row"><span>高さの上限</span><b id="bhmaxV">0.60 mm</b></label>
+            <input type="range" id="bhmax" min="0.4" max="3" step="0.1" value="0.6">
+          </div>
+          <div class="note">ロゴは<b>見える面の絵</b>が本体なので、厚みは 0.6mm もあれば十分です。
+            上限を超えたモデルは<b>高さだけを縮めます</b>（タテヨコはそのまま・絵は変わりません）。<br>
+            ★<b>0.6mm 以下なら、本体を厚くしなくてもそのまま収まります</b>
+            （深いと受け口が肉を突きぬけるので、その部品を厚くするしかなく、
+            スタンドでは「入りません」になります）。</div>
+
+          <label class="row"><span>大きさの微調整</span><b id="bfineV">×1.00</b></label>
+          <input type="range" id="bfine" min="1" max="1.5" step="0.01" value="1">
+          <div class="note">読みこんだ<b>ロゴ（アイコン）だけ</b>を、そのままの大きさ（×1.00）から
+            <b>×1.50</b> まで少しずつ大きくできます。タテヨコだけでなく<b>厚み（＝受け口の深さ）も
+            同じ倍率</b>で大きくなります（形は変わりません）。<b>受け口も一緒に大きくなる</b>ので
+            はめ合いは変わりません。面に入らなくなったときは、その面には受け口を開けずに
+            下の案内に出します（倍率を下げるか、本体を大きくしてください）。</div>
+          <div class="note">読めるのは <b>STL（バイナリ／ASCII）・OBJ・3MF</b> の3つ。
+            Blenderの「エクスポート」からどれで出してもOKです。<br>
+            <b>3MFは単位が書いてある</b>ので倍率は要りません。STL・OBJは単位が無いので、
+            <b>1単位＝1mm</b> のつもりで作っていれば ×1 のままで合います。</div>
+        </div>
+
+        <div id="boxFitRow" style="display:none">
+          <label class="row"><span>すきま（片側）</span><b id="bfitV">0.20 mm</b></label>
+          <input type="range" id="bfit" min="0.05" max="0.6" step="0.05" value="0.2">
+        </div>
+        <div class="info" id="boxinfo" style="margin-top:8px"></div>
+        <div class="dl" style="margin-top:8px">
+          <button id="dlbox">はめ込むものだけSTL<small>Blenderでロゴを乗せる下地に</small></button>
+        <button id="loadbox">3Dモデルを読みこむ<small>もう作ってあるものをはめる（STL / OBJ / 3MF）</small></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="secColor" class="sec">
+      <h2><span class="n">5</span>色</h2>
+      <label class="row" style="margin-top:0"><span>QR①（アイコン①も）</span><b id="c1n"></b></label>
+      <div class="swatches" id="cQr1"></div>
+      <label class="row" style="margin-top:11px"><span>QR②（アイコン②も）</span><b id="c2n"></b></label>
+      <div class="swatches" id="cQr2"></div>
+      <label class="row" style="margin-top:11px"><span>QRの本体（タイル／プレート）</span><b id="c3n"></b></label>
+      <div class="swatches" id="cTile"></div>
+      <label class="row" style="margin-top:11px"><span>本体（わく・中ぶた／脚）</span><b id="c4n"></b></label>
+      <div class="swatches" id="cBody"></div>
+      <label class="row" style="margin-top:11px"><span>ロゴ（はめ込み）</span><b id="c5n"></b></label>
+      <div class="swatches" id="cLogo"></div>
+      <div class="note">★<b>読みこんだ3MFに色が付いていれば、その色がそのまま残ります</b>
+        （色ごとに別パーツになるので、スライサーでフィラメントを割りあてられます）。
+        下のロゴの色は、色の付いていないモデルや「寸法を決める」で作った柱に使われます。<br>
+        はめ込みは「地続き」でも<b>別パーツとして色を選べます</b>
+        （すきま0でぴったり接しているので、刷ると融合して1つの固まりになります）。
+        板と同じ色にすれば、継ぎ目の線も見えなくなります。</div>
+    </div>
+
+    <div id="secAdv" class="sec">
+      <details class="adv">
+        <summary>くわしい設定</summary>
+        <label class="row"><span>QRの凸の高さ</span><b id="qrhV">0.6 mm</b></label>
+        <input type="range" id="qrh" min="0.4" max="1.6" step="0.1" value="0.6">
+        <label class="row"><span>QRのまわりの余白</span><b id="marV">2.5 mm</b></label>
+        <input type="range" id="mar" min="1.5" max="6" step="0.5" value="2.5">
+
+        <div id="advKey">
+          <label class="row"><span>磁石</span><b></b></label>
+          <div class="seg" id="mag">
+            <button data-v="6.5x3" aria-pressed="true">φ6.5×3</button>
+            <button data-v="6x2">φ6×2</button>
+            <button data-v="6x3">φ6×3</button>
+            <button data-v="8x3">φ8×3</button>
+          </div>
+          <label class="row"><span>ふちの立ち上がり</span><b id="rimV">2.0 mm</b></label>
+          <input type="range" id="rim" min="1" max="3.5" step="0.1" value="2">
+          <label class="row"><span>キーリング穴</span><b id="ringV">4 mm</b></label>
+          <input type="range" id="ring" min="3" max="6" step="0.5" value="4">
+        </div>
+
+        <div id="advStand" style="display:none">
+          <label class="row"><span>傾き</span><b id="tiltV">22°</b></label>
+          <input type="range" id="tilt" min="10" max="32" step="1" value="22">
+          <label class="row"><span>奥行（うしろの足）</span><b id="depthV">55 mm</b></label>
+          <input type="range" id="depth" min="35" max="90" step="1" value="55">
+          <label class="row"><span>曲がりの半径</span><b id="bendV">10 mm</b></label>
+          <input type="range" id="bend" min="5" max="24" step="1" value="10">
+          <label class="row"><span>板の厚み</span><b id="sheetV">5.0 mm</b></label>
+          <input type="range" id="sheet" min="4" max="8" step="0.5" value="5">
+        </div>
+      </details>
+    </div>
+
+    <div id="secOut" class="sec download-sec">
+      <h2><span class="n">6</span>ダウンロード</h2>
+      <div class="dl">
+        <button class="primary" id="dl3mf">3MF をダウンロード
+          <small>色つき・スライサーはこちら推奨</small></button>
+        <button id="dlstl">STL をダウンロード<small>単色・全パーツ1ファイル</small></button>
+        <button id="dlpng">QR画像（PNG）</button>
+      </div>
+      <div class="info" id="partinfo" style="margin-top:10px"></div>
+      <div class="info" id="howto" style="margin-top:10px"></div>
+    </div>
+
+    <div id="secPlate" class="sec">
+      <h2><span class="n">7</span>まとめ刷り</h2>
+      <label class="row" for="plate"><span>プレート（ベッド）の大きさ</span></label>
+      <select id="plate"></select>
+      <label class="row"><span>セット数</span>
+        <span class="rt"><button type="button" class="mini" id="setsMax">いっぱいまで</button>
+        <b id="setsV">1 セット</b></span></label>
+      <input type="range" id="sets" min="1" max="24" step="1" value="1">
+      <div class="info" id="plateinfo" style="margin-top:9px"></div>
+      <div class="dl" style="margin-top:9px">
+        <button class="primary" id="dlplate3mf">プレートの3MF
+          <small>色つき・これ1枚で刷れます</small></button>
+        <button id="dlplatestl">プレートのSTL<small>単色・全部で1ファイル</small></button>
+      </div>
+      <div class="note">部品どうしは <b>4mm</b>、ふちからは <b>5mm</b> 空けて、
+        背の高い順に段を作って詰めています。入りきらないときはセット数を自動で減らします。
+        並びはスライサーで開いて確かめてください。</div>
+    </div>
+
+    </div><!-- /.panel -->
+
+    <div class="nav">
+      <button class="back" id="navBack">◀ もどる</button>
+      <button class="next" id="navNext">つぎへ ▶</button>
+    </div>
+
+  </div><!-- /.side -->
+</div><!-- /.main -->
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
+
+/* ══════════════════════════════════════════════════════════════
+   設定
+   ══════════════════════════════════════════════════════════════ */
+const FILAMENTS = [
+  { name:'黒',   hex:0x1a1a1a }, { name:'白',   hex:0xf2f2f2 }, { name:'灰',  hex:0x8f959c },
+  { name:'水色', hex:0x2ea7e0 }, { name:'桃',   hex:0xe86a9a }, { name:'橙',  hex:0xf08a24 },
+  { name:'緑',   hex:0x3fa96b }, { name:'黄',   hex:0xf5cf3d },
+];
+// 既定は100円ショップの丸型磁石（φ6.5×3mm）。ほかは手持ちのネオジムに合わせて選ぶ用
+const MAGNETS = { '6.5x3':[6.5,3], '6x2':[6,2], '6x3':[6,3], '8x3':[8,3] };
+// 分解ビューに出す磁石の見本の色（銀色の金属）。印刷する部品ではないのでフィラメントとは別
+const MAGNET_COLOR = 0xc3cad3;
+// 大きさ比べに出す10円玉（実物大 φ23.5×1.5mm・青銅色）
+const COIN = { d:23.5, t:1.5, color:0xb4703c, gap:8 };
+// 誤り訂正は H で固定。下げるとモジュールは大きくなるが、3Dプリントは色・影の
+// コントラストが弱くて誤読しやすく、余裕（30%）がないと読めない（実機で確認済み）
+const EC = 'H';
+
+// キーホルダーの固定寸法（生成スクリプト qr_keyholder.py と同じ考え方）
+const K = {
+  floor: 0.6,        // 合わせ面から磁石までの肉厚（薄いほど磁力が強い）
+  ceil : 1.0,        // 磁石からおもて面までの肉厚
+  lift : 0.10,       // 磁石の深さの余裕
+  fit  : 0.25,       // 磁石穴の直径のすきま
+  recessFit: 0.4,    // くぼみ（＝わくの穴）をQRタイルより大きくする量
+  insertFit: 0.2,    // 中ぶたをわくの穴より小さくする量（接着してはめる）
+  tileGap : 8.0,     // 本体の一辺 − タイルの一辺
+  earRise : 3.0, earHW : 6.0,
+  embed: 0.2,        // 凸を板に食いこませる量
+  dowel   : 3.0,     // QRタイル上下をつなぐダボの直径
+  dowelFit: 0.30,    // ダボ穴の直径のすきま（手で押しこんで入る程度）
+  dowelTop: 0.25,    // 穴の底に残す余裕（ダボが底づきして浮かないように）
+  dowelIn : 4.0,     // ダボの位置をタイルのふちから内がわへ入れる量
+};
+const S = {
+  /* 受け口と舌のすきま。★口は広く・奥は狭い「くさび」にする（2026-08-14）。
+     0.35mm 一定だと差しても遊びが残ってカタつく（ユーザー指摘「うまく引っ付かなそう」）。
+     入り口を広くしておけば差しはじめは軽く、押しこむほど締まって、最後で止まる。 */
+  slotFit:0.22,          // 受け口の口がわのすきま
+  slotGrip:0.10,         // いちばん奥のすきま（ここで締まる）
+  slotDepth:9.0,         // 差し込みの長さ
+  archRise:0.18,         // プレート上辺のドームの高さ（幅に対する割合）
+};
+
+const SIZE_DEF = { key:48, stand:80 };   // 「既定に戻す」ボタンが戻す大きさ
+
+// はめ込み（自分で作った四角柱・円柱を落としこむ受け口）
+const BOX = {
+  minFit:0.05, maxFit:0.6,   // すきま（片側）の範囲
+  keep:0.4,                  // 受け口の底に必ず残す肉（磁石やダボにぶつからないように）
+};
+
+// まとめ刷りプレート。[表示名, 幅mm, 奥行mm]
+const PLATES = {
+  p1s   : ['Bambu P1S / X1 / A1（256×256）', 256, 256],
+  a1mini: ['Bambu A1 mini（180×180）',       180, 180],
+  mk4   : ['Prusa MK4（250×210）',           250, 210],
+  e220  : ['Ender 3 など（220×220）',        220, 220],
+  e300  : ['大きめ（300×300）',              300, 300],
+};
+const PL = {
+  margin: 5,     // プレートのふちから空ける量（ブリム・そりのため）
+  gap   : 4,     // 部品どうしのすきま
+  maxSet: 24,    // セット数の上限（スライダーの上限）
+  density: 1.24, // PLAの比重 g/cm³（材料のめやすを出すのに使う）
+};
+
+const state = {
+  text:'https://core-shift.jp', text2:'', kind:'key', size:48,
+  // 面ごとに「何を乗せるか」。もとのURLが空ならその面は素のまま
+  slots:{ tileFront:'qr1', tileBack:'qr2', bodyBack:'none', plateFront:'qr1', plateBack:'qr2' },
+  // はめ込み（四角柱／円柱）。どの面に置いても同じものが入る
+  box:{
+    kind:'rect',       // 'rect'＝四角柱／'round'＝円柱
+    join:'flush',      // 'flush'＝地続き（すきま0・同じ色・同じ部品）／'part'＝別部品
+    src:'size',        // 'size'＝寸法を決める／'stl'＝3Dモデルを読みこむ（STL/OBJ/3MF）
+    side:20,           // 四角柱の一辺（幅＝奥行き）
+    h:2.0,             // 高さ＝受け口の深さ（mm）
+    dia:20,            // 円柱の直径（mm）
+    fit:0.20,          // すきま（片側）
+    scale:1,           // 読みこんだモデルの倍率（1/1000で作ってしまったとき用。3MFは不要）
+    fine:1,            // 大きさの微調整（×1.00〜×1.50）。上の倍率にかけ算される
+    squash:true,       // 高さ（厚み）だけをつぶして上限におさえる
+    hmax:0.6,          // その上限（mm）。0.6なら本体を厚くしなくても収まる
+    turn:0,            // 読みこんだモデルの回し方（面から見て 0/90/180/270°）
+    flip:false,        // 読みこんだモデルを裏返す（自動で決めた向きの逆にする）
+    mesh:null, info:null,
+    map:[],            // 読みこんだ色 → 使うフィラメント（null＝もとの色のまま）
+  },
+  qrh:0.6, margin:2.5, mag:'6.5x3', rim:2.0, ring:4.0,
+  tilt:22, depth:55, sheet:5.0, bend:10,
+  // 色は5つ：QR①／QR②／QRの本体（タイル・プレート）／本体（わく・中ぶた・脚）／ロゴ
+  cQr1:0x1a1a1a, cQr2:0x8f959c, cTile:0xf2f2f2, cBody:0xf2f2f2, cLogo:0x2ea7e0,
+  view:'assembled',
+  coin:false,                   // 大きさ比べの10円玉を出すか
+  plate:'p1s', sets:1,          // まとめ刷り（既定は1セット。増やすときは「いっぱいまで」）
+};
+
+let current = null;          // いま組み立てているモデル
+let liftNow = 0, liftTo = 0; // クリックでQR側を持ち上げる量（現在値／目標値）
+let spinNow = 0, spinTo = 0; // 外したあと、もう一度クリックで裏返す角度（0 → π）
+
+/* ══════════════════════════════════════════════════════════════
+   QR
+   ══════════════════════════════════════════════════════════════ */
+qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+
+function makeQR(text, ec) {
+  const q = qrcode(0, ec);          // 0 = 必要なバージョンを自動で選ぶ
+  q.addData(text);
+  q.make();
+  const n = q.getModuleCount();
+  const rows = [];
+  for (let r = 0; r < n; r++) {
+    let s = '';
+    for (let c = 0; c < n; c++) s += q.isDark(r, c) ? '1' : '0';
+    rows.push(s);
+  }
+  return { n, rows, version:(n - 17) / 4 };
+}
+
+// 1のセルを、なるべく大きな長方形にまとめる（箱の数を1/3以下に減らす）
+function mergeRects(rows, w, h) {
+  const used = Array.from({ length:h }, () => new Uint8Array(w));
+  const out = [];
+  for (let y = 0; y < h; y++) {
+    const row = rows[y];
+    for (let x = 0; x < w; x++) {
+      if (used[y][x] || row[x] !== '1') continue;
+      let x2 = x;
+      while (x2 + 1 < w && row[x2 + 1] === '1' && !used[y][x2 + 1]) x2++;
+      let y2 = y;
+      outer: while (y2 + 1 < h) {
+        const r2 = rows[y2 + 1], u2 = used[y2 + 1];
+        for (let xx = x; xx <= x2; xx++) if (r2[xx] !== '1' || u2[xx]) break outer;
+        y2++;
+      }
+      for (let yy = y; yy <= y2; yy++) for (let xx = x; xx <= x2; xx++) used[yy][xx] = 1;
+      out.push([x, y, x2 - x + 1, y2 - y + 1]);
+    }
+  }
+  return out;
+}
+
+function drawOneQR(cv, qr) {
+  const n = qr.n, q = 2;
+  cv.width = cv.height = n + q * 2;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
+  g.fillStyle = '#000';
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++)
+    if (qr.rows[y][x] === '1') g.fillRect(x + q, y + q, 1, 1);
+}
+
+// 実際に置かれているQRだけをプレビューする（最大2枚）。
+// うら面のQRも「そちらから見たとき」の絵なので、鏡にはしない
+function drawQRPreview(info) {
+  const qrs = [];
+  for (const a of info.arts) {
+    if (a.art.kind !== 'qr' || qrs.some(q => q.item === a.art.item)) continue;
+    qrs.push({ item:a.art.item, qr:a.art.qr });
+  }
+  const pv = document.getElementById('qrpv');
+  pv.style.display = qrs.length ? '' : 'none';
+  pv.classList.toggle('two', qrs.length > 1);
+  [['qrfig1','qrcv','qrcap1'], ['qrfig2','qrcv2','qrcap2']].forEach(([f, c, cap], i) => {
+    const fig = document.getElementById(f);
+    fig.style.display = qrs[i] ? '' : 'none';
+    if (!qrs[i]) return;
+    document.getElementById(cap).textContent = ITEMS[qrs[i].item];
+    drawOneQR(document.getElementById(c), qrs[i].qr);
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   はめ込み（自分で作った四角柱を、受け口にぴったり落としこむ）
+   ★STLには単位が書かれていない。Blenderで scale_length を 1.0 のまま
+     mm のつもりで作ると数値はそのまま mm になるが、メートル単位で作ると
+     1/1000 になる。測った大きさをそのまま画面に出して、倍率で直せるようにしてある。
+   ══════════════════════════════════════════════════════════════ */
+function geomFromPositions(pos) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return g;
+}
+/* STL（バイナリ／ASCIIの両方）。バイナリかどうかは
+   「三角形の数からファイル長がぴったり合うか」で見る。
+   ★先頭が "solid" でもバイナリのことがあるので、そこでは判定しない */
+function parseSTL(buf) {
+  const dv = new DataView(buf);
+  if (buf.byteLength >= 84) {
+    const n = dv.getUint32(80, true);
+    if (n > 0 && buf.byteLength === 84 + n * 50) {
+      const pos = new Float32Array(n * 9);
+      let o = 84, k = 0;
+      for (let i = 0; i < n; i++) {
+        o += 12;                                   // 法線は読み飛ばす（自分で計算する）
+        for (let v = 0; v < 9; v++) { pos[k++] = dv.getFloat32(o, true); o += 4; }
+        o += 2;                                    // 属性バイト数
+      }
+      return [{ color:null, geom:geomFromPositions(pos) }];
+    }
+  }
+  const txt = new TextDecoder().decode(buf);
+  const re = /vertex\s+(-?[\d.eE+-]+)\s+(-?[\d.eE+-]+)\s+(-?[\d.eE+-]+)/g;
+  const nums = [];
+  let m;
+  while ((m = re.exec(txt))) nums.push(+m[1], +m[2], +m[3]);
+  if (nums.length < 9) throw new Error('STLとして読めませんでした');
+  return [{ color:null, geom:geomFromPositions(new Float32Array(nums)) }];
+}
+
+/* OBJ。v の行と f の行だけ見る（多角形は扇状に三角形へ） */
+function parseOBJ(txt) {
+  const vs = [], pos = [];
+  for (const line of txt.split(/\r?\n/)) {
+    if (line[0] === 'v' && line[1] === ' ') {
+      const p = line.trim().split(/\s+/);
+      vs.push([+p[1], +p[2], +p[3]]);
+    } else if (line[0] === 'f' && line[1] === ' ') {
+      const idx = line.trim().split(/\s+/).slice(1).map(t => {
+        const i = parseInt(t, 10);                 // 「1/2/3」は先頭だけ使う
+        return i > 0 ? i - 1 : vs.length + i;      // マイナスはうしろから数える
+      });
+      for (let k = 1; k + 1 < idx.length; k++)
+        for (const j of [idx[0], idx[k], idx[k + 1]]) {
+          const v = vs[j];
+          if (!v) throw new Error('OBJの面がこわれています');
+          pos.push(v[0], v[1], v[2]);
+        }
+    }
+  }
+  if (pos.length < 9) throw new Error('OBJとして読めませんでした');
+  return [{ color:null, geom:geomFromPositions(new Float32Array(pos)) }];
+}
+
+/* 3MF（＝ZIP＋XML）。★中央ディレクトリから読む。
+   ローカルヘッダの大きさは 0 のまま書かれることがあるので、そこは当てにできない */
+async function inflateRaw(u8) {
+  const st = new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(st).arrayBuffer());
+}
+async function unzipAll(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  let eo = -1;
+  for (let i = u8.length - 22; i >= 0 && i > u8.length - 66000; i--)
+    if (dv.getUint32(i, true) === 0x06054b50) { eo = i; break; }
+  if (eo < 0) throw new Error('ZIP（3MF）として読めませんでした');
+  const count = dv.getUint16(eo + 10, true), cd = dv.getUint32(eo + 16, true);
+  const out = {};
+  let p = cd;
+  for (let i = 0; i < count && dv.getUint32(p, true) === 0x02014b50; i++) {
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true);
+    const nl = dv.getUint16(p + 28, true), el = dv.getUint16(p + 30, true),
+          cl = dv.getUint16(p + 32, true), lho = dv.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nl));
+    const start = lho + 30 + dv.getUint16(lho + 26, true) + dv.getUint16(lho + 28, true);
+    const raw = u8.subarray(start, start + csize);
+    out[name] = method === 0 ? raw : await inflateRaw(raw);
+    p += 46 + nl + el + cl;
+  }
+  return out;
+}
+/* ★3MFはマテリアル（フィラメントの色）も持っている。
+   `<basematerials>` の `displaycolor` と、色グループ拡張 `<colorgroup>` の両方を見る。
+   色は「オブジェクトの pid/pindex」と「三角形ごとの pid/p1」の2段があり、
+   三角形のほうが強い。読んだあとは**色ごとに分けて**返し、パーツも色ごとに分ける。 */
+async function parse3MF(buf) {
+  const files = await unzipAll(new Uint8Array(buf));
+  const key = Object.keys(files).find(n => /3dmodel\.model$/i.test(n));
+  if (!key) throw new Error('3MFのなかにモデルが見つかりません');
+  const doc = new DOMParser().parseFromString(new TextDecoder().decode(files[key]), 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('3MFのXMLを読めませんでした');
+  // ★3MFには単位が書いてあるので、mmに直しておく（STL/OBJと違って倍率が要らない）
+  const U = { micron:0.001, millimeter:1, centimeter:10, inch:25.4, foot:304.8, meter:1000 }
+            [doc.documentElement.getAttribute('unit') || 'millimeter'] || 1;
+
+  // 名前空間を無視してタグを拾う（3MFは m: などの接頭辞が付くことがある）
+  const byTag = (root, name) => [...root.getElementsByTagName('*')]
+    .filter(e => e.localName === name);
+  const hex = c => {
+    const m = /^#?([0-9a-f]{6})/i.exec((c || '').trim());
+    return m ? parseInt(m[1], 16) : null;
+  };
+  // pid → 色の並び
+  const props = new Map();
+  for (const g of byTag(doc, 'basematerials'))
+    props.set(g.getAttribute('id'), byTag(g, 'base').map(b => hex(b.getAttribute('displaycolor'))));
+  for (const g of byTag(doc, 'colorgroup'))
+    props.set(g.getAttribute('id'), byTag(g, 'color').map(c => hex(c.getAttribute('color'))));
+
+  const objs = new Map();
+  for (const ob of byTag(doc, 'object')) objs.set(ob.getAttribute('id'), ob);
+
+  const groups = new Map();                       // 色 → 座標の並び（null＝色の指定なし）
+  const push = (col, a, b, c) => {
+    let arr = groups.get(col);
+    if (!arr) groups.set(col, arr = []);
+    for (const v of [a, b, c]) arr.push(v[0] * U, v[1] * U, v[2] * U);
+  };
+  const colorOf = (pid, idx) => {
+    const list = props.get(pid);
+    return list && list[idx] != null ? list[idx] : null;
+  };
+  /* 変換行列の合成。3MFの transform は 4行×3列を並べた12個で、
+     x' = m0x + m3y + m6z + m9（列が入力の軸）。P のあとに C を掛ける形にする */
+  const mul = (P, C) => {
+    if (!P) return C;
+    if (!C) return P;
+    const o = new Array(12);
+    for (let j = 0; j < 4; j++) for (let i = 0; i < 3; i++) {
+      let s = j === 3 ? P[9 + i] : 0;
+      for (let k = 0; k < 3; k++) s += P[3 * k + i] * C[3 * j + k];
+      o[3 * j + i] = s;
+    }
+    return o;
+  };
+  /* ★オブジェクトが <components> で組み立てられていることがある
+     （このアプリの書き出しも、Blender や Bambu Studio の3MFもこの形になる）。
+     メッシュを直接持っていないので、たどらないと「モデルが空」になってしまう。 */
+  const emit = (ob, m, depth = 0) => {
+    const comps = byTag(ob, 'component');
+    if (comps.length) {
+      if (depth > 8) return;                       // 自分を参照するような壊れた3MF対策
+      for (const c of comps) {
+        const sub = objs.get(c.getAttribute('objectid'));
+        if (sub && sub !== ob) emit(sub, mul(m, tr(c.getAttribute('transform'))), depth + 1);
+      }
+      return;
+    }
+    const mesh = byTag(ob, 'mesh')[0];
+    if (!mesh) return;
+    const objPid = ob.getAttribute('pid');
+    const objIdx = +(ob.getAttribute('pindex') || 0);
+    const objCol = objPid ? colorOf(objPid, objIdx) : null;
+    const vs = byTag(mesh, 'vertex').map(v => {
+      const x = +v.getAttribute('x'), y = +v.getAttribute('y'), z = +v.getAttribute('z');
+      return m ? [m[0]*x + m[3]*y + m[6]*z + m[9],
+                  m[1]*x + m[4]*y + m[7]*z + m[10],
+                  m[2]*x + m[5]*y + m[8]*z + m[11]] : [x, y, z];
+    });
+    for (const t of byTag(mesh, 'triangle')) {
+      const P = ['v1', 'v2', 'v3'].map(a => {
+        const v = vs[+t.getAttribute(a)];
+        if (!v) throw new Error('3MFの三角形がこわれています');
+        return v;
+      });
+      const tPid = t.getAttribute('pid') || objPid;
+      const p1 = t.getAttribute('p1');
+      const col = (tPid && p1 != null) ? colorOf(tPid, +p1) : objCol;
+      push(col, P[0], P[1], P[2]);
+    }
+  };
+  const tr = t => (t ? t.trim().split(/\s+/).map(Number) : null);
+  const items = byTag(doc, 'item');
+  if (items.length) for (const it of items) {
+    const ob = objs.get(it.getAttribute('objectid'));
+    if (ob) emit(ob, tr(it.getAttribute('transform')));
+  } else {
+    // buildが無いときは全部拾う。★ただし部品として使われているものは二重に数えない
+    const used = new Set(byTag(doc, 'component').map(c => c.getAttribute('objectid')));
+    for (const [id, ob] of objs) if (!used.has(id)) emit(ob, null);
+  }
+
+  const out = [...groups.entries()]
+    .filter(([, a]) => a.length >= 9)
+    .map(([color, a]) => ({ color, geom: geomFromPositions(new Float32Array(a)) }));
+  if (!out.length) throw new Error('3MFに三角形がありません');
+  return out;
+}
+
+/* 拡張子で振り分ける。STLは拡張子が違っても中身で判定できるので既定にしておく */
+async function parseModel(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const buf = await file.arrayBuffer();
+  if (ext === 'obj') return parseOBJ(new TextDecoder().decode(buf));
+  if (ext === '3mf') return await parse3MF(buf);
+  return parseSTL(buf);
+}
+
+// 符号つき四面体の和＝閉じたカラの体積（mm³）
+function geomVolume(g) {
+  const pos = g.attributes.position, idx = g.index;
+  const n = idx ? idx.count : pos.count;
+  let v = 0;
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(),
+        t = new THREE.Vector3();
+  for (let i = 0; i < n; i += 3) {
+    a.fromBufferAttribute(pos, idx ? idx.getX(i)     : i);
+    b.fromBufferAttribute(pos, idx ? idx.getX(i + 1) : i + 1);
+    c.fromBufferAttribute(pos, idx ? idx.getX(i + 2) : i + 2);
+    t.crossVectors(b, c);
+    v += a.dot(t) / 6;
+  }
+  return Math.abs(v);
+}
+
+/* 読みこんだメッシュ（色ごとの並び）を「XYの中心を原点・底をz=0」にそろえて、大きさを測る。
+   ★そろえるのは色ごとではなく**ぜんぶまとめた囲み**で。別々にすると位置関係が崩れる */
+function normalizeMesh(list, name) {
+  const bb = new THREE.Box3();
+  for (const m of list) { m.geom.computeBoundingBox(); bb.union(m.geom.boundingBox); }
+  const s = bb.getSize(new THREE.Vector3()), c = bb.getCenter(new THREE.Vector3());
+  let vol = 0, tris = 0;
+  for (const m of list) {
+    m.geom.translate(-c.x, -c.y, -bb.min.z);
+    vol += geomVolume(m.geom);
+    tris += (m.geom.index ? m.geom.index.count : m.geom.attributes.position.count) / 3;
+  }
+  const boxVol = s.x * s.y * s.z;
+  return { list, info: { name, w:s.x, d:s.y, h:s.z, tris, vol,
+    colors: list.filter(m => m.color != null).length,
+    fillRatio: boxVol > 0 ? vol / boxVol : 0 } };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   形づくり（すべて「2D輪郭の押し出し」だけで作る）
+   板に開けた止まり穴は、輪郭に穴を開けた板と穴なしの板を重ねて表す。
+   閉じたカラどうしを重ねただけなので、スライサーが正しく合体してくれる。
+   ══════════════════════════════════════════════════════════════ */
+function roundRectPts(w, h, r, seg = 8) {
+  const hw = w / 2, hh = h / 2, p = [];
+  const corner = (cx, cy, a0) => {
+    for (let i = 0; i <= seg; i++) {
+      const a = a0 + (Math.PI / 2) * (i / seg);
+      p.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    }
+  };
+  corner(hw - r, -hh + r, -Math.PI / 2);
+  corner(hw - r,  hh - r, 0);
+  corner(-hw + r, hh - r, Math.PI / 2);
+  corner(-hw + r, -hh + r, Math.PI);
+  return p;
+}
+
+// アーチ型プレートの輪郭。下の2かどは丸角、上辺は左右の直線から立ち上がるドーム。
+// 円弧にすると側面との継ぎ目にかどが出るので、両端で接線が垂直になる3次ベジェにしている。
+// 側面ぎわまで高さが残るので、QRの静穏帯（4モジュール）を食わずに大きく反らせられる。
+function archPlatePts(w, h, r, rise, seg = 8) {
+  const hw = w / 2, hh = h / 2, ys = hh - rise, p = [];
+  const corner = (cx, cy, a0) => {
+    for (let i = 0; i <= seg; i++) {
+      const a = a0 + (Math.PI / 2) * (i / seg);
+      p.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    }
+  };
+  const cV = 0.62, cH = 0.52;                        // 立ち上がり／頂点でのふくらみ
+  corner(hw - r, -hh + r, -Math.PI / 2);             // 右下
+  p.push([hw, ys]);                                  // 右の直線
+  p.push(...bez([hw, ys], [hw, ys + rise * cV], [hw * cH, hh], [0, hh], 14));
+  p.push(...bez([0, hh], [-hw * cH, hh], [-hw, ys + rise * cV], [-hw, ys], 14));
+  corner(-hw + r, -hh + r, Math.PI);                 // 左下（左の直線はここへ続く）
+  return p;
+}
+
+// キーリングの耳つき輪郭（上辺の中央から半円が生える）
+function earPts(w, h, r, earHW, rise, seg = 8) {
+  const hw = w / 2, hh = h / 2, p = [];
+  const corner = (cx, cy, a0) => {
+    for (let i = 0; i <= seg; i++) {
+      const a = a0 + (Math.PI / 2) * (i / seg);
+      p.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    }
+  };
+  corner(hw - r, -hh + r, -Math.PI / 2);
+  corner(hw - r, hh - r, 0);
+  const yc = hh + rise;
+  p.push([earHW, hh], [earHW, yc]);
+  for (let i = 0; i <= seg * 2; i++) {
+    const a = (Math.PI) * (i / (seg * 2));
+    p.push([earHW * Math.cos(a) , yc + earHW * Math.sin(a)]);
+  }
+  p.push([-earHW, hh]);
+  corner(-hw + r, hh - r, Math.PI / 2);
+  corner(-hw + r, -hh + r, Math.PI);
+  return p;
+}
+
+// 3次ベジェ上の点列（始点は含まない＝前の点に続けて使う）
+function bez(p0, c1, c2, p1, n = 18) {
+  const out = [];
+  for (let i = 1; i <= n; i++) {
+    const t = i / n, u = 1 - t;
+    const a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t;
+    out.push([a * p0[0] + b * c1[0] + c * c2[0] + d * p1[0],
+              a * p0[1] + b * c1[1] + c * c2[1] + d * p1[1]]);
+  }
+  return out;
+}
+
+function circlePts(cx, cy, r, seg = 28) {
+  const p = [];
+  for (let i = 0; i < seg; i++) {
+    const a = (Math.PI * 2 * i) / seg;
+    p.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+  }
+  return p;
+}
+
+function shapeOf(outer, holes = []) {
+  const s = new THREE.Shape(outer.map(([x, y]) => new THREE.Vector2(x, y)));
+  for (const h of holes) {
+    const pts = h.slice().reverse().map(([x, y]) => new THREE.Vector2(x, y));
+    s.holes.push(new THREE.Path(pts));
+  }
+  return s;
+}
+
+// 2D輪郭を z0〜z1 に押し出す。
+// 押し出しっぱなしだと法線が面ごとにバラバラで、丸みや曲線に面の継ぎ目（帯）が見える。
+// toCreasedNormals で、ゆるい角だけつないで（36°未満）、直角のかどは立てたままにする。
+function extrude(outer, holes, z0, z1) {
+  const g = toCreasedNormals(new THREE.ExtrudeGeometry(shapeOf(outer, holes),
+              { depth: z1 - z0, bevelEnabled:false }), Math.PI / 5);
+  g.translate(0, 0, z0);
+  return g;
+}
+// 有向辺がすべて対で消えるか＝水密か（0 なら閉じている）
+function openEdges(g) {
+  const pos = g.attributes.position, idx = g.index;
+  const r = v => Math.round(v * 1e3) / 1e3;
+  const key = i => `${r(pos.getX(i))},${r(pos.getY(i))},${r(pos.getZ(i))}`;
+  const e = new Map();
+  const n = idx ? idx.count : pos.count;
+  for (let i = 0; i < n; i += 3) {
+    const I = [idx ? idx.getX(i) : i, idx ? idx.getX(i+1) : i+1, idx ? idx.getX(i+2) : i+2];
+    const k = I.map(key);
+    for (let j = 0; j < 3; j++) {
+      const f = k[j] + '|' + k[(j+1)%3], b2 = k[(j+1)%3] + '|' + k[j];
+      if (e.get(b2)) e.set(b2, e.get(b2) - 1); else e.set(f, (e.get(f) || 0) + 1);
+    }
+  }
+  let o = 0; for (const v of e.values()) o += Math.abs(v);
+  return o;
+}
+// 穴を、自分の真ん中を軸にほんのわずかだけ伸び縮みさせる
+const nudge = (holes, k) => holes.map(h => {
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (const [x, y] of h) { x0=Math.min(x0,x); x1=Math.max(x1,x); y0=Math.min(y0,y); y1=Math.max(y1,y); }
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  return h.map(([x, y]) => [cx + (x - cx) * k, cy + (y - cy) * k]);
+});
+/* ★穴のふちが輪郭の頂点にぴったり触れると、ExtrudeGeometry の三角形分割が壊れて
+   面が数枚あまる（実例：タイル32mm角・角丸R4 に 24mm の窓＝ちょうど接する）。
+   出るかどうかは寸法しだいなので、作ったあとに数えて、壊れていたら
+   穴を 0.02% だけ伸び縮みさせて作り直す（12mmで0.0012mm＝印刷では無いに等しい）。 */
+function slab(outer, holes, z0, z1) {
+  const g = extrude(outer, holes, z0, z1);
+  if (!holes || !holes.length || openEdges(g) === 0) return g;
+  for (const k of [1 - 2e-4, 1 + 2e-4]) {
+    const g2 = extrude(outer, nudge(holes, k), z0, z1);
+    if (openEdges(g2) === 0) { g.dispose(); return g2; }
+    g2.dispose();
+  }
+  return g;
+}
+
+// 多角形の面積と重心（倒れにくさの計算に使う）
+function polyArea(p) {
+  let a = 0;
+  for (let i = 0, n = p.length; i < n; i++) {
+    const q = p[(i + 1) % n];
+    a += p[i][0] * q[1] - q[0] * p[i][1];
+  }
+  return a / 2;
+}
+function polyCentroid(p) {
+  let a = 0, cx = 0, cy = 0;
+  for (let i = 0, n = p.length; i < n; i++) {
+    const q = p[(i + 1) % n], f = p[i][0] * q[1] - q[0] * p[i][1];
+    a += f; cx += (p[i][0] + q[0]) * f; cy += (p[i][1] + q[1]) * f;
+  }
+  return [cx / (3 * a), cy / (3 * a)];
+}
+
+// まとめた長方形の集まりを直方体の集まりにする
+function boxesGeom(rects, cell, ox, oy, z0, z1) {
+  const pos = [], nor = [];
+  const quad = (a, b, c, d, n) => {
+    for (const v of [a, b, c, a, c, d]) pos.push(v[0], v[1], v[2]);
+    for (let i = 0; i < 6; i++) nor.push(n[0], n[1], n[2]);
+  };
+  for (const [rx, ry, rw, rh] of rects) {
+    const x0 = ox + rx * cell, x1 = ox + (rx + rw) * cell;
+    const y1 = oy - ry * cell, y0 = oy - (ry + rh) * cell;   // 画像の上端 = Yの大きい側
+    const A=[x0,y0,z0],B=[x1,y0,z0],C=[x1,y1,z0],D=[x0,y1,z0];
+    const E=[x0,y0,z1],F=[x1,y0,z1],G=[x1,y1,z1],H=[x0,y1,z1];
+    quad(D,C,B,A,[0,0,-1]); quad(E,F,G,H,[0,0,1]);
+    quad(A,B,F,E,[0,-1,0]); quad(B,C,G,F,[1,0,0]);
+    quad(C,D,H,G,[0,1,0]);  quad(D,A,E,H,[-1,0,0]);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal',   new THREE.Float32BufferAttribute(nor, 3));
+  // ★1つの箱＝12三角形の閉じたカラ。3MFで頂点をまとめるとき、この区切りを越えないようにする
+  //   （となり合う箱は面がぴったり接しているので、またいでまとめると辺が4枚になる）
+  g.userData.shell = 12;
+  return g;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   モデル組み立て
+   part = { name, color, geoms[], print:{x,y}, asm(gap)->Matrix4 }
+   geoms はパーツのローカル座標（印刷する向きのまま、z=0 がベッド）。
+   asm(gap) は組み立てた姿勢。gap>0 なら分解図（組み立ての順に離れていく）。
+   ══════════════════════════════════════════════════════════════ */
+const mT = (x, y, z) => new THREE.Matrix4().makeTranslation(x, y, z);
+const mFlip = () => new THREE.Matrix4().makeRotationY(Math.PI);   // 裏返す（Y軸まわり）
+
+const MIN_MODULE = 0.8;   // 0.4mmノズルで読み取れる1モジュールの下限
+
+/* ── 面に乗せる「もよう」 ─────────────────────────────
+   置き場所はキーホルダーが3つ（QRタイルのおもて／QRタイルのうら／ぜんたいのうら）、
+   スタンドが2つ（プレートのおもて／うら）。それぞれに QR①・QR②・なし を割りあてる。
+   もようは「'0'と'1'の行の集まり」に揃えてあるので、この先は同じ道を通る。
+   （ロゴ画像を入れる仕組みは「ロゴ3Dアプリ」のほうに置いてある） */
+/* ══════════════════════════════════════════════════════════════
+   サービスのアイコン（URLから見分けて、形だけで分かるマークを描く）
+   ★2026-08-14現在、どこからも呼んでいない。ユーザーの判断で「無しでいい」となったため。
+     消すと戻せない（このアプリはgit管理していない）ので、絵と判定だけ残してある。
+     復活させるときは ITEMS に足すか、QRの格子に合成する（作業ログ 2026-08-13-1930 参照）。
+   ★色は使えない前提なので、必ず「凸」か「彫り（本当のくぼみ）」で出す。
+     QRのうら面のような「ツライチ＋色ちがい」は、1色で刷ると消えてしまう。
+   ★絵は canvas 2D で描いてから '0'/'1' の格子に焼く。こうするとQRとまったく
+     同じ道（mergeRects→箱）に乗るので、この先の仕組みを一切変えなくてよい。
+   ══════════════════════════════════════════════════════════════ */
+const ICON_ART = {
+  // どれも 0〜1 の正方形に描く。塗りは黒＝もよう
+  youtube(g, s) {                                   // 角丸の横長＋再生の三角（抜き）
+    g.beginPath();
+    g.roundRect(s(0.02), s(0.21), s(0.96), s(0.58), s(0.16));
+    g.moveTo(s(0.415), s(0.335));
+    g.lineTo(s(0.415), s(0.665));
+    g.lineTo(s(0.695), s(0.50));
+    g.closePath();
+    g.fill('evenodd');
+  },
+  instagram(g, s) {                                 // 角丸の輪＋丸い輪＋右上の点
+    g.beginPath();
+    g.roundRect(s(0.03), s(0.03), s(0.94), s(0.94), s(0.29));
+    g.roundRect(s(0.155), s(0.155), s(0.69), s(0.69), s(0.20));
+    g.fill('evenodd');
+    g.beginPath();
+    g.arc(s(0.5), s(0.5), s(0.245), 0, 7);
+    g.arc(s(0.5), s(0.5), s(0.145), 0, 7);
+    g.fill('evenodd');
+    g.beginPath();
+    g.arc(s(0.725), s(0.275), s(0.062), 0, 7);
+    g.fill();
+  },
+  x(g, s) {                                         // ✕の2本線
+    g.lineWidth = s(0.165);
+    g.strokeStyle = g.fillStyle;
+    g.beginPath();
+    g.moveTo(s(0.10), s(0.09)); g.lineTo(s(0.90), s(0.91));
+    g.moveTo(s(0.90), s(0.09)); g.lineTo(s(0.10), s(0.91));
+    g.stroke();
+  },
+  line(g, s) {                                      // ふきだしの輪＋左下のしっぽ
+    g.beginPath();
+    g.ellipse(s(0.5), s(0.44), s(0.47), s(0.38), 0, 0, 7);
+    g.fill();
+    g.beginPath();
+    g.moveTo(s(0.30), s(0.70)); g.lineTo(s(0.24), s(0.98)); g.lineTo(s(0.52), s(0.76));
+    g.closePath(); g.fill();
+    g.save();
+    g.globalCompositeOperation = 'destination-out';
+    g.beginPath();
+    g.ellipse(s(0.5), s(0.44), s(0.345), s(0.255), 0, 0, 7);
+    g.fill();
+    g.restore();
+  },
+  tiktok(g, s) {                                    // 音符（丸＋たて棒＋上のはね）
+    g.beginPath();
+    g.arc(s(0.33), s(0.735), s(0.215), 0, 7);
+    g.arc(s(0.33), s(0.735), s(0.105), 0, 7);
+    g.fill('evenodd');
+    g.beginPath();
+    g.rect(s(0.435), s(0.06), s(0.155), s(0.68));
+    g.fill();
+    g.beginPath();                                  // 上ではねる部分
+    g.moveTo(s(0.59), s(0.06));
+    g.quadraticCurveTo(s(0.66), s(0.28), s(0.95), s(0.33));
+    g.lineTo(s(0.95), s(0.50));
+    g.quadraticCurveTo(s(0.68), s(0.46), s(0.59), s(0.30));
+    g.closePath(); g.fill();
+  },
+  facebook(g, s) {                                  // 丸＋f（抜き）
+    g.beginPath();
+    g.arc(s(0.5), s(0.5), s(0.48), 0, 7);
+    g.fill();
+    g.save();
+    g.globalCompositeOperation = 'destination-out';
+    g.beginPath();
+    g.rect(s(0.44), s(0.40), s(0.16), s(0.60));      // たて棒
+    g.rect(s(0.30), s(0.44), s(0.36), s(0.13));      // よこ棒
+    g.moveTo(s(0.44), s(0.44));                      // 上のかぎ
+    g.lineTo(s(0.44), s(0.30));
+    g.quadraticCurveTo(s(0.44), s(0.12), s(0.66), s(0.13));
+    g.lineTo(s(0.66), s(0.26));
+    g.quadraticCurveTo(s(0.58), s(0.26), s(0.58), s(0.34));
+    g.lineTo(s(0.58), s(0.44));
+    g.closePath();
+    g.fill();
+    g.restore();
+  },
+  web(g, s) {                                       // 地球（丸＋たて線＋よこ線）
+    g.lineWidth = s(0.085);
+    g.strokeStyle = g.fillStyle;
+    g.beginPath(); g.arc(s(0.5), s(0.5), s(0.44), 0, 7); g.stroke();
+    g.beginPath(); g.moveTo(s(0.06), s(0.5)); g.lineTo(s(0.94), s(0.5)); g.stroke();
+    g.beginPath(); g.ellipse(s(0.5), s(0.5), s(0.205), s(0.44), 0, 0, 7); g.stroke();
+  },
+};
+
+// URLのホスト名でサービスを見分ける。見つからなければ「ウェブ（地球）」
+const SERVICES = [
+  ['youtube',   'YouTube',      /(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com)$/],
+  ['instagram', 'Instagram',    /(^|\.)(instagram\.com|instagr\.am)$/],
+  ['x',         'X（Twitter）', /(^|\.)(x\.com|twitter\.com)$/],
+  ['line',      'LINE',         /(^|\.)(line\.me|lin\.ee)$/],
+  ['tiktok',    'TikTok',       /(^|\.)tiktok\.com$/],
+  ['facebook',  'Facebook',     /(^|\.)(facebook\.com|fb\.com|fb\.me)$/],
+];
+function detectService(text) {
+  const t = (text || '').trim();
+  if (!t) return null;
+  let host;
+  try { host = new URL(/^[a-z][a-z0-9+.-]*:/i.test(t) ? t : 'https://' + t).hostname.toLowerCase(); }
+  catch { return null; }
+  if (!host) return null;
+  const hit = SERVICES.find(([, , re]) => re.test(host));
+  return hit ? { id:hit[0], name:hit[1] } : { id:'web', name:'ウェブ' };
+}
+
+// アイコンを '0'/'1' の格子に焼く（同じものは使いまわす）
+const iconCache = new Map();
+function iconGrid(id, n = 128) {
+  const key = id + '@' + n;
+  if (iconCache.has(key)) return iconCache.get(key);
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = n;
+  const g = cv.getContext('2d', { willReadFrequently:true });
+  g.fillStyle = '#000';
+  (ICON_ART[id] || ICON_ART.web)(g, v => v * n);
+  const d = g.getImageData(0, 0, n, n).data;
+  let rows = [];
+  for (let y = 0; y < n; y++) {
+    let s = '';
+    for (let x = 0; x < n; x++) s += d[(y * n + x) * 4 + 3] > 128 ? '1' : '0';
+    rows.push(s);
+  }
+  // まわりの空白を切りつめる
+  const empty = r => !r.includes('1');
+  let t = 0, b = rows.length - 1;
+  while (t < b && empty(rows[t])) t++;
+  while (b > t && empty(rows[b])) b--;
+  rows = rows.slice(t, b + 1);
+  const colEmpty = c => rows.every(r => r[c] !== '1');
+  let l = 0, r = rows[0].length - 1;
+  while (l < r && colEmpty(l)) l++;
+  while (r > l && colEmpty(r)) r--;
+  rows = rows.map(x => x.slice(l, r + 1));
+  const out = { rows, w: rows[0].length, h: rows.length };
+  iconCache.set(key, out);
+  return out;
+}
+
+const ITEMS = { none:'なし', qr1:'QR①', qr2:'QR②', box:'はめ込み（ロゴ）' };
+
+function slotArt(slot) {
+  const item = state.slots[slot];
+  if (item === 'qr1' || item === 'qr2') {
+    const text = (item === 'qr1' ? state.text : state.text2).trim();
+    if (!text) return null;                       // URLが空なら、その面には何も乗らない
+    const qr = makeQR(text, EC);
+    return { item, kind:'qr', qr, rows:qr.rows, w:qr.n, h:qr.n, quiet:8 };
+  }
+  return null;
+}
+const slotIsBox = slot => state.slots[slot] === 'box';
+// もようの色。①系はcQr1・②系はcQr2
+const markColor = art => (art.item === 'qr2' || art.item === 'icon2') ? state.cQr2 : state.cQr1;
+
+/* ── はめ込み（自分で作った四角柱・円柱を受け口に落としこむ）─────────────
+   ★もようと違って mm で決まった大きさなので、面に合わせて縮んだりしない。
+     入らない面には受け口を開けない（開けると輪郭や他の穴と交わって
+     ExtrudeGeometry の三角形分割が壊れ、板が水密でなくなる）。 */
+function boxSpec() {
+  const b = state.box;
+  const round = b.kind === 'round';
+  // ★地続き（1部品）のときは、すきまを 0 にして窓と同じ大きさにする。
+  //   閉じたカラどうしがぴったり接するだけなので、スライサーが1つの固まりに合体する
+  const merged = b.join === 'flush';
+  const fit = merged ? 0 : Math.min(BOX.maxFit, Math.max(BOX.minFit, b.fit));
+  if (b.src === 'stl') {
+    if (!b.mesh || !b.info) return null;
+    // ★倍率（単位あわせ）× 微調整（×1.00〜×1.50）。ここでまとめておけば、
+    //   受け口の窓・部品のジオメトリ・案内の数字が全部そろって大きくなる
+    const k = b.scale * b.fine;
+    // ★90°／270°に回すと、囲みのタテヨコが入れかわる。受け口も入れかえないと入らない
+    const swap = b.turn === 90 || b.turn === 270;
+    const w = (swap ? b.info.d : b.info.w) * k, d = (swap ? b.info.w : b.info.d) * k;
+    // 円柱として使うときは、囲みの長いほうを直径とみなす
+    const dia = Math.max(w, d);
+    /* ★高さ（厚み）だけをつぶす。ロゴは「見える面の絵」が本体なので厚みは要らないのに、
+       Blenderで2mmくらいに作ってあることが多い。深いままだと受け口が肉を突きぬけるので
+       その部品を厚くするしかなく、スタンドでは入らないと言われてしまう。
+       → 上限を超えたぶんだけ Z を縮める（タテヨコには一切さわらない）。 */
+    const h0 = b.info.h * k;
+    const h = b.squash ? Math.min(h0, b.hmax) : h0;
+    const kz = h0 > 1e-9 ? k * (h / h0) : k;
+    return { kind:b.kind, w: round ? dia : w, d: round ? dia : d, h,
+             fit, merged, mesh:b.mesh, scale:k, scaleZ:kz, h0, squashed: h < h0 - 1e-9,
+             turn:b.turn, flip:b.flip, from:'stl' };
+  }
+  const side = round ? b.dia : b.side;
+  return { kind:b.kind, w:side, d:side, h:b.h,
+           fit, merged, mesh:null, scale:1, scaleZ:1, from:'size' };
+}
+/* 受け口の窓（四角柱は長方形・円柱は円）。cy は面の中で置く高さ。
+   ★円は48角形なので、頂点を半径ちょうどに置くと「内接円」はそのぶん小さくなる。
+     別部品のときは、Blenderで作った真円が入るように頂点を 1/cos(π/48) だけ外へ出す。
+   ★地続きのときは逆に、ふくらませると髪の毛ほどのすき間が輪になって残ってしまう。
+     こちらは窓と柱をまったく同じ48角形にする（重なっても同じ部品・同じ色なので
+     スライサーが合体するだけで、すき間だけは絶対に作らない）。 */
+function boxWindow(b, cy = 0) {
+  const f = b.fit, seg = 48;
+  if (b.kind !== 'round') return rectPts(b.w + 2 * f, b.d + 2 * f, cy);
+  const r = (b.w + 2 * f) / 2;
+  return circlePts(0, cy, b.merged ? r : r / Math.cos(Math.PI / seg), seg);
+}
+/* はめ込む部品（z0 から上へ h）。
+   ★読みこんだモデルに色が付いていれば、**色ごとに別パーツ**にして返す。
+     こうすると3MFに色がそのまま残り、スライサーでフィラメントを割り当てられる。
+   色の指定が無いところは「5 色」の"ロゴ"の色を使う（color:null で返す）。
+
+   ★down … 受け口が「その部品のローカル −Z がわ」に開いている面で立てる。
+     読みこんだモデルは **+Z がわが見せたい面**（normalizeMesh が min.z を 0 にそろえる）
+     なので、そのまま入れると**底が表に出て、絵も逆さ向き**に見える。実際そうなった。
+     Y軸まわりに180°まわして入れる（＝物を裏返して置くのと同じ。鏡ではないので
+     文字が反転することはない）。刷るときも見せたい面がベッドに付くので、そのほうがきれい。
+   ★b.flip / b.turn … 向きは人が決められる。どちらの面を見せたいかも、
+     どっちが上かも、こちらからは分からないため（モデルしだい）。 */
+function boxParts(b, z0, cy = 0, down = false) {
+  if (b.mesh) {
+    const many = b.mesh.length > 1;
+    const back = b.flip ? !down : down;
+    return b.mesh.map((m, i) => {
+      const g = m.geom.clone();
+      // ★Zだけ別の倍率（高さをおさえるとき）。normalizeMesh が底を z=0 にそろえてあるので、
+      //   そのまま縮めれば底は動かない
+      g.scale(b.scale, b.scale, b.scaleZ != null ? b.scaleZ : b.scale);
+      if (back) { g.rotateY(Math.PI); g.translate(0, 0, b.h); }   // 0..h のまま上下だけ返る
+      // ★回すのは裏返したあと。そうすると「見えている面で回した角度」になる
+      if (b.turn) g.rotateZ(b.turn * Math.PI / 180);
+      g.translate(0, cy, z0);
+      // ★割りあてがあればそれを使う（無ければモデルの色のまま）
+      const mapped = state.box.map && state.box.map[i] != null ? state.box.map[i] : m.color;
+      return { geom:g, color:mapped, suffix: many ? `・色${i + 1}` : '' };
+    });
+  }
+  const g = b.kind === 'round'
+    ? slab(circlePts(0, cy, b.w / 2, 48), [], z0, z0 + b.h)
+    : slab(rectPts(b.w, b.d, cy), [], z0, z0 + b.h);
+  return [{ geom:g, color:null, suffix:'' }];
+}
+// その面の枠（W×H mm）に収まるか
+function boxFits(b, availW, availH) {
+  return b.w + 2 * b.fit <= availW + 1e-6 && b.d + 2 * b.fit <= availH + 1e-6;
+}
+// (0, cy) を中心にした長方形
+function rectPts(w, d, cy = 0) {
+  const hw = w / 2, hd = d / 2;
+  return [[-hw, cy - hd], [hw, cy - hd], [hw, cy + hd], [-hw, cy + hd]];
+}
+const artName = (art, where) => `${ITEMS[art.item]}（${where}）`;
+
+// 一辺 W の面に、もようをどれだけの大きさで置くか。QRは静穏帯4マスぶんを内側に取る
+function artFit(art, W) {
+  const n = Math.max(art.w, art.h) + art.quiet;
+  const cell = (W - 2 * state.margin) / n;
+  return { cell, aw: art.w * cell, ah: art.h * cell,
+           side: Math.max(art.w, art.h) * cell,
+           minW: MIN_MODULE * n + 2 * state.margin };   // 1モジュールを下限以上にするのに要る一辺
+}
+
+/* もようのジオメトリ。
+   ・おもて面 … marks（凸）だけを使う
+   ・うら面 …… 板に window を開け、fill（地の色）と marks（もようの色）で埋める＝彫りこみ。
+     ★うら面はどのかたちでも「印刷でベッドに接する面」なので凸にできない。
+       詰め物なら面はツライチのまま、2色で刷ればくっきり出る（1色でも彫りの影で読める）
+   ★うら面は反対がわから見るので、左右を反転しないと鏡文字になる（mirror） */
+function artGeom(art, fit, cy, z0, z1, mirror) {
+  const rows = mirror ? art.rows.map(r => [...r].reverse().join('')) : art.rows;
+  const inv  = rows.map(r => [...r].map(c => (c === '1' ? '0' : '1')).join(''));
+  const x0 = -fit.aw / 2, y0 = cy - fit.ah / 2, y1 = cy + fit.ah / 2;
+  const box = rs => boxesGeom(rs, fit.cell, x0, y1, z0, z1);
+  return {
+    marks: box(mergeRects(rows, art.w, art.h)),
+    fill:  box(mergeRects(inv,  art.w, art.h)),
+    window: [[x0, y0], [x0 + fit.aw, y0], [x0 + fit.aw, y1], [x0, y1]],
+  };
+}
+
+function buildKeyholder() {
+  const bodyW = state.size, tileW = bodyW - K.tileGap;
+  const bodyR = Math.min(7, bodyW * 0.15), tileR = Math.max(2, bodyR - 2);
+  const [md, mt] = MAGNETS[state.mag];
+  const pocketT = mt + K.lift, half = pocketT / 2;
+  const plateT = K.floor + pocketT + K.ceil;
+  const lowT = K.floor + half, upT = plateT - lowT;
+  const magX = Math.min(bodyW / 2 - md / 2 - 3, tileW / 2 - md / 2 - 2.5);
+  const rimH = Math.min(state.rim, plateT - 1.0);
+
+  const holeW = tileW + K.recessFit, holeR = tileR + K.recessFit / 2;
+  const insW  = holeW - K.insertFit, insR = holeR - K.insertFit / 2;
+  const frameT = upT + lowT + rimH;                 // わくの全高
+
+  const bodyOut = earPts(bodyW, bodyW, bodyR, K.earHW, K.earRise);
+  const tileOut = roundRectPts(tileW, tileW, tileR);
+  const holeOut = roundRectPts(holeW, holeW, holeR);
+  const insOut  = roundRectPts(insW, insW, insR);
+  const ringY   = bodyW / 2 + K.earRise;
+  const ringH   = circlePts(0, ringY, state.ring / 2);
+  const mags    = [circlePts(-magX, 0, (md + K.fit) / 2), circlePts(magX, 0, (md + K.fit) / 2)];
+
+  // ダボ（QRタイル上下のコネクタ）。磁石はX軸、ダボはY軸に置くのでぶつからない。
+  // ★穴は「磁石の穴と同じ深さ（half）の層」に開けるので、板の層を増やさなくてよい。
+  //   ダボは half − dowelTop の高さにして、必ず穴の底に余裕が残る＝上下がすき間なく合う
+  const dowR = K.dowel / 2, dowHoleR = (K.dowel + K.dowelFit) / 2;
+  const dowY = tileW / 2 - K.dowelIn - dowHoleR;
+  const dowH = half - K.dowelTop;
+  const dowHoles = [circlePts(0, -dowY, dowHoleR), circlePts(0, dowY, dowHoleR)];
+
+  // ── 3つの面に何を乗せるか
+  const aFront = slotArt('tileFront'), aTile = slotArt('tileBack'), aBody = slotArt('bodyBack');
+  const fFront = aFront && artFit(aFront, tileW);
+  const fTile  = aTile  && artFit(aTile,  tileW);
+  const fBody  = aBody  && artFit(aBody,  bodyW);
+  // 彫りこみの深さ。★どの面も彫りこみ＝両面ツライチなので、QRタイルは
+  //   ひっくり返してもくぼみに落ちる（磁石を互いちがいに入れておけば極も合う）。
+  // ★タイルのうらは「磁石までの肉 K.floor」を削らずに下へ足す（削ると磁力の通り道が薄くなる）。
+  //   おもて側と本体のうらは、磁石までに K.ceil あるのでその肉のなかに彫る
+  /* 彫りこみの深さ。
+     ★アイコンは「色を使わずに形だけで読ませる」ので、スライダーの値をそのまま深さにする。
+       肉のなかに収まらないぶんは、はめ込みと同じく**その部品を厚くして**逃がす
+       （磁石までの肉やダボの層は削らない）。
+     QRは2色のインレイなので、これまでどおり肉のなかに収める。 */
+  const inlayTile  = aTile  ? Math.min(state.qrh, 0.6) : 0;
+  const inlayFront = aFront ? Math.min(state.qrh, K.ceil - 0.4) : 0;
+  const inlayBody  = aBody  ? Math.min(state.qrh, K.ceil - 0.4) : 0;
+
+  /* ── はめ込み（四角柱・円柱）。もようと違って mm で決まった大きさなので、
+     ★入る面にだけ受け口を開ける（入らないまま開けると輪郭や磁石の穴と交わって
+       三角形分割が壊れ、板が水密でなくなる）。
+     ★深さが足りないぶんは、その部品を厚くして吸収する。
+       磁石までの肉やダボの層を削ってはいけないため（＝うら面の彫りと同じ流儀）。 */
+  const bx = boxSpec();
+  const useBox = (slot, availW) =>
+    bx && slotIsBox(slot) && boxFits(bx, availW - 2 * state.margin, availW - 2 * state.margin)
+      ? bx : null;
+  const bFront = useBox('tileFront', tileW);
+  const bTile  = useBox('tileBack',  tileW);
+  const bBody  = useBox('bodyBack',  bodyW);
+  // 受け口のぶんだけ厚くする量（おもて板・タイル上は肉のなかに収まらなければ足す）
+  const growBody  = bBody  ? Math.max(0, bBody.h  - (K.ceil - BOX.keep)) : 0;
+  const growFront = bFront ? Math.max(0, bFront.h - (upT - half - BOX.keep)) : 0;
+  const ceilB = K.ceil + growBody;                   // 本体のおもて板の厚み
+  const upTB  = upT + growFront;                     // QRタイル上の厚み
+  const baseTile = inlayTile + (bTile ? bTile.h : 0);   // タイル下に足す層
+  const tLow = lowT + baseTile;                      // QRタイル下の厚み
+  const tPlate = tLow + upTB;                        // QRタイルぜんたいの厚み
+
+  // ピンは板とブーリアンせず、K.embed だけ食いこませた閉じたカラを重ねるだけ（QRの凸と同じ考え方）
+  const dowPins = [-dowY, dowY].map(y =>
+    slab(circlePts(0, y, dowR), [], tLow - K.embed, tLow + dowH));
+
+  const parts = [];
+  // lift … クリックしたときに浮き上がる向き（QRタイル側だけ）
+  const add = (name, color, geoms, px, py, asm, lift = null) =>
+    parts.push({ name, color, geoms, print:{ x:px, y:py }, asm, lift });
+  const UP = new THREE.Vector3(0, 0, 1);
+
+  // 組み立ての姿勢：Z=0 が磁石の合わせ面。−Zがおもて面がわ、+Zがくぼみ／QRタイルがわ。
+  const cx = bodyW / 2 + 4, r1 = bodyW / 2 + 8, r2 = -(bodyW / 2 - 2);
+
+  // 本体：おもて板とわくが、外周もふちも全部つながった1部品。
+  // ★おもて面にも外周にも継ぎ目が出ない（前は中板・上を差しこんでいたので輪の線が見えた）。
+  //   磁石のポケットは上（わくの中がわ）に開くので、ブリッジもサポートも要らない
+  const upTb = upT + growBody;                       // 本体の合わせ面までの高さ
+  const bodyAsm = () => mT(0, 0, -upTb);
+  const gBody = aBody && artGeom(aBody, fBody, 0, 0, inlayBody, true);
+  add('本体', state.cBody, [
+    // ぜんたいのうらにもようがあるときは、おもて板の外がわを「窓＋詰め物」に置きかえる
+    ...(gBody ? [slab(bodyOut, [ringH, gBody.window], 0, inlayBody), gBody.fill,
+                 slab(bodyOut, [ringH], inlayBody, ceilB)]
+       : bBody ? [slab(bodyOut, [ringH, boxWindow(bBody)], 0, bBody.h),
+                  slab(bodyOut, [ringH], bBody.h, ceilB)]
+               : [slab(bodyOut, [ringH], 0, ceilB)]),
+    slab(bodyOut, [ringH, ...mags], ceilB, upTb),
+    slab(bodyOut, [ringH, holeOut], upTb, frameT + growBody),
+  ], -cx, r1, bodyAsm);
+  // ★アイコンは marks を出さない＝窓と地の詰め物だけ残るので「本当のくぼみ」になる。
+  //   色が使えなくても影で読める（ツライチの色ちがいだと1色では消えてしまう）
+  if (gBody) add(artName(aBody, 'ぜんたいのうら'), markColor(aBody), [gBody.marks], -cx, r1, bodyAsm);
+  /* ★すきま0でも「別パーツ」にしておく。ぴったり接した閉じたカラどうしは
+     スライサーが融合して1つの固まりになるので、面はツライチのまま色だけ変えられる
+     （QRのうら面のインレイとまったく同じ作り）。
+     ★ただし**刷る位置は本体と同じ**にする。地続きは「本体とくっついた1つの実物」で、
+       離して並べたら刷れない（前はここでズラしていたので、スライサーで別々に出ていた）。 */
+  if (bBody) for (const bp of boxParts(bBody, 0, 0, true))
+    add(`はめ込み（ぜんたいのうら）${bp.suffix}`, bp.color != null ? bp.color : state.cLogo,
+        [bp.geom], -cx, bBody.merged ? r1 : r1 + bodyW + 6,
+        g => mT(0, 0, -upTb - (bBody.merged ? 0 : 2.4) * g));
+
+  // 中ぶた：磁石にふたをして、この面がくぼみの底になる（QRタイルが当たる）
+  add('中ぶた', state.cBody, [
+    slab(insOut, [], 0, K.floor),
+    slab(insOut, mags, K.floor, lowT),
+  ], cx, r1, g => mT(0, 0, lowT + 1.2 * g).multiply(mFlip()));
+
+  // QRタイル下：合わせ面がくぼみの底に当たる。ダボ2本が上向きに立つ（サポート不要）。
+  // タイルのうらのもようは、この面（＝ベッドに接する面）に彫りこむ
+  const gTile = aTile && artGeom(aTile, fTile, 0, 0, inlayTile, true);
+  const tileLowAsm = g => mT(0, 0, lowT + 2.6 * g);
+  add('QRタイル下', state.cTile, [
+    ...(gTile ? [slab(tileOut, [gTile.window], 0, inlayTile), gTile.fill] : []),
+    ...(bTile ? [slab(tileOut, [boxWindow(bTile)], 0, bTile.h)] : []),
+    slab(tileOut, [], baseTile, baseTile + K.floor),
+    slab(tileOut, mags, baseTile + K.floor, tLow),
+    ...dowPins,
+  ], -cx, r2, tileLowAsm, UP);
+  if (gTile) add(artName(aTile, 'タイルのうら'), markColor(aTile), [gTile.marks], -cx, r2, tileLowAsm, UP);
+  if (bTile) for (const bp of boxParts(bTile, 0, 0, true))
+    add(`はめ込み（タイルのうら）${bp.suffix}`, bp.color != null ? bp.color : state.cLogo,
+        [bp.geom], -cx, bTile.merged ? r2 : r2 - tileW - 6,
+        g => mT(0, 0, lowT + 2.6 * g - (bTile.merged ? 0 : 2.4) * g));
+
+  // QRタイル上：見せたい面が上。ダボ穴は磁石の穴と同じ層に開く。
+  /* QRタイル上。★おもてのQRの面を「ベッドに向けて」刷る。
+       ベッド面はいちばん平滑で、色の境目も1層目でスパッと決まるので、
+       上面（インフィルが透ける・アイロン跡が出る）よりずっときれいに出る。
+       磁石とダボの穴は上向きの止まり穴になるだけなので、ブリッジもサポートも要らない。
+     ★組み立てでは裏返す（mFlip）ので、もようは**左右反転して作る**（mirror=true）。
+       ここを取りちがえると鏡文字のQRになって読めない。
+     ローカル座標は z=0 がQRの面（ベッド）、z=upTB が合わせ面。 */
+  const gFront = aFront && artGeom(aFront, fFront, 0, 0, inlayFront, true);
+  const tileUpAt = extra => g =>
+    mT(0, 0, lowT + tLow + upTB + (3.8 + extra) * g).multiply(mFlip());
+  const tileUpAsm = tileUpAt(0);
+  add('QRタイル上', state.cTile, [
+    ...(gFront ? [slab(tileOut, [gFront.window], 0, inlayFront), gFront.fill,
+                  slab(tileOut, [], inlayFront, upTB - half)]
+       : bFront ? [slab(tileOut, [boxWindow(bFront)], 0, bFront.h),
+                   slab(tileOut, [], bFront.h, upTB - half)]
+                : [slab(tileOut, [], 0, upTB - half)]),
+    slab(tileOut, [...mags, ...dowHoles], upTB - half, upTB),
+  ], cx, r2, tileUpAsm, UP);
+  if (gFront) add(artName(aFront, 'タイルのおもて'), markColor(aFront), [gFront.marks], cx, r2, tileUpAsm, UP);
+  if (bFront) for (const bp of boxParts(bFront, 0, 0, true))
+    add(`はめ込み（タイルのおもて）${bp.suffix}`, bp.color != null ? bp.color : state.cLogo,
+        [bp.geom], cx, bFront.merged ? r2 : r2 - tileW - 6, tileUpAt(bFront.merged ? 0 : 2.4));
+
+  /* ── 磁石の見本。★分解ビューにだけ出す「飾り」で、印刷する部品ではない。
+     だから `parts` には入れない（＝書き出し・まとめ刷り・部品表にはいっさい出てこない）。
+     入る場所は、上下の穴が向かい合ってできる空洞のまんなか：
+       ・本体（世界 −half〜0）＋中ぶた（0〜half）    → 中心 z = 0
+       ・QRタイル下（〜lowT+tLow）＋タイル上（そこから上）→ 中心 z = lowT + tLow
+     分解したときは、くっつく2つの部品の**あいだ**を漂うように g をかける
+     （本体0／中ぶた1.2 のあいだ＝0.6、タイル下2.6／タイル上3.8 のあいだ＝3.2）。 */
+  const magnetPair = z => [-magX, magX].map(x =>
+    slab(circlePts(x, 0, md / 2), [], z - mt / 2, z + mt / 2));
+  const ghosts = [
+    ['磁石（本体・中ぶた）', 0, 0.6], ['磁石（QRタイル）', lowT + tLow, 3.2],
+  ].map(([name, z, k]) => ({ name, color:MAGNET_COLOR, metal:true, geoms:magnetPair(z),
+                             print:{ x:0, y:0 }, asm:g => mT(0, 0, k * g), lift:null }));
+
+  // 面ごとのもよう（情報表示と、大きさの下限の計算に使う）
+  const arts = [
+    ['タイルのおもて（凸）', aFront, fFront, tileW, K.tileGap],
+    ['タイルのうら（彫り）', aTile,  fTile,  tileW, K.tileGap],
+    ['ぜんたいのうら（彫り）', aBody, fBody, bodyW, 0],
+  ].filter(a => a[1]).map(([where, art, fit, avail, add]) =>
+      ({ where, art, fit, avail, need: fit.minW + add }));
+
+  const boxes = [
+    ['タイルのおもて', bFront, tileW], ['タイルのうら', bTile, tileW],
+    ['ぜんたいのうら', bBody, bodyW],
+  ].filter(b => b[1]);
+  // はめ込みを選んだのに入らなかった面（受け口を開けていない）
+  const boxMiss = [['tileFront','タイルのおもて',bFront], ['tileBack','タイルのうら',bTile],
+                   ['bodyBack','ぜんたいのうら',bBody]]
+    .filter(([sl, , got]) => slotIsBox(sl) && !got).map(x => x[1]);
+
+  const info = {
+    arts, boxes, boxMiss, box:bx, plateT:tPlate, lowT:tLow, upT:upTB, rimH, bodyW, tileW,
+    magnet:[md, mt],
+    minSize: Math.ceil(Math.max(0, ...arts.filter(a => a.art.kind === 'qr').map(a => a.need))),
+    sizeMax: 90,
+    thickness: tPlate * 2, exploded: 13, liftMax: rimH + 14,
+    // 外したQRタイルを裏返すときの、まわす中心と軸。
+    // ★Y軸（左右をひっくり返す向き）で返すと、うら面のもようが「うらから見たとおり」に見える
+    //   （X軸で返すと上下が入れかわり、絵が180°回って見えてしまう）
+    pivot: new THREE.Vector3(0, 0, lowT + tPlate / 2),
+    spinAxis: new THREE.Vector3(0, 1, 0),
+    dims: [
+      ['本体', `${bodyW}×${bodyW}mm 角丸R${bodyR.toFixed(0)} / 高さ${(frameT + growBody).toFixed(2)}mm` +
+               `（おもて板とわくで1部品・おもてにも外周にも継ぎ目なし）`],
+      ['わくの中', `${holeW.toFixed(1)}×${holeW.toFixed(1)}mm 角丸R${holeR.toFixed(1)} / 深さ${(frameT - upT).toFixed(2)}mm`],
+      ...(growBody ? [['おもて板', `受け口のぶん ${growBody.toFixed(2)}mm 厚くしました（磁石までの肉は削っていません）`]] : []),
+      ...(growFront ? [['タイル上', `受け口のぶん ${growFront.toFixed(2)}mm 厚くしました`]] : []),
+      ['中ぶた', `${insW.toFixed(1)}×${insW.toFixed(1)}mm / 厚み${lowT.toFixed(2)}mm（磁石のふた＝くぼみの底）`],
+      ['QRタイル', `${tileW}×${tileW}mm / 厚み${tPlate.toFixed(2)}mm（上${upTB.toFixed(2)}＋下${tLow.toFixed(2)}` +
+                   `${inlayTile ? `・うらの彫り${inlayTile.toFixed(1)}こみ` : ''}）`],
+      ['ダボ', `φ${K.dowel.toFixed(1)}×高さ${dowH.toFixed(2)}mm ×2（穴 φ${(K.dowel + K.dowelFit).toFixed(2)}・${(2 * dowY).toFixed(1)}mm間隔）`],
+      ['磁石', `φ${md}×${mt}mm ×4個（穴 φ${(md + K.fit).toFixed(2)}・上下それぞれ深さ${half.toFixed(2)}mm）`],
+      ['合体時', `厚み ${(frameT + growBody + tPlate - rimH).toFixed(2)}mm`],
+      ...boxes.map(([where, b]) =>
+        [`はめ込み（${where}）`,
+         `<b>${b.kind === 'round' ? `φ${b.w.toFixed(2)}` : `${b.w.toFixed(2)} × ${b.d.toFixed(2)}`}` +
+         ` × ${b.h.toFixed(2)} mm</b>（${b.from === 'stl' ? '読みこんだ3Dモデル' : 'この寸法で作ってください'}）` +
+         ` / ${b.merged ? '地続き（すきま0）' : `すきま片側${b.fit.toFixed(2)}mm`}`]),
+      ...(boxMiss.length ? [['はめ込み',
+        `<span class="bad">${boxMiss.length}面は四角柱が入らないので受け口を開けていません` +
+        `（大きさを上げるか、四角柱を小さくしてください）</span>`]] : []),
+      ['はめ合い', `くぼみ深さ${rimH.toFixed(1)}mm・すきま片側${(K.recessFit / 2).toFixed(2)}mm → QRタイルが${(tPlate - rimH).toFixed(2)}mm 出る`],
+      ...arts.map(a => [a.where, `${ITEMS[a.art.item]}：${a.fit.aw.toFixed(1)}×${a.fit.ah.toFixed(1)}mm` +
+        (a.art.kind === 'qr' ? `・1モジュール${a.fit.cell.toFixed(2)}mm` : `・1マス${a.fit.cell.toFixed(2)}mm`)]),
+    ],
+    howto: [
+      '① 4枚ともこの向きのまま平置きで印刷（サポート不要）',
+      '★QRタイル上は<b>QRの面をベッドに向けて</b>刷ります。ベッド面がいちばん平滑で、色の境目も1層目でスパッと決まるのでよく読めます' + (aFront ? '（1層目のつぶれが気になるときはスライサーの<b>エレファントフット補正</b>を入れてください）' : ''),
+      ...(gTile || gBody ? ['★うら面のもようは、ベッドに接する面への彫りこみ＋詰め物です。' +
+                  '色を変えて刷ると（AMS等）ツライチのまま2色になり、いちばん読み取りやすくなります'] : []),
+      '② 本体のくぼみの底にある穴に磁石2個を落として、中ぶたをかぶせて接着',
+      '③ QRタイルは、下がわのダボ2本を上がわの穴に合わせて磁石をはさみ、押しこんで接着',
+      ...(boxes.length ? [`★はめ込みは <b>` +
+        (bx.kind === 'round' ? `φ${bx.w.toFixed(2)}` : `${bx.w.toFixed(2)} × ${bx.d.toFixed(2)}`) +
+        ` × ${bx.h.toFixed(2)} mm</b> で作ってください。` +
+        (bx.merged
+          ? '<b>地続き</b>なのですきま0です。ぴったり接しているので、刷ると融合して1つの固まりになります'
+          : `受け口はすきま片側 ${bx.fit.toFixed(2)}mm ぶん大きく開けてあります`)] : []),
+      '④ 本体とQRの磁石は、くっつく向き（N-S）にそろえて入れる',
+      '⑤ わくに残った' + rimH.toFixed(1) + 'mmのくぼみにQRタイルを落とすと磁石で保持されます',
+    ],
+  };
+  return { parts, ghosts, info };
+}
+
+/* 一枚板のスタンド。
+   プレートと脚は「同じ厚み・同じ幅」で、手前の下でぐるりと曲がって
+   うしろへ足がのびる。差し込みは、脚がわの受け口にプレートの舌が入る
+   相欠き（かた面ずつ重なる）にしてあるので、横から見た輪郭が途切れない。 */
+function buildStand() {
+  const W = state.size, T = state.sheet, sd = S.slotDepth;
+  const arch = W * S.archRise;                       // 上辺のドームの高さ
+  // 見える部分は「W角の正方形＋アーチのぶんの余白」。QRは正方形のほうに置くので、
+  // ドームがどれだけ反っても静穏帯に入りこまない
+  const H = W + sd + arch * 0.6;
+  const th = THREE.MathUtils.degToRad(state.tilt);
+  const st = Math.sin(th), ct = Math.cos(th);
+  const R = state.bend, D = state.depth;
+  const tt = Math.min(2.6, T * 0.46);                // 舌の厚み
+  const socket = tt + S.slotFit;                     // 受け口の深さ（口がわ・板の厚み方向）
+  const socketEnd = tt + S.slotGrip;                 // いちばん奥（ここが狭い＝くさび）
+
+  const plateOut = archPlatePts(W, H, 1.2, arch);    // 下2かどはほぼ直角（脚と続けるため）
+  const qrCy = -H / 2 + sd + W / 2;                  // もようの中心＝見える正方形の中心
+  // おもては凸、うらは彫りこみ（うら＝ベッドに接する面なので凸にできない）。どちらも同じ正方形に置く
+  const aFront = slotArt('plateFront'), aBack = slotArt('plateBack');
+  const fFront = aFront && artFit(aFront, W), fBack = aBack && artFit(aBack, W);
+  const inlayT = Math.min(state.qrh, 1.0);
+
+  /* ── はめ込み（四角柱・円柱）。
+     ★スタンドは「板厚＝脚の厚み」でないと一枚板に見えないので、キーホルダーのように
+       部品を厚くして逃がすことができない。深さは層のなかにクランプして、
+       入らない大きさなら受け口を開けない（開けると輪郭と交わって水密でなくなる）。
+       おもては上の層（tt〜T）、うらは舌の層（0〜tt）のなかに収める。 */
+  const bxS = boxSpec();
+  const roomFront = Math.max(0, T - tt - 0.6), roomBack = Math.max(0, tt - 0.6);
+  const fitsOn = b => b && boxFits(b, W - 2 * state.margin, W - 2 * state.margin);
+  const bPlateF = slotIsBox('plateFront') && fitsOn(bxS) && bxS.h <= roomFront ? bxS : null;
+  const bPlateB = slotIsBox('plateBack')  && fitsOn(bxS) && bxS.h <= roomBack  ? bxS : null;
+  const boxMissS = [
+    ['プレートのおもて', slotIsBox('plateFront'), bPlateF, roomFront],
+    ['プレートのうら',   slotIsBox('plateBack'),  bPlateB, roomBack],
+  ].filter(([, want, got]) => want && !got);
+
+  // ── 一枚板の中心線（u=奥行／＋uがうしろ, v=高さ）
+  // うしろの平らな足 →（接地点 u=0 から）手前の下で曲がる円弧 → プレートへ続く直線。
+  // ★曲がりの半径Rだけ、プレートは接地点より前に出る。つまりRを大きくすると前へ倒れる。
+  //   限界を数字で出したいので、断面と重心をまとめて作る関数にしておく
+  const dir = [st, ct];                              // プレートの向き（上・うしろ）
+  const nOut = [-ct, st];                            // 表がわ（QRの面）の法線
+  const Ls = sd + 5;                                 // 円弧から受け口の口まで
+  const off  = (p, s) => [p[0] + nOut[0] * s, p[1] + nOut[1] * s];
+  const back = (p, d) => [p[0] - dir[0] * d, p[1] - dir[1] * d];
+  const plateV = Math.abs(polyArea(plateOut)) * T;
+  const deep = sd + 0.4;
+
+  const shape = (R) => {
+    const O = [0, T / 2 + R];                        // 曲がりの中心（接地点が u=0）
+    const uT = Math.max(D - R - T, 8);               // 足のうしろ端
+    const C = [-R * ct, O[1] + R * st];              // 円弧の終わり＝プレート線の始まり
+    const Dp = [C[0] + dir[0] * Ls, C[1] + dir[1] * Ls];
+    const seg = 24, arcOut = [], arcIn = [];
+    for (let i = 0; i <= seg; i++) {
+      const a = -Math.PI / 2 - (Math.PI / 2 + th) * (i / seg);
+      arcOut.push([O[0] + (R + T / 2) * Math.cos(a), O[1] + (R + T / 2) * Math.sin(a)]);
+      arcIn .push([O[0] + (R - T / 2) * Math.cos(a), O[1] + (R - T / 2) * Math.sin(a)]);
+    }
+    // 口まわり：外がわの面 → 口の面 → 受け口の切り欠き。
+    // ★切り欠きの内がわは、そのまま板の内面に続く。ここで口の内がわのかど（off(Dp,-T/2)）を
+    //   打ってしまうと、同じ線を行って戻るヒゲになり、三角形分割が壊れる（面が1枚余る）
+    const Mout = off(Dp, T / 2), N1 = off(Dp, -T / 2 + socket);
+    // ★奥ほど浅く掘る＝すきまが狭くなる「くさび」。舌はまっすぐなので、
+    //   差しはじめは軽く、押しこむほど両面が当たって締まる（1.8°ほどの傾き）
+    const N2 = back(off(Dp, -T / 2 + socketEnd), deep);
+    const Nend = back(off(Dp, -T / 2), deep);
+    const cap = [];                                  // 足のうしろ端は半円で終わる
+    for (let i = 1; i < 8; i++) {
+      const a = Math.PI / 2 - Math.PI * (i / 8);
+      cap.push([uT + (T / 2) * Math.cos(a), T / 2 + (T / 2) * Math.sin(a)]);
+    }
+    const prof = [[uT, 0]]                           // 足の下（＝接地面）
+      .concat(arcOut)                                // 手前の曲がり（外がわ）
+      .concat([Mout, N1, N2, Nend])                  // 口と受け口の切り欠き（奥がくさび）
+      .concat(arcIn.slice().reverse())               // 内がわを戻る
+      .concat([[uT, T]]).concat(cap);
+    // プレートの中心＝口から板の向きに（全長の半分 − 差し込み）進んだ点
+    const pc = [Dp[0] + dir[0] * (H / 2 - sd), Dp[1] + dir[1] * (H / 2 - sd)];
+    // 倒れにくさ：ぜんたいの重心が、接地している範囲 [0, uT] のどこにあるか。
+    // ★プレートは「板の面」、脚は「真横から見た断面」の面積なので、そのまま足すと重みが
+    //   まるでちがう。かならず体積（面積×押し出し長さ）にしてから合成する
+    const legV = Math.abs(polyArea(prof)) * W, legC = polyCentroid(prof);
+    return { prof, Dp, uT, pc,
+             com: (plateV * pc[0] + legV * legC[0]) / (plateV + legV) };
+  };
+
+  const MIN_COM = 5;                                 // 重心が接地の前端からこれだけ後ろにほしい
+  const s = shape(R);
+  // 前に倒れるときは、どこまで半径を小さくすればよいかを二分探索で出す
+  let maxBend = null;
+  if (!(s.com > MIN_COM)) {
+    let lo = 3, hi = R;
+    if (shape(lo).com > MIN_COM) {
+      for (let i = 0; i < 14; i++) {
+        const mid = (lo + hi) / 2;
+        if (shape(mid).com > MIN_COM) lo = mid; else hi = mid;
+      }
+      maxBend = Math.floor(lo);
+    }
+  }
+  const { prof, Dp, uT, pc } = s;
+  // 脚のジオメトリは印刷の向き（横倒し＝幅が上下）。z=0 がベッド
+  const legGeo = slab(prof, [], 0, W);
+  // 組み立て：ローカル (x=奥行, y=高さ, z=幅) → 世界 (X=幅, Y=奥行, Z=高さ)
+  const legAsm = new THREE.Matrix4().set(0,0,1,-W/2,  1,0,0,0,  0,1,0,0,  0,0,0,1);
+
+  // プレートの姿勢：Xまわりに (90°−傾き) 回すと、上端が奥へ倒れる
+  const asmPlate = mT(0, pc[0], pc[1])
+    .multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2 - th))
+    .multiply(mT(0, 0, -T / 2));
+  // 分解図もクリックしたときも、プレートは板の向きにまっすぐ引き抜く
+  const pullOut = g => mT(0, dir[0] * g, dir[1] * g).multiply(asmPlate);
+  const out = new THREE.Vector3(0, dir[0], dir[1]);
+
+  // 印刷の並び：脚は輪郭の真ん中がプレートの下に来るように置く
+  let u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
+  for (const [u, v] of prof) { u0=Math.min(u0,u); u1=Math.max(u1,u); v0=Math.min(v0,v); v1=Math.max(v1,v); }
+  const gapY = 14;
+
+  const parts = [];
+  const gBack = aBack && artGeom(aBack, fBack, qrCy, 0, inlayT, true);
+  // 上の層（アーチ）は最後に sd/2 だけ上へずらすので、★窓もその手前の座標で置くこと
+  const archTop = (holes, z0, z1) =>
+    slab(archPlatePts(W, H - sd, 1.2, arch), holes, z0, z1).translate(0, sd / 2, 0);
+  parts.push({ name:'QRプレート', color:state.cTile,
+               // 舌（下 sd ぶん・うら面とツライチ）＋ 本体。重ねるだけで段ができる
+               geoms:[...(gBack ? [slab(plateOut, [gBack.window], 0, inlayT), gBack.fill,
+                                   slab(plateOut, [], inlayT, tt)]
+                        : bPlateB ? [slab(plateOut, [boxWindow(bPlateB, qrCy)], 0, bPlateB.h),
+                                     slab(plateOut, [], bPlateB.h, tt)]
+                                  : [slab(plateOut, [], 0, tt)]),
+                      ...(bPlateF
+                        ? [archTop([], tt, T - bPlateF.h),
+                           archTop([boxWindow(bPlateF, qrCy - sd / 2)], T - bPlateF.h, T)]
+                        : [archTop([], tt, T)]),
+                      ],
+               print:{ x:0, y:0 }, asm:pullOut, lift:out });
+  // ★分解のときは「面の法線の向き」に抜く。プレートのローカル +Z がおもて面の外向き
+  // ★おもての受け口だけは local +Z に開くので、モデルを返さずそのまま入れる（down=false）
+  if (bPlateF) for (const bp of boxParts(bPlateF, T - bPlateF.h, qrCy))
+    parts.push({ name:`はめ込み（おもて）${bp.suffix}`,
+                 color: bp.color != null ? bp.color : state.cLogo, geoms:[bp.geom],
+                 print: bPlateF.merged ? { x:0, y:0 } : { x:W + 8, y:0 },
+                 asm:g => pullOut(g).multiply(mT(0, 0, (bPlateF.merged ? 0 : 2.4) * g)), lift:out });
+  if (bPlateB) for (const bp of boxParts(bPlateB, 0, qrCy, true))
+    parts.push({ name:`はめ込み（うら）${bp.suffix}`,
+                 color: bp.color != null ? bp.color : state.cLogo, geoms:[bp.geom],
+                 print: bPlateB.merged ? { x:0, y:0 } : { x:W + 8, y:-(W + 8) },
+                 asm:g => pullOut(g).multiply(mT(0, 0, (bPlateB.merged ? 0 : -2.4) * g)), lift:out });
+  // スタンドのおもては上を向くので、アイコンもQRと同じく「凸」でよい
+  if (aFront) parts.push({ name:artName(aFront, 'おもて'), color:markColor(aFront),
+               geoms:[artGeom(aFront, fFront, qrCy, T - K.embed, T + state.qrh, false).marks],
+               print:{ x:0, y:0 }, asm:pullOut, lift:out });
+  if (gBack) parts.push({ name:artName(aBack, 'うら'), color:markColor(aBack), geoms:[gBack.marks],
+                          print:{ x:0, y:0 }, asm:pullOut, lift:out });
+  parts.push({ name:'スタンド脚', color:state.cBody, geoms:[legGeo],
+               print:{ x:-(u0 + u1) / 2, y:-(H / 2 + gapY + (v1 - v0) / 2) - v0 },
+               asm:() => legAsm, lift:null });
+
+  const com = s.com;
+  const arts = [['プレートのおもて（凸）', aFront, fFront], ['プレートのうら（彫り）', aBack, fBack]]
+    .filter(a => a[1]).map(([where, art, fit]) => ({ where, art, fit, avail:W, need:fit.minW }));
+
+  const boxesS = [['プレートのおもて', bPlateF], ['プレートのうら', bPlateB]].filter(b => b[1]);
+  const info = {
+    arts, boxes:boxesS, boxMiss:boxMissS.map(b => b[0]), box:bxS,
+    thickness:T, exploded:26, liftMax: sd + 16,
+    /* ★スタンドはクリックしても裏返さない（2026-08-14 ユーザー指摘）。
+       差し込みが相欠き＝舌はうら面がわにしかないので、**裏返すと物理的にはまらない**。
+       できない持ちかたを見せてしまうと、組み立てを勘ちがいさせる。
+       クリックは「抜く → もどる」の2段だけ。`spinAxis` を持たせないことで、
+       placeParts も pointerup もまとめて裏返しをやめる（分岐を増やさない）。 */
+    pivot: new THREE.Vector3(0, pc[0], pc[1]),
+    spinAxis: null,
+    minSize: Math.ceil(Math.max(0, ...arts.filter(a => a.art.kind === 'qr').map(a => a.need))),
+    sizeMax: 140,
+    dims: [
+      ['一枚板', `厚み${T}mm・幅${W}mm（プレートも脚も同じ）`],
+      ['QRプレート', `幅${W} × 長さ${H.toFixed(0)}mm（上辺は反り${arch.toFixed(1)}mmのアーチ・差し込み${sd}mmを含む）`],
+      ['曲がり', `半径${R}mm・${(90 + state.tilt)}°まわりこむ（手前の下）`],
+      ['奥行', `${(uT + R + T).toFixed(0)}mm（うしろの足の先まで）／傾き ${state.tilt}°`],
+      ['立てた高さ', `約${(Dp[1] + (H - sd) * ct).toFixed(0)}mm`],
+      ['つなぎ目', `舌 厚み${tt.toFixed(1)} × 長さ${sd}mm（受け口のすきま 口${S.slotFit.toFixed(2)}` +
+                   ` → 奥${S.slotGrip.toFixed(2)}mm の<b>くさび</b>。押しこむほど締まります）`],
+      ...boxesS.map(([where, b]) =>
+        [`はめ込み（${where}）`,
+         `<b>${b.kind === 'round' ? `φ${b.w.toFixed(2)}` : `${b.w.toFixed(2)} × ${b.d.toFixed(2)}`}` +
+         ` × ${b.h.toFixed(2)} mm</b>（${b.from === 'stl' ? '読みこんだ3Dモデル' : 'この寸法で作ってください'}）` +
+         ` / ${b.merged ? '地続き（すきま0）' : `すきま片側${b.fit.toFixed(2)}mm`}`]),
+      ...boxMissS.map(([where, , , room]) =>
+        [`はめ込み（${where}）`, `<span class="bad">入りません。` +
+         `この面で取れる深さは <b>${room.toFixed(2)}mm</b> まで` +
+         `（板の厚みを上げるか、四角柱を低く・小さくしてください）</span>`]),
+      ...arts.map(a => [a.where, `${ITEMS[a.art.item]}：${a.fit.aw.toFixed(1)}×${a.fit.ah.toFixed(1)}mm` +
+        (a.art.kind === 'qr' ? `・1モジュール${a.fit.cell.toFixed(2)}mm` : `・1マス${a.fit.cell.toFixed(2)}mm`) +
+        (a.where.includes('うら') ? `・彫りこみ${inlayT.toFixed(1)}mm` : '')]),
+      ['倒れにくさ', com > MIN_COM
+        ? `<span class="good">重心は接地の前端から ${com.toFixed(0)}mm うしろ（足の長さ ${uT.toFixed(0)}mm）</span>`
+        : `<span class="bad">⚠ 前に倒れます。${maxBend
+            ? `曲がりの半径を <b>${maxBend}mm</b> 以下にするか、傾きを大きくしてください`
+            : `傾きを大きくしてください`}</span>`],
+    ],
+    howto: [
+      '① 2パーツともこの向きのまま印刷。サポートは要りません',
+      ...(gBack ? ['★うら面のもようはプレートのベッド側への彫りこみ＋詰め物です。' +
+                  '色を変えて刷ると（AMS等）ツライチのまま2色になり、いちばん読み取りやすくなります'] : []),
+      '②「脚」は横倒し（幅が上下）です。どの層も同じ形なので、ブリムを付けると安心です',
+      ...(boxesS.length ? [`★はめ込みは <b>` +
+        (bxS.kind === 'round' ? `φ${bxS.w.toFixed(2)}` : `${bxS.w.toFixed(2)} × ${bxS.d.toFixed(2)}`) +
+        ` × ${bxS.h.toFixed(2)} mm</b> で作ってください。` +
+        (bxS.merged
+          ? '<b>地続き</b>なのですきま0です。ぴったり接しているので、刷ると融合して1つの固まりになります'
+          : `受け口はすきま片側 ${bxS.fit.toFixed(2)}mm ぶん大きく開けてあります`)] : []),
+      '③ プレートの下の舌を、脚の受け口に<b>奥まで押しこむ</b>だけ。受け口は奥ほど狭い' +
+      'くさびなので、最後で締まって止まります（接着は不要）',
+      'つなぎ目は前後で 1 本ずつ。横から見ると一枚板のまま続いて見えます',
+    ],
+  };
+  return { parts, ghosts:[], info };      // スタンドは磁石を使わない
+}
+
+/* ══════════════════════════════════════════════════════════════
+   書き出し
+   ══════════════════════════════════════════════════════════════ */
+// 印刷の並びに置いた状態。print.r はまとめ刷りで90°ねかせたときだけ入る（Z軸まわり＝
+// ベッドに接する面は変わらないので、サポートの要不要にも印刷の向きにも影響しない）
+function printMatrix(print) {
+  const m = mT(print.x, print.y, 0);
+  return print.r ? m.multiply(new THREE.Matrix4().makeRotationZ(print.r)) : m;
+}
+function bakedGeoms(part) {
+  const m = printMatrix(part.print);
+  return part.geoms.map(g => { const c = g.clone(); c.applyMatrix4(m); return c; });
+}
+
+function crc32(bytes) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) {
+    let c = (crc ^ bytes[i]) & 0xFF;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (c >>> 1) ^ 0xEDB88320 : c >>> 1;
+    crc = (crc >>> 8) ^ c;
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+function zipStore(files) {
+  const u16 = n => [n & 255, (n >>> 8) & 255];
+  const u32 = n => [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255];
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0;
+  for (const f of files) {
+    const nameB = enc.encode(f.name), crc = crc32(f.data), size = f.data.length;
+    const local = new Uint8Array([].concat(u32(0x04034b50), u16(20), u16(0), u16(0),
+      u16(0), u16(0), u32(crc), u32(size), u32(size), u16(nameB.length), u16(0)));
+    parts.push(local, nameB, f.data);
+    central.push(new Uint8Array([].concat(u32(0x02014b50), u16(20), u16(20), u16(0), u16(0),
+      u16(0), u16(0), u32(crc), u32(size), u32(size), u16(nameB.length),
+      u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset))), nameB);
+    offset += local.length + nameB.length + size;
+  }
+  let clen = 0; for (const c of central) clen += c.length;
+  const end = new Uint8Array([].concat(u32(0x06054b50), u16(0), u16(0),
+    u16(files.length), u16(files.length), u32(clen), u32(offset), u16(0)));
+  const all = [...parts, ...central, end];
+  let total = 0; for (const c of all) total += c.length;
+  const out = new Uint8Array(total); let p = 0;
+  for (const c of all) { out.set(c, p); p += c.length; }
+  return out;
+}
+
+/* 3MFのメッシュ。
+   ★**頂点を必ず溶接する**（同じ座標は同じ番号にまとめる）。
+     Three.js のジオメトリは index を持たないので、そのまま書くと三角形ごとに頂点が
+     3つずつ独立してしまい、**スライサーから見ると辺がひとつも共有されていない**
+     ＝「開いた辺だらけの壊れたモデル」になる。Bambu Studio が毎回「修復」を出すのはこれで、
+     修復せずに刷ると失敗する（2026-08-14 ユーザー報告）。
+     溶接すると、閉じたカラは辺が必ず2枚ずつになって修復が要らなくなる。ファイルも小さくなる。
+   ★溶接は**ジオメトリ（＝カラ）ごと**に行う。ここをまたいでまとめると、
+     重ねてある板どうしの接する面で辺が4枚になってしまう（このアプリは
+     「閉じたカラを重ねてスライサーに合体させる」作りなので、カラは別々のままにしておく）。 */
+function meshXML(geoms) {
+  const f = v => (Math.round(v * 1e4) / 1e4);
+  const vx = [], tx = [];
+  for (const g of geoms) {
+    const pos = g.attributes.position, idx = g.index;
+    const map = new Map();                       // このカラのなかだけで使う「座標 → 番号」
+    const id = j => {
+      const x = f(pos.getX(j)), y = f(pos.getY(j)), z = f(pos.getZ(j)), k = `${x},${y},${z}`;
+      let i = map.get(k);
+      if (i === undefined) { map.set(k, i = vx.length); vx.push(`<vertex x="${x}" y="${y}" z="${z}"/>`); }
+      return i;
+    };
+    const n = idx ? idx.count : pos.count;
+    const shell = g.userData && g.userData.shell;   // 1カラぶんの三角形の数（あれば）
+    for (let i = 0; i < n; i += 3) {
+      if (shell && (i / 3) % shell === 0) map.clear();   // カラの切れ目でまとめ直す
+      const t = [0, 1, 2].map(k => id(idx ? idx.getX(i + k) : i + k));
+      // 丸めたせいで2点が重なった三角形は捨てる（面積0はスライサーがエラーに数える）
+      if (t[0] === t[1] || t[1] === t[2] || t[2] === t[0]) continue;
+      tx.push(`<triangle v1="${t[0]}" v2="${t[1]}" v3="${t[2]}"/>`);
+    }
+  }
+  return `<mesh><vertices>${vx.join('')}</vertices><triangles>${tx.join('')}</triangles></mesh>`;
+}
+
+/* 3MF書き出し。
+   ★同じ印刷位置にいるパーツは「1つの実物」（板＋色ちがいのもよう＋地続きのロゴ）なので、
+     3MFでも **1つのオブジェクトに束ねる**（<components>）。
+     バラバラのオブジェクトのまま渡すとスライサーが別々の物として扱い、
+     地続きにしたロゴが本体から離れてしまう（実際そうなった）。
+     束ねても中身は色ごとの別メッシュのままなので、フィラメントは1つずつ割り当てられる。 */
+function export3MF(parts) {
+  const mats = parts.map(p =>
+    `<base name="${p.name}" displaycolor="#${p.color.toString(16).padStart(6,'0').toUpperCase()}FF"/>`).join('');
+  const meshObjs = parts.map((p, i) =>
+    `<object id="${i+1}" type="model" pid="10" pindex="${i}" name="${p.name}">${meshXML(bakedGeoms(p))}</object>`);
+  // 印刷位置ごとにまとめる（printPieces と同じ考え方）
+  const order = [], byPos = new Map();
+  parts.forEach((p, i) => {
+    const k = `${p.print.x},${p.print.y}`;
+    let e = byPos.get(k);
+    if (!e) { byPos.set(k, e = { name:p.name, ids:[] }); order.push(e); }
+    e.ids.push(i + 1);
+  });
+  // ★束ねるオブジェクトのidは、参照するメッシュより後ろにする（3MFは前方参照できない）
+  let next = parts.length + 1;
+  const wraps = [], items = [];
+  for (const e of order) {
+    if (e.ids.length === 1) { items.push(e.ids[0]); continue; }
+    const id = next++;
+    wraps.push(`<object id="${id}" type="model" name="${e.name}"><components>` +
+      e.ids.map(i => `<component objectid="${i}"/>`).join('') + `</components></object>`);
+    items.push(id);
+  }
+  const objs = meshObjs.concat(wraps).join('');
+  const itemXML = items.map(i => `<item objectid="${i}"/>`).join('');
+  const model = `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+ <resources>
+  <basematerials id="10">${mats}</basematerials>
+  ${objs}
+ </resources>
+ <build>${itemXML}</build>
+</model>`;
+  const ct = `<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>`;
+  const rels = `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>`;
+  const enc = new TextEncoder();
+  return zipStore([
+    { name:'[Content_Types].xml', data:enc.encode(ct) },
+    { name:'_rels/.rels',         data:enc.encode(rels) },
+    { name:'3D/3dmodel.model',    data:enc.encode(model) },
+  ]);
+}
+
+function exportSTL(parts) {
+  const tris = [];
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  const ab = new THREE.Vector3(), ac = new THREE.Vector3(), nm = new THREE.Vector3();
+  for (const p of parts) for (const g of bakedGeoms(p)) {
+    const pos = g.attributes.position, idx = g.index;
+    const count = idx ? idx.count : pos.count;
+    for (let i = 0; i < count; i += 3) {
+      const i0 = idx ? idx.getX(i) : i, i1 = idx ? idx.getX(i+1) : i+1, i2 = idx ? idx.getX(i+2) : i+2;
+      a.fromBufferAttribute(pos, i0); b.fromBufferAttribute(pos, i1); c.fromBufferAttribute(pos, i2);
+      ab.subVectors(b, a); ac.subVectors(c, a); nm.crossVectors(ab, ac).normalize();
+      tris.push([nm.x, nm.y, nm.z, a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z]);
+    }
+  }
+  const buf = new ArrayBuffer(84 + tris.length * 50);
+  const dv = new DataView(buf);
+  dv.setUint32(80, tris.length, true);
+  let o = 84;
+  for (const t of tris) {
+    for (let i = 0; i < 12; i++) { dv.setFloat32(o, t[i], true); o += 4; }
+    dv.setUint16(o, 0, true); o += 2;
+  }
+  return new Uint8Array(buf);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   まとめ刷りプレート（1枚のベッドに何セットも並べる）
+   ══════════════════════════════════════════════════════════════ */
+/* ★同じ print 位置にいるパーツは「1つの実物」（板＋色ちがいのもよう）なので、
+   詰めるときは必ずひとかたまりで動かす。バラすと色の板だけ別の場所へ飛んでいく */
+function printPieces(parts) {
+  const map = new Map();
+  for (const p of parts) {
+    const k = `${p.print.x},${p.print.y}`;
+    let e = map.get(k);
+    if (!e) map.set(k, e = { parts:[], box:new THREE.Box3() });
+    e.parts.push(p);
+    for (const g of p.geoms) { g.computeBoundingBox(); e.box.union(g.boundingBox); }
+  }
+  return [...map.values()].map(e => ({
+    parts: e.parts, r: 0,
+    x0: e.box.min.x, y0: e.box.min.y,
+    w: e.box.max.x - e.box.min.x, h: e.box.max.y - e.box.min.y,
+  }));
+}
+// Z軸まわりに90°ねかせる。(x,y) → (−y, x) なので、囲みの左下も入れかわる
+const rot90 = p => ({ parts:p.parts, r:Math.PI / 2,
+  x0: -(p.y0 + p.h), y0: p.x0, w: p.h, h: p.w });
+const ORIENT = {
+  nat : p => p,                          // そのまま
+  port: p => (p.h >= p.w ? p : rot90(p)), // 縦長にそろえる
+  land: p => (p.w >= p.h ? p : rot90(p)), // 横長にそろえる
+};
+
+/* 棚づめ：背の高い順に並べて段を作る。★新しい段を作る前に、
+   すでにある段の空いている右がわを先に埋める（背の高い順なので高さは必ず足りる）。
+   これをしないと「本体が1個だけの段」の右がぜんぶ捨て地になる。入らなければ null */
+function shelfPack(items, PW, PH, gap) {
+  const list = [...items].sort((a, b) => b.h - a.h || b.w - a.w);
+  const shelves = [], out = [];
+  let top = 0;
+  for (const it of list) {
+    if (it.w > PW + 1e-6) return null;
+    let s = shelves.find(v => v.x + (v.x > 0 ? gap : 0) + it.w <= PW + 1e-6);
+    if (!s) {
+      const y = shelves.length ? top + gap : 0;
+      if (y + it.h > PH + 1e-6) return null;
+      shelves.push(s = { y, x: 0 });
+      top = y + it.h;
+    }
+    const x = s.x + (s.x > 0 ? gap : 0);
+    out.push({ it, x, y: s.y });
+    s.x = x + it.w;
+  }
+  return { out, w: Math.max(...out.map(o => o.x + o.it.w)), h: top };
+}
+// 3通りの向きぞろえを全部ためして、いちばん段数の低いものを採る
+function packSets(base, n, PW, PH) {
+  let best = null;
+  for (const key of ['nat', 'port', 'land']) {
+    const one = base.map(ORIENT[key]);
+    const items = [];
+    for (let s = 0; s < n; s++) for (const p of one) items.push({ ...p, set:s });
+    const r = shelfPack(items, PW, PH, PL.gap);
+    if (r && (!best || r.h < best.h - 1e-6)) best = r;
+  }
+  return best;
+}
+const plateInner = key => {
+  const [, W, H] = PLATES[key];
+  return [W - 2 * PL.margin, H - 2 * PL.margin];
+};
+
+/* 1セットぶんのパーツから、プレートに n セット並べたパーツ列を作る。
+   入りきらなければ、入るところまでセット数を自動で減らす */
+function buildPlate(parts, want, plateKey) {
+  const [, W, H] = PLATES[plateKey];
+  const [PW, PH] = plateInner(plateKey);
+  const base = printPieces(parts);
+  let n = Math.max(1, Math.round(want)), pack = null;
+  while (n >= 1 && !(pack = packSets(base, n, PW, PH))) n--;
+  const per = base.length, vol = volumeOf(parts);
+  if (!pack) return { sets:0, want, parts:[], plate:[W, H], per, vol, used:[0, 0] };
+  // 使った範囲をプレートの真ん中に置く（スライサーがどう読んでも中央に来る）
+  const ox = -pack.w / 2, oy = -pack.h / 2;
+  const out = [];
+  for (const { it, x, y } of pack.out)
+    for (const p of it.parts)
+      out.push({ ...p, name:`${p.name}#${it.set + 1}`, lift:null,
+                 print:{ x: ox + x - it.x0, y: oy + y - it.y0, r: it.r } });
+  return { sets:n, want, parts:out, plate:[W, H], per, vol, used:[pack.w, pack.h] };
+}
+// プレートに入る最大セット数
+function maxSets(parts, plateKey) {
+  const base = printPieces(parts), [PW, PH] = plateInner(plateKey);
+  let n = 0;
+  while (n < PL.maxSet && packSets(base, n + 1, PW, PH)) n++;
+  return n;
+}
+// 材料のめやす（mm³）。符号つき四面体の和＝閉じたカラの体積
+function volumeOf(parts) {
+  let v = 0;
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(),
+        t = new THREE.Vector3();
+  for (const p of parts) for (const g of p.geoms) {
+    const pos = g.attributes.position, idx = g.index;
+    const count = idx ? idx.count : pos.count;
+    for (let i = 0; i < count; i += 3) {
+      a.fromBufferAttribute(pos, idx ? idx.getX(i)     : i);
+      b.fromBufferAttribute(pos, idx ? idx.getX(i + 1) : i + 1);
+      c.fromBufferAttribute(pos, idx ? idx.getX(i + 2) : i + 2);
+      t.crossVectors(b, c);
+      v += a.dot(t) / 6;
+    }
+  }
+  return Math.abs(v);
+}
+
+/* ★blob の URL を早く捨ててはいけない。
+   Chromeが「ダウンロード前に保存場所を確認する」設定だと、保存ダイアログを開いている
+   あいだはまだ読みに来ていない。4秒で捨てていたので、ダイアログでもたつくと
+   URLが死んで「ファイルが見つかりません」で失敗していた。
+   ・<a> はいったん本文に付けてから click する（外したままだと効かないブラウザがある）
+   ・捨てるのは5分後。ページを閉じればどのみち消える */
+function save(data, name, type) {
+  const url = URL.createObjectURL(new Blob([data], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 300000);
+}
+/* ★ダウンロードのファイル名は「半角英数だけ」にする。
+   日本語を入れると端末によって**文字化け**し、化けた名前がそのまま不正なパスになると
+   「データパスが見つかりません」でダウンロードごと失敗する（実際に両方おきた）。
+   あわせて、Windowsで使えない文字と**うしろの「.」や空白**も落とす。 */
+function safeName(s) {
+  return String(s)
+    .replace(/[^\x20-\x7e]/g, '')           // ★半角英数記号いがいは落とす（文字化けの元）
+    .replace(/[\\\/:*?"<>|]/g, '_')         // Windowsで使えない文字
+    .replace(/\s+/g, '_')                   // 空白・改行・タブ
+    .replace(/_{2,}/g, '_')
+    .replace(/_+\./g, '.')                  // 日本語ドメインだと「_.jp」が残るので詰める
+    .replace(/^[._]+|[._]+$/g, '')          // 先頭とうしろの「.」「_」
+    .slice(0, 60) || 'qr';
+}
+function fileBase() {
+  const host = state.text.replace(/^https?:\/\//i, '').replace(/[\/\?#].*$/, '').slice(0, 40);
+  return safeName((state.kind === 'key' ? 'QR-keyholder_' : 'QR-stand_') + host);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   3Dビュー
+   ══════════════════════════════════════════════════════════════ */
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+view.appendChild(renderer.domElement);
+
+/* ★金属（磁石・10円玉）は「まわりの映りこみ」が無いと**真っ黒に見える**。
+   metalness を上げるほど拡散光が減って映りこみに置きかわるので、ライトだけの場面では
+   上げるほど暗くなる（＝これが物理的に正しい）。磁石を metalness 0.95 にしたら
+   銀色ではなく黒っぽくなったのはこれが原因。
+   → 空↔地面の小さなグラデーションを作って、**金属のマテリアルにだけ**映りこみとして渡す。
+   `scene.environment` にすると板やQRの見た目まで変わってしまうので、そうはしない。 */
+const metalEnv = (() => {
+  const cv = document.createElement('canvas');
+  cv.width = 64; cv.height = 32;                    // 全天球は 横=縦×2
+  const ctx = cv.getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, 0, 32);
+  g.addColorStop(0.00, '#ffffff');                  // 真上＝明るい天井
+  g.addColorStop(0.42, '#e8eef6');
+  g.addColorStop(0.52, '#6f7b88');                  // 水平線でストンと落とす＝金属らしい輪
+  g.addColorStop(1.00, '#2f353c');                  // 真下＝暗い床（ここが効いて「金属の陰」になる）
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 32);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  const pm = new THREE.PMREMGenerator(renderer);
+  const t = pm.fromEquirectangular(tex).texture;
+  pm.dispose(); tex.dispose();
+  return t;
+})();
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0f1e);   // 3アプリ共通の背景色
+const camera = new THREE.PerspectiveCamera(38, 1, 1, 4000);
+camera.up.set(0, 0, 1);
+camera.position.set(90, -140, 110);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x9aa6b2, 2.0));
+const key = new THREE.DirectionalLight(0xffffff, 2.2);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+// 影の自己干渉（シャドウアクネ＝面に出る斜めのシマ）よけ。
+// 単位がmmなので normalBias もmmで効く。あわせて影カメラをモデルにぴったり合わせる（→fitShadow）
+key.shadow.bias = -0.0004;
+key.shadow.normalBias = 0.6;
+scene.add(key);
+
+// 影の解像度はカメラの写す範囲で決まる。モデルの大きさに合わせて毎回しぼる
+function fitShadow(r) {
+  const R = r * 0.8 + 8;
+  key.position.set(R * 0.6, -R * 0.9, R * 1.6);
+  const c = key.shadow.camera;
+  c.left = -R; c.right = R; c.top = R; c.bottom = -R;
+  c.near = R * 0.4; c.far = R * 6;
+  c.updateProjectionMatrix();
+}
+const fill = new THREE.DirectionalLight(0xffffff, 0.6);
+fill.position.set(-120, 90, 60); scene.add(fill);
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(900, 900),
+  new THREE.ShadowMaterial({ opacity:0.16 }));
+ground.receiveShadow = true; scene.add(ground);
+
+const root = new THREE.Group(); scene.add(root);
+
+/* 大きさ比べの10円玉（実物大 φ23.5×1.5mm）。となりに寝かせて置くだけの飾りで、
+   ★書き出しにも部品表にも出てこない（parts でも ghosts でもなく、ただのメッシュ）。
+   root に入れておくと、frame() が root をずらしても部品との位置関係がずれない。
+   ★作り直しのときに捨てられないよう userData.keep で守る。 */
+const coin = new THREE.Group();
+{
+  const mat = new THREE.MeshStandardMaterial({
+    color:COIN.color, roughness:0.34, metalness:0.9, envMap:metalEnv, envMapIntensity:1.15 });
+  const r = COIN.d / 2;
+  // 本体＋ひとまわり小さい面（ふちの線が出て「硬貨っぽく」見える。模様までは作らない）
+  for (const [rr, tt] of [[r, COIN.t], [r - 1.1, COIN.t + 0.14]]) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(rr, rr, tt, 48), mat);
+    m.rotation.x = Math.PI / 2;                 // 円柱の軸はYなので、寝かせてZ軸にする
+    m.castShadow = m.receiveShadow = true;
+    m.userData.keep = true;
+    coin.add(m);
+  }
+}
+coin.visible = false; coin.userData.keep = true; root.add(coin);
+
+/* 部品のとなり（+X がわ）の床に置く。どの表示（組み立て／分解／印刷の並び）でも同じ。
+   ★測るのは **root の中の座標**でないといけない。`expandByObject` は world で測るので、
+     frame() が root をずらしたぶんが混ざり、置き場所が表示ごとにズレる（実際ズレた）。
+     部品の obj は root の直下なので、その `matrix`（＝root内の位置）で測る。 */
+const coinBB = new THREE.Box3(), coinTmp = new THREE.Box3();
+function placeCoin(parts) {
+  coin.visible = !!state.coin;
+  if (!coin.visible || !parts.length) return;
+  coinBB.makeEmpty();
+  for (const p of parts) for (const m of p.obj.children) {
+    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+    coinTmp.copy(m.geometry.boundingBox).applyMatrix4(p.obj.matrix);
+    coinBB.union(coinTmp);
+  }
+  if (coinBB.isEmpty()) return;
+  coin.position.set(coinBB.max.x + COIN.gap + COIN.d / 2,
+                    (coinBB.min.y + coinBB.max.y) / 2,
+                    coinBB.min.z + COIN.t / 2);          // 部品と同じ床の高さに寝かせる
+  coin.updateMatrix();
+  coin.updateMatrixWorld(true);
+}
+
+/* ★「プレート」表示は 2026-08-14 に外した（ユーザー判断：まとめ刷りの並びは
+   スライサーで見れば足りる）。ベッドの板・ふちの線もいっしょに消してある。
+   まとめ刷り自体（buildPlate と書き出し）はそのまま残っている。 */
+
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(view);
+
+(function loop() {
+  requestAnimationFrame(loop);
+  if (current && (Math.abs(liftTo - liftNow) > 0.01 || Math.abs(spinTo - spinNow) > 0.002)) {
+    liftNow += (liftTo - liftNow) * 0.18;            // ふわっと浮く／もどる
+    spinNow += (spinTo - spinNow) * 0.18;            // ふわっと裏返る
+    placeParts(current.show, current.info);
+  } else if (current && (liftNow !== liftTo || spinNow !== spinTo)) {
+    liftNow = liftTo; spinNow = spinTo;
+    placeParts(current.show, current.info);
+  }
+  controls.update();
+  renderer.render(scene, camera);
+})();
+
+/* クリック判定。ドラッグ（回転）と区別するため、押した位置から5px以内で離したときだけ */
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+let downAt = null;
+
+function hitLiftable(ev) {
+  if (!current || state.view !== 'assembled') return false;
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  // 10円玉は飾りなので、押しても部品は動かさない
+  return ray.intersectObjects(root.children.filter(o => o !== coin), true).length > 0;
+}
+
+renderer.domElement.addEventListener('pointerdown', e => downAt = [e.clientX, e.clientY]);
+renderer.domElement.addEventListener('pointerup', e => {
+  const d = downAt; downAt = null;
+  if (!d || Math.hypot(e.clientX - d[0], e.clientY - d[1]) > 5) return;
+  if (!hitLiftable(e)) return;
+  // 1回目＝外す／2回目＝裏返して うら面を見せる／3回目＝もとにもどす。
+  // ★裏返せないかたち（スタンド＝相欠きなので裏返すとはまらない）は「外す→もどる」の2段
+  const canSpin = !!current.info.spinAxis;
+  if (!liftTo) { liftTo = current.info.liftMax || 16; spinTo = 0; }
+  else if (canSpin && !spinTo) spinTo = Math.PI;
+  else { spinTo = 0; liftTo = 0; }
+});
+renderer.domElement.addEventListener('pointermove', e => {
+  renderer.domElement.style.cursor = (!downAt && hitLiftable(e)) ? 'pointer' : '';
+});
+
+/* ══════════════════════════════════════════════════════════════
+   再構築
+   ══════════════════════════════════════════════════════════════ */
+/* クリックでQR側を持ち上げる（キーホルダー＝真上／スタンド＝みぞの向きに引き抜く） */
+function placeParts(parts, info) {
+  const g = state.view === 'exploded' ? info.exploded : 0;
+  // 裏返し：外したQR側を、そのかたまりの中心（浮いたぶんだけ動かす）まわりに回す
+  let spinM = null;
+  const lp = parts.find(p => p.lift);
+  if (spinNow > 0.001 && info.pivot && info.spinAxis && lp) {
+    const c = info.pivot.clone().addScaledVector(lp.lift, liftNow);
+    spinM = new THREE.Matrix4().makeTranslation(c.x, c.y, c.z)
+      .multiply(new THREE.Matrix4().makeRotationAxis(info.spinAxis, spinNow))
+      .multiply(new THREE.Matrix4().makeTranslation(-c.x, -c.y, -c.z));
+  }
+  parts.forEach(p => {
+    let m;
+    if (state.view === 'print') m = printMatrix(p.print);
+    else {
+      m = p.asm(g);
+      if (p.lift && liftNow) m = mT(p.lift.x * liftNow, p.lift.y * liftNow, p.lift.z * liftNow).multiply(m);
+      if (p.lift && spinM) m = spinM.clone().multiply(m);
+    }
+    p.obj.matrix.copy(m);
+    p.obj.matrixAutoUpdate = false;
+    p.obj.matrixWorldNeedsUpdate = true;
+  });
+}
+
+function applyView(parts, info, refit) {
+  // クリックの案内は「組み立て」のときだけ（並べて見ているときは押しても動かない）
+  const hint = document.getElementById('hint');
+  hint.style.display = state.view === 'assembled' ? '' : 'none';
+  // 裏返せないかたちでは「裏返す」と書かない（できない操作を案内しない）
+  hint.textContent = (info.spinAxis ? 'クリック＝QRを外す→もう1回で裏返す' : 'クリック＝QRを抜く→もう1回でもどる')
+    + '／ドラッグ＝回転／ホイール＝拡大';
+  if (state.view !== 'assembled') { liftNow = liftTo = 0; spinNow = spinTo = 0; }
+  placeParts(parts, info);
+  placeCoin(parts);
+  frame(parts, refit);
+}
+
+// refit=false のときはカメラに一切さわらない。
+// スライダーを動かすたびにカメラを置き直すと、OrbitControlsのダンピングと引っぱり合って像がにじむ。
+function frame(parts, refit) {
+  root.position.set(0, 0, 0);        // 前回のずらしを打ち消してから測る（積み重なると流れていく）
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3();
+  parts.forEach(p => { p.obj.updateMatrixWorld(true); box.expandByObject(p.obj); });
+  if (coin.visible) box.expandByObject(coin);      // 10円玉も入れて枠に収める
+  if (box.isEmpty()) return;
+  const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
+  root.position.set(-c.x, -c.y, -box.min.z);         // 底をZ=0（床）にそろえる
+  fitShadow(Math.max(s.x, s.y, s.z));
+  if (!refit) return;
+  const d = Math.max(s.x, s.y, s.z) * 2.1;
+  controls.target.set(0, 0, s.z / 2);
+  camera.position.set(d * 0.45, -d * 0.78, d * 0.62);
+  controls.update();
+}
+
+function rebuild(refit) {
+  const err = document.getElementById('err');
+  let built;
+  try {
+    err.style.display = 'none';
+    built = state.kind === 'key' ? buildKeyholder() : buildStand();
+  } catch (e) {
+    err.textContent = String(e && e.message || e).includes('code length overflow')
+      ? '文字が長すぎてQRに入りません。URLを短くするか、誤り訂正を L か M にしてください。'
+      : 'QRを作れませんでした：' + (e && e.message || e);
+    err.style.display = 'block';
+    return;
+  }
+  // 前回のジオメトリ／マテリアルを捨てる。スライダーを動かすと毎回作り直すので、
+  // 捨てないとGPU側にどんどん溜まる
+  root.traverse(o => {
+    if (!o.isMesh || o.userData.keep) return;      // 10円玉は使いまわすので捨てない
+    o.geometry.dispose();
+    if (o.material.__disposed) return;
+    o.material.__disposed = true; o.material.dispose();
+  });
+  root.remove(...root.children.filter(o => o !== coin));
+
+  // まとめ刷りは表示しないが、書き出しと案内のために詰めておく
+  built.plate = buildPlate(built.parts, state.sets, state.plate);
+  built.max = maxSets(built.parts, state.plate);
+  /* ★磁石の見本は「分解」のときだけ足す。built.parts には入っていないので、
+     書き出し・まとめ刷り・部品表・材料のめやすには最初から出てこない */
+  built.show = state.view === 'exploded' && built.ghosts.length
+    ? [...built.parts, ...built.ghosts] : built.parts;
+
+  // 同じ色ならマテリアルは使いまわす（まとめ刷りだと同じ色の板が何十枚も出るので）
+  const mats = new Map();
+  const matOf = (c, metal) => {
+    const key = metal ? 'm' + c : c;
+    let m = mats.get(key);
+    if (!m) mats.set(key, m = new THREE.MeshStandardMaterial(metal
+      // 磁石はフィラメントと見分けがつくように、つやのある金属で。
+      // ★envMap が無いと真っ黒になる（金属は映りこみで見える）ので必ず付ける
+      ? { color:c, roughness:0.16, metalness:1.0, envMap:metalEnv, envMapIntensity:1.35 }
+      : { color:c, roughness:0.62, metalness:0.02 }));
+    return m;
+  };
+  built.show.forEach(p => {
+    const grp = new THREE.Group();
+    const mat = matOf(p.color, p.metal);
+    p.geoms.forEach(g => {
+      const m = new THREE.Mesh(g, mat);
+      m.castShadow = true; m.receiveShadow = true;
+      grp.add(m);
+    });
+    p.obj = grp;
+    root.add(grp);
+  });
+  current = built;
+  applyView(built.show, built.info, refit);
+  drawQRPreview(built.info);
+  updateInfo(built.info);
+  updatePlateInfo(built);
+}
+
+// スライダーは1フレームに何度も input を投げてくるので、描画1回ぶんにまとめる
+let rafId = 0, wantRefit = false;
+function requestRebuild(refit) {
+  wantRefit = wantRefit || refit;
+  if (rafId) return;
+  rafId = requestAnimationFrame(() => {
+    rafId = 0;
+    const r = wantRefit; wantRefit = false;
+    rebuild(r);
+  });
+}
+
+function updateInfo(info) {
+  const { arts, minSize, sizeMax } = info;
+  const qrs = arts.filter(a => a.art.kind === 'qr');
+  // 置かれているQRのうち、いちばん小さいモジュールで判定する
+  const worst = Math.min(...qrs.map(a => a.fit.cell), Infinity);
+  const ok = worst >= MIN_MODULE;
+  const what = state.kind === 'key' ? '本体' : 'プレート';
+  const fix = minSize <= sizeMax
+    ? `${what}を <b>${minSize} mm</b> 以上にしてください`
+    : `この長さではこのかたちに入りません。${state.kind === 'key' ? 'スタンドにするか、' : ''}` +
+      `短縮URLを使ってください`;
+  const html = arts.length === 0
+    ? (info.boxes && info.boxes.length
+        ? '<span class="good">QRは乗っていません（はめ込みだけ）</span>'
+        : '<span class="bad">どの面にも何も乗っていません。URLを入れるか、レイアウトで割りあててください</span>')
+    : arts.map(a => `<b>${a.where}</b> ${ITEMS[a.art.item]}：` +
+        (a.art.kind === 'qr'
+          ? `${a.art.qr.n}×${a.art.qr.n}（v${a.art.qr.version} / EC ${EC}） ` +
+            `1モジュール <b>${a.fit.cell.toFixed(2)} mm</b>`
+          : `${a.art.w}×${a.art.h}マス 1マス <b>${a.fit.cell.toFixed(2)} mm</b>`) +
+        ` ／ ${a.fit.aw.toFixed(1)}×${a.fit.ah.toFixed(1)} mm`).join('<br>') + '<br>' +
+      (!qrs.length ? '' : ok
+        ? `<span class="good">✓ 0.4mmノズルで印刷できる大きさです</span>`
+        : `<span class="bad">⚠ ${MIN_MODULE}mm未満です。読み取れないおそれ → ${fix}</span>`);
+  document.getElementById('qrinfo').innerHTML = html;
+  document.getElementById('partinfo').innerHTML =
+    info.dims.map(([k, v]) => `${k}：<b>${v}</b>`).join('<br>');
+  document.getElementById('howto').innerHTML = info.howto.join('<br>');
+  updateBoxInfo(info);
+}
+
+/* はめ込みの案内。「作るべき寸法」と「どの面に入ったか」をはっきり出す */
+function updateBoxInfo(info) {
+  const el = document.getElementById('boxinfo');
+  const b = info.box;
+  if (state.box.src === 'stl' && !state.box.info) {
+    el.innerHTML = '<span class="bad">3Dモデルを読みこんでください（STL / OBJ / 3MF）</span>';
+    return;
+  }
+  if (!b) { el.innerHTML = ''; return; }
+  const f = b.fit;
+  const m = state.box.info;
+  const size = b.kind === 'round'
+    ? `φ${b.w.toFixed(2)} × ${b.h.toFixed(2)} mm`
+    : `${b.w.toFixed(2)} × ${b.d.toFixed(2)} × ${b.h.toFixed(2)} mm`;
+  const win = b.kind === 'round'
+    ? `φ${(b.w + 2 * f).toFixed(2)}`
+    : `${(b.w + 2 * f).toFixed(2)} × ${(b.d + 2 * f).toFixed(2)}`;
+  el.innerHTML =
+    (m ? `読みこみ：<b>${m.name}</b>（三角形 ${m.tris}` +
+         (m.colors ? `・<b>色 ${m.colors} つき</b>` : '・色の指定なし') + `）<br>` : '') +
+    `作るもの：<b>${size}</b><br>` +
+    (b.squashed
+      ? `<span class="good">高さを ${b.h0.toFixed(2)} → <b>${b.h.toFixed(2)}mm</b> におさえました` +
+        `（タテヨコはそのまま）</span><br>` : '') +
+    `受け口：<b>${win} mm</b> / 深さ ${b.h.toFixed(2)}mm` +
+    (b.merged ? '（<b>地続き</b>・すきま0）' : `（すきま片側 ${f.toFixed(2)}mm）`) + '<br>' +
+    (m && b.kind === 'round' && Math.abs(m.w - m.d) > 0.02 * Math.max(m.w, m.d)
+      ? `<span class="bad">⚠ 読みこんだモデルは ${m.w.toFixed(1)}×${m.d.toFixed(1)}mm で丸くありません。` +
+        `「四角柱」に切りかえるか、円柱のモデルを読みこんでください</span><br>` : '') +
+    (m && m.fillRatio < 0.98 && b.kind === 'rect'
+      ? `<span class="bad">⚠ ぴったりの四角柱ではありません（囲みの ${(m.fillRatio * 100).toFixed(0)}%）。` +
+        (b.merged ? '受け口は囲みの大きさなので、まわりにすき間ができます'
+                  : '受け口は囲みの大きさに合わせます') + `</span><br>` : '') +
+    (info.boxes.length
+      ? `<span class="good">✓ ${info.boxes.map(x => x[0]).join('・')} に受け口を開けました</span>`
+      : `<span class="bad">受け口を開けた面がありません</span>`) +
+    (info.boxMiss.length
+      ? `<br><span class="bad">⚠ ${info.boxMiss.join('・')} には入りませんでした</span>` : '');
+}
+
+function updatePlateInfo(built) {
+  const pl = built.plate, [W, H] = pl.plate, el = document.getElementById('plateinfo');
+  if (!pl.sets) {
+    el.innerHTML = `<span class="bad">⚠ このプレート（${W}×${H}mm）には1セットも入りません。` +
+      `大きさを小さくするか、大きいプレートを選んでください</span>`;
+    return;
+  }
+  const g = pl.vol * pl.sets / 1000 * PL.density;
+  el.innerHTML =
+    `<b>${pl.sets}セット</b>＝ ${pl.per}個 × ${pl.sets} ＝ <b>${pl.per * pl.sets}個</b><br>` +
+    `使う範囲 <b>${pl.used[0].toFixed(0)}×${pl.used[1].toFixed(0)} mm</b>` +
+    `（プレート ${W}×${H}mm・ふちの余白 ${PL.margin}mm）<br>` +
+    `材料 およそ <b>${g.toFixed(0)} g</b>（PLA・すき間なしの体積から。実際は充填率のぶん少なくなります）<br>` +
+    (pl.want > pl.sets
+      ? `<span class="bad">⚠ ${pl.want}セットは入らないので ${pl.sets}セットにしました` +
+        `（このプレートには最大 ${built.max}セット）</span>`
+      : `<span class="good">✓ このプレートには最大 ${built.max}セット入ります</span>`);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UI
+   ══════════════════════════════════════════════════════════════ */
+function segment(id, key, onChange) {
+  const el = document.getElementById(id);
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    [...el.querySelectorAll('button')].forEach(x => x.setAttribute('aria-pressed', x === b));
+    state[key] = b.dataset.v;
+    onChange && onChange();
+    requestRebuild(true);
+  });
+}
+function slider(id, key, fmt, labelId) {
+  const el = document.getElementById(id), lb = document.getElementById(labelId);
+  const show = () => lb.textContent = fmt(state[key]);
+  el.addEventListener('input', () => { state[key] = parseFloat(el.value); show(); requestRebuild(false); });
+  show();
+}
+
+document.getElementById('url').addEventListener('input', e => {
+  state.text = e.target.value; requestRebuild(false);
+});
+// うら面：空にすると、うら面のQRごと消える（＝片面にもどる）
+document.getElementById('url2').addEventListener('input', e => {
+  state.text2 = e.target.value; requestRebuild(false);
+});
+document.querySelectorAll('[data-sample-url]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const input = document.getElementById('url');
+    input.value = btn.dataset.sampleUrl;
+    input.dispatchEvent(new Event('input', { bubbles:true }));
+  });
+});
+
+// レイアウト：面ごとに「なし／QR①／QR②／はめ込み（ロゴ）」を選ぶ
+const boxPanel = document.getElementById('boxPanel');
+// いま見えている面のどれかが「はめ込み（ロゴ）」なら、設定パネルを出す
+const boxSlotsOf = () => (state.kind === 'key'
+  ? ['tileFront', 'tileBack', 'bodyBack'] : ['plateFront', 'plateBack']);
+const syncBoxPanel = () =>
+  boxPanel.style.display = boxSlotsOf().some(s => state.slots[s] === 'box') ? '' : 'none';
+document.querySelectorAll('select[data-slot]').forEach(sel => {
+  sel.innerHTML = Object.entries(ITEMS)
+    .map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+  sel.value = state.slots[sel.dataset.slot];
+  sel.addEventListener('change', () => {
+    state.slots[sel.dataset.slot] = sel.value;
+    syncBoxPanel();
+    requestRebuild(false);          // 面の割りあてでは大きさが変わらない＝カメラはそのまま
+  });
+});
+
+/* ── はめ込み（四角柱・円柱）───────────────────────────── */
+const errBox = document.getElementById('err');
+const showErr = msg => {
+  errBox.textContent = msg;
+  errBox.style.display = msg ? 'block' : 'none';
+};
+/* ★はめ込みのボタンは**カメラに触らない**（refit=false）。
+   ぜんたいの大きさは変わらないので置き直す理由がないし、向きを見くらべたいときに
+   毎回カメラが戻ると、回して確かめることができない（ユーザーからの指摘）。 */
+const segBox = (id, onPick) => {
+  document.getElementById(id).addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    [...e.currentTarget.querySelectorAll('button')].forEach(x => x.setAttribute('aria-pressed', x === b));
+    onPick(b.dataset.v);
+    requestRebuild(false);
+  });
+};
+segBox('boxJoin', v => {
+  state.box.join = v;
+  document.getElementById('boxFitRow').style.display = v === 'part' ? '' : 'none';
+  document.getElementById('joinNote').innerHTML = v === 'flush'
+    ? 'すきま0でぴったり入れます。<b>刷ると融合して1つの固まり</b>になるので、面はツライチで' +
+      '継ぎ目のすき間が出ません。色は「5 色」の<b>ロゴ</b>で選べます' +
+      '（板と同じ色にすれば線も見えなくなります）。あとから差し替えることはできません。'
+    : 'すきまを取るので、<b>あとから差し替えられます</b>。色も別に選べます。';
+});
+segBox('boxKind', v => {
+  state.box.kind = v;
+  document.getElementById('boxRect').style.display = v === 'rect' ? '' : 'none';
+  document.getElementById('boxRound').style.display = v === 'round' ? '' : 'none';
+});
+segBox('boxSrc', v => {
+  state.box.src = v;
+  document.getElementById('boxSize').style.display = v === 'size' ? '' : 'none';
+  document.getElementById('boxStl').style.display  = v === 'stl'  ? '' : 'none';
+});
+segBox('boxScale', v => { state.box.scale = parseFloat(v); });
+segBox('boxTurn', v => { state.box.turn = parseInt(v, 10); });
+segBox('boxFlip', v => { state.box.flip = v === '1'; });
+const boxSlider = (id, key, labelId, dec = 1) => {
+  const el = document.getElementById(id), lb = document.getElementById(labelId);
+  const show = () => lb.textContent = state.box[key].toFixed(dec) + ' mm';
+  el.addEventListener('input', () => { state.box[key] = parseFloat(el.value); show(); requestRebuild(false); });
+  show();
+};
+segBox('boxSquash', v => {
+  state.box.squash = v === '1';
+  document.getElementById('boxHmax').style.display = state.box.squash ? '' : 'none';
+});
+boxSlider('bhmax', 'hmax', 'bhmaxV', 2);
+// 大きさの微調整だけは mm ではなく倍率なので、ラベルの出し方を分ける
+{
+  const el = document.getElementById('bfine'), lb = document.getElementById('bfineV');
+  const show = () => lb.textContent = '×' + state.box.fine.toFixed(2);
+  el.addEventListener('input', () => {
+    state.box.fine = parseFloat(el.value); show(); requestRebuild(false);
+  });
+  show();
+}
+boxSlider('bside', 'side', 'bsideV');
+boxSlider('bdia', 'dia', 'bdiaV');
+boxSlider('bh', 'h', 'bhV');
+boxSlider('bfit', 'fit', 'bfitV', 2);
+
+/* 読みこんだ色に、いちばん近いフィラメントを選ぶ（ふつうのRGBの距離で十分） */
+function nearestFilament(hex) {
+  const r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255;
+  let best = FILAMENTS[0].hex, bd = Infinity;
+  for (const f of FILAMENTS) {
+    const d = ((f.hex >> 16 & 255) - r) ** 2 + ((f.hex >> 8 & 255) - g) ** 2 + ((f.hex & 255) - b) ** 2;
+    if (d < bd) { bd = d; best = f.hex; }
+  }
+  return best;
+}
+/* 「モデルの色 → 使うフィラメント」の並びを作り直す */
+function renderBoxMap() {
+  const wrap = document.getElementById('boxMap'), rows = document.getElementById('boxMapRows');
+  const mesh = state.box.mesh || [];
+  const colored = mesh.map((m, i) => ({ m, i })).filter(x => x.m.color != null);
+  wrap.style.display = colored.length ? '' : 'none';
+  rows.innerHTML = '';
+  if (!colored.length) return;
+  const hex = c => '#' + c.toString(16).padStart(6, '0');
+  for (const { m, i } of colored) {
+    const row = document.createElement('div');
+    row.className = 'maprow';
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.style.background = hex(m.color);
+    chip.title = 'モデルの色 ' + hex(m.color).toUpperCase();
+    const arw = document.createElement('span');
+    arw.className = 'arw'; arw.textContent = '→';
+    const sw = document.createElement('div');
+    sw.className = 'swatches';
+    const mark = () => [...sw.children].forEach(b2 => b2.setAttribute('aria-pressed',
+      String((b2.dataset.hex === '' ? null : +b2.dataset.hex) === (state.box.map[i] ?? null))));
+    const addBtn = (label, val, title, cls) => {
+      const b2 = document.createElement('button');
+      b2.type = 'button';
+      b2.dataset.hex = val == null ? '' : String(val);
+      if (cls) b2.className = cls;
+      if (val != null) b2.style.background = hex(val);
+      if (label) b2.textContent = label;
+      b2.title = title;
+      b2.onclick = () => { state.box.map[i] = val; mark(); requestRebuild(false); };
+      sw.appendChild(b2);
+    };
+    addBtn('元', null, 'もとの色のまま', 'keep');
+    FILAMENTS.forEach(f => addBtn('', f.hex, f.name));
+    mark();
+    row.append(chip, arw, sw);
+    rows.appendChild(row);
+  }
+}
+
+document.getElementById('stlFile').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  try {
+    const n = normalizeMesh(await parseModel(f), f.name);
+    state.box.mesh = n.list; state.box.info = n.info;
+    // ★読みこんだ色を、手持ちのフィラメントでいちばん近いものに自動で合わせる
+    state.box.map = n.list.map(m => m.color == null ? null : nearestFilament(m.color));
+    renderBoxMap();
+    showErr('');
+  } catch (ex) {
+    state.box.mesh = null; state.box.info = null; state.box.map = [];
+    renderBoxMap();
+    showErr(`${f.name} を読めませんでした：${ex && ex.message || ex}` +
+      '（読めるのは STL / OBJ / 3MF です）');
+  }
+  requestRebuild(false);            // 読みこんでも本体の大きさは変わらない
+});
+document.getElementById('loadbox').onclick = () => {
+  // 「もう作ってある」人がすぐ読みこめるように、モードを切りかえてファイル選択を開く
+  document.querySelector('#boxSrc button[data-v="stl"]').click();
+  document.getElementById('stlFile').click();
+};
+document.getElementById('dlbox').onclick = () => {
+  if (!current) return;
+  const b = current.info.box;
+  if (!b) return;
+  // 印刷の向き（z=0 がベッド）にそろえてから落とす
+  const gs = boxParts(b, 0).map(x => x.geom);
+  save(exportSTL([{ name:'はめ込み', color:0, geoms:gs, print:{ x:0, y:0, r:0 } }]),
+       safeName(b.kind === 'round' ? `cylinder_d${b.w.toFixed(1)}` : `box_${b.w.toFixed(1)}x${b.d.toFixed(1)}`) +
+       `x${b.h.toFixed(1)}.stl`, 'model/stl');
+};
+
+// 大きさを既定にもどす（かたちごとの既定値）
+document.getElementById('sizeReset').addEventListener('click', () => {
+  const s = document.getElementById('size');
+  state.size = SIZE_DEF[state.kind];
+  s.value = state.size;
+  document.getElementById('sizeV').textContent = state.size + ' mm';
+  requestRebuild(true);
+});
+
+segment('kind', 'kind', () => {
+  const key = state.kind === 'key';
+  document.getElementById('advKey').style.display = key ? '' : 'none';
+  document.getElementById('advStand').style.display = key ? 'none' : '';
+  document.getElementById('layKey').style.display = key ? '' : 'none';
+  document.getElementById('layStand').style.display = key ? 'none' : '';
+  document.getElementById('sizeLabel').textContent = key ? '本体の一辺' : 'プレートの幅';
+  syncBoxPanel();
+  const s = document.getElementById('size');
+  s.min = key ? 36 : 50; s.max = key ? 90 : 140;
+  state.size = SIZE_DEF[state.kind]; s.value = state.size;
+  document.getElementById('sizeV').textContent = state.size + ' mm';
+});
+document.getElementById('recipes').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const kindBtn = document.querySelector(`#kind button[data-v="${b.dataset.kind}"]`);
+  if (kindBtn && state.kind !== b.dataset.kind) kindBtn.click();
+  const url = document.getElementById('url');
+  url.value = b.dataset.url;
+  url.dispatchEvent(new Event('input', { bubbles:true }));
+  const back = document.getElementById('url2');
+  back.value = '';
+  back.dispatchEvent(new Event('input', { bubbles:true }));
+  const size = document.getElementById('size');
+  state.size = parseFloat(b.dataset.size);
+  size.value = state.size;
+  document.getElementById('sizeV').textContent = state.size + ' mm';
+  requestRebuild(true);
+});
+segment('mag', 'mag');
+
+slider('size', 'size', v => v + ' mm', 'sizeV');
+slider('qrh', 'qrh', v => v.toFixed(1) + ' mm', 'qrhV');
+slider('mar', 'margin', v => v.toFixed(1) + ' mm', 'marV');
+slider('rim', 'rim', v => v.toFixed(1) + ' mm', 'rimV');
+slider('ring', 'ring', v => v.toFixed(1) + ' mm', 'ringV');
+slider('tilt', 'tilt', v => v + '°', 'tiltV');
+slider('depth', 'depth', v => v + ' mm', 'depthV');
+slider('bend', 'bend', v => v + ' mm', 'bendV');
+slider('sheet', 'sheet', v => v.toFixed(1) + ' mm', 'sheetV');
+slider('sets', 'sets', v => v + ' セット', 'setsV');
+
+// まとめ刷りのプレート選び
+const plateSel = document.getElementById('plate');
+plateSel.innerHTML = Object.entries(PLATES)
+  .map(([v, [t]]) => `<option value="${v}">${t}</option>`).join('');
+plateSel.value = state.plate;
+plateSel.addEventListener('change', () => {
+  state.plate = plateSel.value; requestRebuild(true);
+});
+// 入るだけ詰める
+document.getElementById('setsMax').addEventListener('click', () => {
+  if (!current) return;
+  const s = document.getElementById('sets');
+  state.sets = Math.max(1, current.max);
+  s.value = state.sets;
+  document.getElementById('setsV').textContent = state.sets + ' セット';
+  requestRebuild(false);
+});
+
+function swatches(id, key, nameId) {
+  const el = document.getElementById(id);
+  FILAMENTS.forEach(f => {
+    const b = document.createElement('button');
+    b.style.background = '#' + f.hex.toString(16).padStart(6, '0');
+    b.title = f.name;
+    b.setAttribute('aria-pressed', state[key] === f.hex);
+    b.onclick = () => {
+      state[key] = f.hex;
+      [...el.children].forEach(x => x.setAttribute('aria-pressed', x === b));
+      document.getElementById(nameId).textContent = f.name;
+      requestRebuild(false);
+    };
+    el.appendChild(b);
+    if (state[key] === f.hex) document.getElementById(nameId).textContent = f.name;
+  });
+}
+swatches('cQr1',  'cQr1',  'c1n');
+swatches('cQr2',  'cQr2',  'c2n');
+swatches('cTile', 'cTile', 'c3n');
+swatches('cBody', 'cBody', 'c4n');
+swatches('cLogo', 'cLogo', 'c5n');
+
+document.getElementById('viewbar').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  // ★「大きさ比較」は表示の切りかえではなく入／切。3つのボタンの選択には混ぜない
+  if (b.dataset.toggle === 'coin') {
+    state.coin = !state.coin;
+    b.setAttribute('aria-pressed', state.coin);
+    // 出すときだけカメラを合わせ直す（横に置くので、そのままだと画面の外に出る）
+    requestRebuild(state.coin);
+    return;
+  }
+  [...e.currentTarget.querySelectorAll('button[data-v]')]
+    .forEach(x => x.setAttribute('aria-pressed', x === b));
+  state.view = b.dataset.v;
+  // 分解のときは磁石の見本を足すので、作り直してから合わせる
+  requestRebuild(true);
+});
+
+document.getElementById('dl3mf').onclick = () =>
+  current && save(export3MF(current.parts), fileBase() + '.3mf', 'model/3mf');
+document.getElementById('dlstl').onclick = () =>
+  current && save(exportSTL(current.parts), fileBase() + '.stl', 'model/stl');
+const plateName = () => `${fileBase()}_x${current.plate.sets}set`;
+document.getElementById('dlplate3mf').onclick = () =>
+  current && current.plate.sets &&
+  save(export3MF(current.plate.parts), plateName() + '.3mf', 'model/3mf');
+document.getElementById('dlplatestl').onclick = () =>
+  current && current.plate.sets &&
+  save(exportSTL(current.plate.parts), plateName() + '.stl', 'model/stl');
+
+document.getElementById('dlpng').onclick = () => {
+  if (!current) return;
+  // うら面もあるときは2枚とも落とす
+  const pngOf = (qr, suffix) => {
+    const n = qr.n, q = 4, px = 8, cv = document.createElement('canvas');
+    cv.width = cv.height = (n + q * 2) * px;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
+    g.fillStyle = '#000';
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++)
+      if (qr.rows[y][x] === '1') g.fillRect((x + q) * px, (y + q) * px, px, px);
+    cv.toBlob(b => save(b, fileBase() + suffix + '.png', 'image/png'));
+  };
+  const done = new Set();
+  for (const a of current.info.arts) {
+    if (a.art.kind !== 'qr' || done.has(a.art.item)) continue;
+    done.add(a.art.item);
+    // ★ファイル名は半角のみ。ITEMS は「QR①」なので使わない
+    pngOf(a.art.qr, done.size === 1 && current.info.arts.length === 1
+      ? '_QR' : (a.art.item === 'qr2' ? '_QR2' : '_QR1'));
+  }
+};
+
+// 動作確認用の入口（DevToolsから __qr3d.check() で書き出しの中身を数字で見られる）
+window.__qr3d = {
+  get model() { return current; },
+  renderer, camera, controls, scene, root, coin,
+  export3MF, exportSTL,
+  state, PLATES, PL, BOX, K, S, buildPlate, maxSets, volumeOf, printMatrix,
+  parseSTL, parseOBJ, parse3MF, parseModel, unzipAll,
+  detectService, iconGrid, ICON_ART, SERVICES,
+  normalizeMesh, boxSpec, boxParts, boxWindow, rectPts,
+  redraw: r => rebuild(r),
+  check() {
+    const tri = current.parts.reduce((s, p) => s + bakedGeoms(p).reduce((t, g) =>
+      t + (g.index ? g.index.count : g.attributes.position.count) / 3, 0), 0);
+    return { kind:state.kind, parts:current.parts.map(p => p.name), triangles:tri,
+             mm3f:export3MF(current.parts).length, stl:exportSTL(current.parts).length,
+             arts:current.info.arts.map(a => `${a.where}=${ITEMS[a.art.item]}@${a.fit.cell.toFixed(2)}mm`) };
+  },
+};
+
+syncBoxPanel();
+resize();
+rebuild(true);
+
+/* ══════════════════════════════════════════════════════════════
+   ステップ表示（3アプリ共通のつくり）
+   もとは長い1本のパネルを上から下へスクロールする作りだった。
+   同じ中身のまま、1画面ずつ出して［もどる／つぎへ］で進む形にしている。
+   ══════════════════════════════════════════════════════════════ */
+const QR_STEPS = [
+  { id:'secUrl',    short:'URL' },
+  { id:'secShape',  short:'かたち' },
+  { id:'secSize',   short:'大きさ' },
+  { id:'secLayout', short:'ならべ方' },
+  { id:'secColor',  short:'いろ' },
+  { id:'secAdv',    short:'調整' },
+  { id:'secOut',    short:'ほぞん' },
+  { id:'secPlate',  short:'まとめ刷り' },
+];
+let qrStep = 0;
+
+function paintQrSteps() {
+  const bar = document.getElementById('steps');
+  if (bar.childElementCount !== QR_STEPS.length) {
+    bar.innerHTML = '';
+    QR_STEPS.forEach((s, i) => {
+      const b = document.createElement('button');
+      b.className = 'step-dot';
+      b.innerHTML = `<span class="num">${i + 1}</span><span class="cap">${s.short}</span>`;
+      b.onclick = () => goQrStep(i);
+      bar.appendChild(b);
+    });
+  }
+  [...bar.children].forEach((b, i) => {
+    b.classList.toggle('active', i === qrStep);
+    b.classList.toggle('done',   i <  qrStep);
+  });
+}
+
+function goQrStep(i) {
+  qrStep = Math.max(0, Math.min(i, QR_STEPS.length - 1));
+  QR_STEPS.forEach((s, n) => {
+    document.getElementById(s.id).classList.toggle('now', n === qrStep);
+  });
+  document.getElementById('navBack').disabled = qrStep === 0;
+  document.getElementById('navNext').disabled = qrStep === QR_STEPS.length - 1;
+  document.getElementById('panel').scrollTop = 0;
+  paintQrSteps();
+}
+
+document.getElementById('navBack').onclick = () => goQrStep(qrStep - 1);
+document.getElementById('navNext').onclick = () => goQrStep(qrStep + 1);
+goQrStep(0);
+</script>
+</body>
+</html>

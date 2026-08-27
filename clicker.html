@@ -1,0 +1,3722 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>カチカチ クリッカー ｜ かんたん3D CAD</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f172a'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%233b82f6' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%233b82f6'/%3E%3C/svg%3E">
+
+<!-- 断面のふたを三角形に割るのに使う（グローバル earcut）。
+     Three.js の ShapeUtils は入り組んだ輪郭で壊れやすいので使わない -->
+<script src="https://cdn.jsdelivr.net/npm/earcut@2.2.4/dist/earcut.min.js"></script>
+
+<!-- Three.js は ESモジュール。file:// では動かないので server.py 経由で開くこと -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<link rel="stylesheet" href="css/common.css">
+<style>
+/* ── クリッカー固有の見た目 ──────────────────────────────
+   もとのアプリの class 名（.sec / .seg button.on / .btn / .chips button …）は
+   JSがそのまま触るので変えず、共通デザインの色・形にあてはめている。
+   ────────────────────────────────────────────────────── */
+
+/* いま作業しているシーンだけを出す */
+.sec { display: none; }
+.sec.now { display: block; }
+.sec > h2 {
+  margin: 0 0 10px; font-size: 15px; font-weight: bold;
+  display: flex; align-items: center; gap: 8px;
+}
+.sec > h2 .n {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-size: 12px; font-style: normal; display: grid; place-items: center; flex: none;
+}
+
+/* ラベル＋数値の行（スライダーの見出し） */
+label.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 0 2px; }
+label.row span { font-size: 13px; color: var(--text); }
+label.row b { font-size: 13px; color: var(--accent2); font-variant-numeric: tabular-nums; }
+
+/* 入力欄 */
+input[type=number], input[type=text], select {
+  width: 100%; padding: 9px 11px; border: 2px solid var(--line); border-radius: 10px;
+  font: inherit; font-size: 14px; background: var(--panel2); color: var(--text);
+}
+input[type=number]:focus, input[type=text]:focus, select:focus {
+  outline: none; border-color: var(--accent2);
+}
+
+/* 選択トグル（もとは .on で押した状態を表す） */
+.seg button.on { border-color: var(--accent2); background: var(--accent); color: #fff; }
+
+/* ボタン */
+.btn {
+  width: 100%; padding: 12px; border: 0; border-radius: 12px;
+  background: var(--accent); color: #fff;
+  font: inherit; font-weight: bold; font-size: 15px; cursor: pointer; margin-top: 8px;
+}
+.btn:hover { background: var(--accent2); }
+.btn:disabled { background: var(--line); color: var(--muted); cursor: default; }
+.btn.ghost { background: var(--panel2); color: var(--text); border: 1px solid var(--line); }
+.btn.ghost:hover { background: var(--line); }
+.two { display: flex; gap: 8px; }
+
+/* 数値の並び（できあがりサイズなど） */
+.kv { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 3px 0; }
+.kv span { color: var(--muted); }
+.kv b { font-variant-numeric: tabular-nums; color: var(--text); }
+
+/* 結果メッセージ */
+.msg {
+  margin-top: 10px; padding: 10px 12px; border-radius: 10px; font-size: 12px; line-height: 1.7;
+  background: #251c0a; color: #fde68a; border: 1px solid var(--warn); white-space: pre-line;
+}
+.msg.ok { background: #052e22; color: #a7f3d0; border-color: var(--ok); }
+
+/* 丸いチップ（プリセット・元に戻す など） */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chips button {
+  padding: 7px 13px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--panel2); font: inherit; font-size: 12px; color: var(--text); cursor: pointer;
+}
+.chips button:hover { border-color: var(--accent2); }
+.chips button:disabled { opacity: .35; cursor: default; border-color: var(--line); }
+
+/* モデルのドロップ領域 */
+#drop {
+  border: 2px dashed var(--line); border-radius: 12px; padding: 20px 14px; text-align: center;
+  color: var(--muted); font-size: 13px; cursor: pointer; background: var(--panel2);
+}
+#drop.hot, #drop:hover { border-color: var(--accent2); background: #17325e; color: var(--text); }
+#drop b { display: block; color: var(--text); font-size: 14px; margin-bottom: 4px; }
+
+/* ── 3Dビューに重ねるもの ───────────────────────────── */
+.stage canvas { display: block; width: 100%; height: 100%; }
+
+/* 切る高さの縦バー（3Dの右がわ）。上が高い＝モデルの見た目と同じ向き */
+#cutBar {
+  position: absolute; right: 16px; top: 0; bottom: 0; display: none;
+  flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  padding: 16px 0; pointer-events: none; z-index: 3;
+}
+#cutBar.on { display: flex; }
+#cutBar > * { pointer-events: auto; }
+#cutBar input[type=range] {
+  writing-mode: vertical-lr; direction: rtl;      /* ★上を大きい値にする */
+  width: 30px; height: min(58vh, 420px); accent-color: var(--accent2);
+  -webkit-appearance: auto; appearance: auto;     /* たての目盛りは既定の見た目にもどす */
+}
+#cutBar b {
+  font-size: 13px; font-variant-numeric: tabular-nums; color: #fff; font-weight: bold;
+  background: rgba(15,23,42,.85); border: 1px solid var(--line);
+  padding: 4px 10px; border-radius: 999px;
+}
+#cutBar .cap {
+  font-size: 11px; line-height: 1.3; text-align: center; color: var(--muted);
+  background: rgba(15,23,42,.85); border: 1px solid var(--line);
+  padding: 5px 8px; border-radius: 8px;
+}
+
+/* 3Dの右がわに出すボタン（切る高さのバーと同じ位置） */
+#viewBtns {
+  position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+  display: none; flex-direction: column; gap: 8px; z-index: 3;
+}
+#viewBtns.on { display: flex; }
+#viewBtns button {
+  padding: 12px 20px; border-radius: 999px; border: 1px solid var(--line);
+  background: rgba(30,41,59,.9); color: var(--text);
+  font: inherit; font-size: 13px; font-weight: bold; cursor: pointer; white-space: nowrap;
+  backdrop-filter: blur(4px);
+}
+#viewBtns button:hover { background: var(--accent); border-color: var(--accent2); }
+
+#hint {
+  position: absolute; left: 14px; bottom: 12px; font-size: 11px; color: var(--muted);
+  background: rgba(15,23,42,.8); padding: 5px 10px; border-radius: 999px; pointer-events: none;
+}
+#busy {
+  position: absolute; inset: 0; display: none; place-items: center;
+  background: rgba(15,23,42,.75); font-size: 14px; font-weight: bold; color: var(--text); z-index: 4;
+}
+#busy.on { display: grid; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="title">🔘 カチカチ クリッカー</span>
+  <span class="spacer"></span>
+  <a class="home-link" href="index.html">◀ メニュー</a>
+</header>
+
+<div class="main">
+
+  <div class="stage" id="view">
+    <!-- 切る高さの縦バー。3Dのモデルと同じ向き（上が高い）で動かせるように -->
+    <div id="cutBar">
+      <b id="vAutoCut">30.0 %</b>
+      <input type="range" id="autoCut" min="0" max="90" step="0.5" value="30"
+             aria-label="切る高さ">
+      <span class="cap">切る<br>高さ</span>
+    </div>
+    <div id="viewBtns">
+      <button id="btnExplode">分解して見る</button>
+    </div>
+    <div id="hint">ドラッグでまわす／ホイールで寄る</div>
+    <div id="busy">計算中…</div>
+  </div>
+
+  <div class="side">
+
+    <!-- ステップ表示（paintNav が中身をつくる） -->
+    <div class="steps" id="steps"></div>
+
+    <div class="panel" id="panel">
+
+      <div class="chips" style="margin-bottom:12px">
+        <button id="back" disabled hidden>← 前の手順へ</button>
+        <button id="undo" disabled>↩ 元に戻す</button>
+        <button id="resetAll">ぜんぶ最初から</button>
+      </div>
+
+    <!-- 1 モデル -->
+    <div class="sec" id="secModel">
+      <h2><i class="n">1</i>3Dモデルを読みこむ</h2>
+      <label class="row" style="margin-top:0"><span>つくりかた</span></label>
+      <div class="seg" id="segAuto">
+        <button data-v="1">自動でつくる</button>
+        <button data-v="0">手動で調整</button>
+      </div>
+      <p class="note" id="autoNote"></p>
+      <div id="drop">
+        <b>ここにドロップ</b>
+        STL / OBJ / 3MF / GLB・GLTF
+      </div>
+      <input type="file" id="file" accept=".stl,.obj,.3mf,.glb,.gltf" hidden>
+      <label class="row" style="margin-top:10px"><span>サンプルモデルで試す</span></label>
+      <div class="chips" id="presetModels">
+        <button data-p="cat">🐱 猫（試作）</button>
+        <button data-p="dice">🎲 サイコロ</button>
+        <button data-p="star">⭐ 星（スター）</button>
+        <button data-p="bear">🧸 くま</button>
+      </div>
+      <label class="row" style="margin-top:10px"><span>作りの見本を見る</span></label>
+      <div class="chips" id="demoChips">
+        <button data-demo="star|flush">⭐ タイプ1</button>
+        <button data-demo="star|case">⭐ タイプ2</button>
+        <button data-demo="paw|flush">🐾 タイプ1</button>
+        <button data-demo="paw|case">🐾 タイプ2</button>
+      </div>
+      <p class="note">押すと、その作りで組んだ見本が「できあがり」の画面に出る。
+        自分のモデルを入れる前に、2つの作りのちがいを見られる。</p>
+      <div id="modelInfo" class="note">まだ読みこんでいません</div>
+    </div>
+
+    <!-- 2 向きと大きさ -->
+    <div class="sec off" id="secOrient">
+      <h2><i class="n">2</i>向きと大きさ</h2>
+      <label class="row"><span>上向きの軸（モデルの「上」）</span></label>
+      <div class="seg" id="segUp">
+        <button data-v="z">Z が上</button>
+        <button data-v="y">Y が上</button>
+        <button data-v="x">X が上</button>
+      </div>
+      <label class="row"><span>回転</span><b id="vSpin">0°</b></label>
+      <input type="range" id="spin" min="0" max="350" step="10" value="0">
+      <label class="row"><span>前後の傾き</span><b id="vTiltA">0°</b></label>
+      <input type="range" id="tiltA" min="-45" max="45" step="1" value="0">
+      <label class="row"><span>左右の傾き</span><b id="vTiltB">0°</b></label>
+      <input type="range" id="tiltB" min="-45" max="45" step="1" value="0">
+      <div class="chips">
+        <button id="flipZ">上下をひっくり返す</button>
+        <button id="resetRot">向きをもどす</button>
+      </div>
+      <label class="row"><span>大きさ（いちばん長いところ）</span><b id="vSize">24.0 mm</b></label>
+      <input type="range" id="size" min="8" max="60" step="0.5" value="24">
+      <label class="row"><span>横に太らせる</span><b id="vFat">1.00 倍</b></label>
+      <input type="range" id="fat" min="0.6" max="2.5" step="0.05" value="1">
+      <label class="row"><span>高さだけ伸ばす</span><b id="vStretch">1.00 倍</b></label>
+      <input type="range" id="stretch" min="0.6" max="3" step="0.05" value="1">
+      <p class="note">キーキャップは 1辺18mm のマス目にならぶ。大きさ24mm前後がふつう。<br>
+        小さすぎてスイッチのくぼみが作れないときは、<b>横に太らせる</b>か
+        <b>高さだけ伸ばす</b>で入るようにする。</p>
+    </div>
+
+    <!-- 3 切る -->
+    <div class="sec off" id="secCut">
+      <h2><i class="n">3</i>切る</h2>
+      <div class="seg wrap" id="segCutMode">
+        <button data-v="plane">①平面で切る</button>
+        <button data-v="joint">②凹凸で分ける</button>
+        <button data-v="none">③切らない</button>
+      </div>
+      <p class="note" id="cutModeNote"></p>
+
+      <div id="cutRows">
+        <label class="row"><span>切る高さ（下から）</span><b id="vCut">30.0 %</b></label>
+        <input type="range" id="cut" min="0" max="90" step="0.5" value="30">
+        <div class="chips" id="neckChips"></div>
+        <div class="seg" id="segKeep">
+          <button data-v="up">上を残す</button>
+          <button data-v="down">下を残す</button>
+        </div>
+      </div>
+
+      <label class="row"><span>切り口の丸み</span><b id="vRound">0.8 mm</b></label>
+      <input type="range" id="round" min="0" max="3" step="0.1" value="0.8">
+      <p class="note">切り口の角を丸めて、スパッと切った感じを消す。
+        0にすると平らに切ったまま。</p>
+      <label class="row"><span>目安の四角（半透明）</span><b id="vGuide">18.0 mm</b></label>
+      <input type="range" id="guide" min="10" max="34" step="0.5" value="18">
+      <p class="note">切り口に置いた半透明の四角。ここに<b>スイッチ（15.6mm角）</b>が
+        収まるかを目で見て決める。</p>
+
+      <div id="jointRows">
+        <label class="row"><span>はめ込みのかたち</span></label>
+        <div class="seg wrap" id="segJoint">
+          <button data-v="square">四角柱</button>
+          <button data-v="round">円柱</button>
+          <button data-v="heart">ハート</button>
+          <button data-v="star">星</button>
+        </div>
+        <label class="row"><span>はめ込みの太さ</span><b id="vJointW">21.0 mm</b></label>
+        <input type="range" id="jointW" min="20" max="34" step="0.5" value="21">
+        <label class="row"><span>はめ込みの深さ</span><b id="vJointH">5.0 mm</b></label>
+        <input type="range" id="jointH" min="3" max="20" step="0.5" value="5">
+        <label class="row"><span>すきま（動くゆとり）</span><b id="vJointClr">0.30 mm</b></label>
+        <input type="range" id="jointClr" min="0.1" max="0.6" step="0.05" value="0.3">
+        <p class="note">上パーツから出た凸が、下パーツの凹の中を<b>すべって上下する</b>案内になる。
+          スイッチはこの凹の中に入るので、太さは 20mm 以上必要。深さは 5mm あたりが上限（それ以上だと沈みが浅くなる）。</p>
+      </div>
+
+      <button class="btn stepGo" id="doCut" hidden>この高さで切る</button>
+      <div id="cutInfo" class="note"></div>
+    </div>
+
+    <!-- 4 上パーツの穴 -->
+    <div class="sec off" id="secStem">
+      <h2><i class="n">4</i>上パーツの穴（スイッチの形）</h2>
+      <div class="seg" id="segStem">
+        <button data-v="mx">Cherry MX（十字）</button>
+        <button data-v="choc">Kailh Choc</button>
+      </div>
+      <div id="mxRows">
+        <label class="row"><span>十字の長さ</span><b id="vArm">3.90 mm</b></label>
+        <input type="range" id="arm" min="3.7" max="4.5" step="0.05" value="3.9">
+        <label class="row"><span>十字の腕のはば</span><b id="vTh">1.45 mm</b></label>
+        <input type="range" id="th" min="1.05" max="1.7" step="0.05" value="1.45">
+      </div>
+      <label class="row"><span>穴の深さ</span><b id="vDepth">2.5 mm</b></label>
+      <input type="range" id="depth" min="2.0" max="6" step="0.1" value="2.5">
+      <label class="row"><span>穴の位置（前後）</span><b id="vOffY">0.0 mm</b></label>
+      <input type="range" id="offY" min="-6" max="6" step="0.5" value="0">
+      <label class="row"><span>穴の位置（左右）</span><b id="vOffX">0.0 mm</b></label>
+      <input type="range" id="offX" min="-6" max="6" step="0.5" value="0">
+      <label class="row"><span>ステムの出っぱり（実測）</span><b id="vOut">6.5 mm</b></label>
+      <input type="range" id="out" min="3.5" max="9" step="0.1" value="6.5">
+      <button class="btn stepGo" id="doHole" hidden>この位置でいい（下パーツへ）</button>
+      <p class="note">既定は<b>実際に刷って青軸がちょうどよかった値</b>（十字 3.90／腕 1.45／深さ 2.50）。
+        公称の 4.10 より短いが、これで締まりばめになる。ゆるければ腕を 1.35 に、きつければ 1.55 に。<br>
+        「出っぱり」はスイッチの箱の上面から十字の先までの高さ。</p>
+    </div>
+
+    <!-- 5 下パーツ -->
+    <div class="sec off" id="secLower">
+      <h2><i class="n">5</i>下パーツ（スイッチをはめる）</h2>
+      <div class="seg" id="segLower">
+        <button data-v="1">作る</button>
+        <button data-v="0">作らない</button>
+      </div>
+      <div id="lowerRows">
+        <div id="lowerShapeRows">
+          <label class="row"><span>下パーツの作り方（切らないとき）</span></label>
+          <div class="seg wrap" id="segLowerMode">
+            <button data-v="square">四角柱</button>
+            <button data-v="round">円柱</button>
+            <button data-v="outline">底の輪郭を広げる</button>
+          </div>
+          <label class="row"><span>太さ／広げる量</span><b id="vLowerW">24.0 mm</b></label>
+          <input type="range" id="lowerW" min="20" max="40" step="0.5" value="24">
+        </div>
+        <div id="lowerScaleRow">
+          <label class="row"><span>下パーツを横に広げる（②用）</span><b id="vLowerScale">1.20 倍</b></label>
+          <input type="range" id="lowerScale" min="1" max="1.6" step="0.05" value="1.2">
+          <p class="note">②のときだけ。下パーツを<b>高さはそのまま・横だけ</b>大きくして、
+            上パーツがかぶさりながらはまるようにする。くぼみの壁の肉もここで稼ぐ。</p>
+        </div>
+        <label class="row"><span>下パーツの高さ</span><b id="vLowerH">14.0 mm</b></label>
+        <input type="range" id="lowerH" min="9" max="34" step="0.5" value="14">
+        <label class="row"><span>スイッチの穴（プレート開口）</span><b id="vCutout">14.10 mm</b></label>
+        <input type="range" id="cutout" min="13.6" max="14.8" step="0.05" value="14.1">
+        <label class="row"><span>プレートの厚み</span><b id="vPlateT">1.3 mm</b></label>
+        <input type="range" id="plateT" min="1" max="2.5" step="0.1" value="1.3">
+        <label class="row"><span>下の逃げの深さ</span><b id="vCavDeep">5.6 mm</b></label>
+        <input type="range" id="cavDeep" min="3" max="14" step="0.1" value="5.6">
+        <label class="row"><span>プレート上面〜箱の上面（実測）</span><b id="vAbovePlate">6.6 mm</b></label>
+        <input type="range" id="abovePlate" min="4" max="10" step="0.1" value="6.6">
+        <div id="coverBlock">
+          <label class="row"><span>組み方（スイッチの隠しかた）</span></label>
+          <div class="seg wrap" id="segFit">
+            <button data-v="shell">シェル</button>
+            <button data-v="skirt">かぶせる</button>
+            <button data-v="none">なし</button>
+          </div>
+          <p class="note" id="fitNote"></p>
+          <div id="shellRows">
+            <label class="row"><span>シェルの作り</span></label>
+            <div class="seg" id="segShellType">
+              <button data-v="flush">タイプ1：外観そのまま</button>
+              <button data-v="case">タイプ2：一回り大きい</button>
+            </div>
+            <p class="note" id="shellTypeNote"></p>
+          </div>
+          <div class="seg" id="segCover" hidden>
+            <button data-v="1">する</button>
+            <button data-v="0">しない</button>
+          </div>
+          <b id="vCover" hidden>する</b>
+          <div id="coverRows">
+            <label class="row"><span>溝の深さ（プレートより上）</span><b id="vGroove">6.4 mm</b></label>
+            <input type="range" id="groove" min="0" max="8" step="0.1" value="6.4">
+            <label class="row"><span>かぶせしろ（浮かせずに覆う量）</span><b id="vCoverOver">3.0 mm</b></label>
+            <input type="range" id="coverOver" min="0" max="12" step="0.1" value="3">
+            <label class="row"><span>スカートのすきま（片がわ）</span><b id="vCoverClr">0.20 mm</b></label>
+            <input type="range" id="coverClr" min="0.05" max="0.6" step="0.05" value="0.2">
+            <label class="row"><span>スカートの厚み</span><b id="vCoverWall">1.6 mm</b></label>
+            <input type="range" id="coverWall" min="0.8" max="3" step="0.1" value="1.6">
+            <p class="note">上パーツをスカートにして、下パーツの<b>外がわ</b>へおろす。
+              すき間が見えず、押すとさらに深くもぐる。<br>
+              <b>溝</b>はプレートより上の掘りこみ。<b>6.6mm</b>でスイッチの箱がちょうど埋まり、
+              これが上限（越えると沈みしろが足りなくなるので自動で戻す）。<br>
+              スカートの外形は「下パーツの上面＋すきま＋厚み」。既定なら
+              下パーツより<b>片がわ 1.8mm 太く</b>なる。</p>
+          </div>
+        </div>
+        <label class="row"><span>入りきらないときは上パーツにも掘る</span><b id="vDigUp">する</b></label>
+        <div class="seg" id="segDigUp">
+          <button data-v="1">する</button>
+          <button data-v="0">しない</button>
+        </div>
+        <div id="lowerInfo" class="note"></div>
+        <p class="note">既定は<b>実際に刷って合った値</b>。開口 <b>14.10mm角</b>（標準14.0＋FDMの縮み）、
+          プレート厚 <b>1.30mm</b>、下の逃げ <b>5.60mm</b>。<br>
+          逃げが 5.6 で足りるのは<b>スイッチの金属ピンを折り曲げて使う</b>から。
+          ピンを立てたまま使うなら 9mm 以上にして。<br>
+          底には <b>3.5mm の底板</b>と、中心ポール用の <b>φ4.35</b> の穴が付く。
+          （実物は0.8mmだったが、それだとポールが 2.5mm 突き出て机に置けない。
+          ポールの長さ3.3mm＋あそび0.2）</p>
+      </div>
+    </div>
+
+
+    <!-- 6 見かた -->
+    <div class="sec off" id="secView">
+      <h2><i class="n">6</i>見かた</h2>
+      <div class="seg" id="segView">
+        <button data-v="solid">できあがり</button>
+        <button data-v="ghost">中を透かす</button>
+        <button data-v="switch">スイッチと重ねる</button>
+      </div>
+      <label class="row" style="margin-top:10px"><span>カメラの向き</span></label>
+      <div class="chips" id="camChips">
+        <button data-c="iso">斜め上</button>
+        <button data-c="front">正面</button>
+        <button data-c="side">真横</button>
+        <button data-c="under">底から (穴確認)</button>
+      </div>
+    </div>
+
+    <!-- 7 押してみる -->
+    <div class="sec off" id="secPress">
+      <h2><i class="n">7</i>押してみる（テスト）</h2>
+      <button class="btn stepGo" id="doPress" hidden>押してみる画面へ</button>
+      <button class="btn ghost" id="pressNow">もう一度押す</button>
+      <div id="pressInfo" class="note"></div>
+      <p class="note">この画面では 3Dの画面を<b>クリックすると沈む</b>（ドラッグは回転のまま）。
+        沈む深さは、いまの寸法で実際に沈むぶんだけ。<br>
+        上パーツは<b>横から見ると濃く、上から見ると薄く</b>なる（中の動きが見えるように）。
+        沈むのは上パーツと<b>青いステム</b>だけで、ハウジングと足は動かない。</p>
+    </div>
+
+    <!-- 8 書き出し -->
+    <div class="sec off" id="secOut">
+      <h2><i class="n">8</i>書き出す</h2>
+      <div id="outInfo"></div>
+      <div class="two">
+        <button class="btn" id="dlStl">STL</button>
+        <button class="btn ghost" id="dl3mf">3MF</button>
+      </div>
+      <p class="note">切った面が下＝そのままの向きで刷る。十字穴は下向きの止まり穴になる。</p>
+      <div id="checkMsg"></div>
+    </div>
+
+    <!-- 自動モード … 切る高さだけ人に決めてもらう -->
+    <div class="sec" id="secAutoCut">
+      <h2><i class="n">2</i>切る高さをえらぶ</h2>
+      <label class="row" style="margin-top:0"><span>作り</span></label>
+      <div class="seg" id="segShellType3">
+        <button data-v="flush">タイプ1：外観そのまま</button>
+        <button data-v="case">タイプ2：一回り大きい</button>
+      </div>
+      <p class="note" id="shellTypeNote3"></p>
+      <p class="note">右のバーを上下させて、切る高さを決める。</p>
+      <div class="chips" id="autoNeckChips"></div>
+      <div id="autoCutInfo" class="note"></div>
+      <p class="note">青い四角にスイッチ（15.6mm角）が収まるところで切る。
+        <b>大きさはこのあと自動で合わせる</b>ので、いまは「どこで切りたいか」だけ見て決めていい。<br>
+        切り口より上でフィギュアが太っていると、シェルの穴に当たって沈まなくなる。<br>
+        シェルのふちは、切り口より<b>片がわ 1.8mm 太く</b>なる（すきま0.2＋厚み1.6）。
+        <b>くびれで切る</b>と、ふちがくびれに収まって目立たない。</p>
+    </div>
+
+    <!-- 自動でつくったときの できあがり画面 -->
+    <div class="sec" id="secAuto">
+      <h2><i class="n">✓</i>できあがり</h2>
+      <div id="autoPick" class="note"></div>
+      <label class="row" style="margin-top:8px"><span>作り</span></label>
+      <div class="seg" id="segShellType2">
+        <button data-v="flush">タイプ1：外観そのまま</button>
+        <button data-v="case">タイプ2：一回り大きい</button>
+      </div>
+      <p class="note" id="shellTypeNote2"></p>
+      <div id="autoInfo" style="margin-top:8px"></div>
+      <div class="two" style="margin-top:8px">
+        <button class="btn" id="autoStl">STL</button>
+        <button class="btn ghost" id="auto3mf">3MF</button>
+      </div>
+      <button class="btn ghost" id="toManual">手動で調整する</button>
+      <p class="note">切った面が下＝そのままの向きで刷る。十字穴は下向きの止まり穴になる。<br>
+        気に入らないところがあれば「手動で調整する」で、切る高さから決めなおせる。</p>
+      <div id="autoMsg"></div>
+    </div>
+
+    </div><!-- /.panel -->
+
+    <!-- ステップ名は上の丸で見えるので、stepLabel は読み上げ用に隠して残す -->
+    <span id="stepLabel" hidden></span>
+
+    <div class="nav">
+      <button class="back" id="navBack">◀ もどる</button>
+      <button class="next" id="navNext">つぎへ ▶</button>
+    </div>
+
+  </div><!-- /.side -->
+</div><!-- /.main -->
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+/* ══════════════════════════════════════════════════════════════
+   きまりごと
+   ・座標は Z が上（プリンタと同じ）。z=0 がベッド面＝キーキャップの底。
+   ・立体は「閉じたカラ」を重ねて表す。止まり穴は
+     「穴のあいた板」と「穴のない板」を重ねるだけで作る（ブーリアンをしない）。
+     接している閉じたカラどうしはスライサーが正しく合体してくれる。
+   ══════════════════════════════════════════════════════════════ */
+
+/* Cherry MX の受け口は「十字 4.1mm・腕 1.17mm」が公称。
+   ★ここの既定は公称ではなく、実際に刷って青軸がちょうどよく刺さった実測値
+     （2026-08-19 / 実物パーツ\上下パーツ.3mf）。
+     十字は公称より短く 3.90、腕は太く 1.45。深さ 2.50。
+     深さ2.5は「出っぱり6.5 − 沈む量4.0」の上限そのものなので、
+     これ以上深くしても自動で浅くされる。 */
+const SW = {
+  mx  : { arm:3.90, th:1.45, depth:2.50, out:6.5, travel:4.0 },
+  choc: { pin:[3.0, 1.2], gap:5.7,      depth:3.0, out:5.0, travel:3.0 },
+};
+const K = {
+  pitch   : 19.05,  // キーのならぶ間隔（1u）
+  plate   : 18.0,   // 1u の板の外形（ふつうのキーキャップと同じ）
+  housing : 15.6,   // スイッチの箱の上面。ここに乗り上げるとそれ以上沈まない
+  mouth   : 7.0,    // 箱の上面のまんなかの開口（ステムが出ている穴）
+  relief  : 16.4,   // 箱を逃がすくぼみの一辺（箱より少し大きく）
+  ceil    : 0.8,    // 十字穴の天井の厚み
+  seg     : 48,     // 丸を何角形にするか
+  cav     : 15.2,   // 下パーツの空洞（プレートより下の胴が入る。足は折り曲げる）
+  /* ★底板は「中心ポールが底から出ない」厚みにする。
+       実物パーツは 0.8mm だったが、それだとポール（φ3.85・長さ約3.3mm）が
+       2.5mm 突き出て、机に置くとポールで立つ（下から見ると丸い棒が見える）。
+       poleL ＋ あそび0.2 を厚みにして、丸穴の中に収める。 */
+  poleL   : 3.3,    // スイッチの中心ポールの長さ（箱の底から下へ）
+  poleBase: 0.8,    // ポール穴の下に残す肉。ここでふさぐので真下から穴が見えない
+  floor   : 4.3,    // 下パーツの底板の厚み（＝poleL＋0.2＋poleBase）
+  poleD   : 4.35,   // 底板のまんなかの丸穴。スイッチの中心ポール(φ3.85)の逃げ
+  bossW   : 5.8,    // 十字穴のまわりに要る肉（X）。実測。これより細いと割れる
+  bossD   : 5.0,    // 同（Y）
+  wall    : 2.6,    // 下パーツの胴の壁の厚み（実測の参考値）
+  pocket  : 21.0,   // ①③のくぼみの一辺（中にスイッチ15.6が入る）
+  bossH   : 5.0,    // ①③の凸の高さ
+  wallJ   : 1.7,    // 凸の壁の厚み
+};
+const COL = { body:0xe8eaee, base:0xb9c2cc, post:0x8f9aa6, sw:0x2c3238, holder:0xc9cfd6 };
+/* 頂点をまとめる格子（mm）。
+   ★1/1000mm。0.1mmのノズルには細かすぎるくらいで、形は変わらない。
+     ここを 1/10000mm まで細かくすると、モデルを拡大したときに
+     もとは同じだった点が別々に落ちて、髪の毛ほどのすきまが無数にできる
+     （スライサーが毎回「修復しますか」と聞いてくる原因になる）。 */
+const WELD = 1e-3;
+
+/* ── 読みこみ ───────────────────────────────────────── */
+function geomFromPositions(pos) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return g;
+}
+/* STL。バイナリかどうかは「三角形の数からファイル長がぴったり合うか」で見る
+   （先頭が "solid" でもバイナリのことがあるので、そこでは判定しない） */
+function parseSTL(buf) {
+  const dv = new DataView(buf);
+  if (buf.byteLength >= 84) {
+    const n = dv.getUint32(80, true);
+    if (n > 0 && buf.byteLength === 84 + n * 50) {
+      const pos = new Float32Array(n * 9);
+      let o = 84, k = 0;
+      for (let i = 0; i < n; i++) {
+        o += 12;                                    // 法線は読み飛ばす
+        for (let v = 0; v < 9; v++) { pos[k++] = dv.getFloat32(o, true); o += 4; }
+        o += 2;
+      }
+      return [geomFromPositions(pos)];
+    }
+  }
+  const txt = new TextDecoder().decode(buf);
+  const re = /vertex\s+(-?[\d.eE+-]+)\s+(-?[\d.eE+-]+)\s+(-?[\d.eE+-]+)/g;
+  const nums = []; let m;
+  while ((m = re.exec(txt))) nums.push(+m[1], +m[2], +m[3]);
+  if (nums.length < 9) throw new Error('STLとして読めませんでした');
+  return [geomFromPositions(new Float32Array(nums))];
+}
+function parseOBJ(txt) {
+  const vs = [], pos = [];
+  for (const line of txt.split(/\r?\n/)) {
+    if (line[0] === 'v' && line[1] === ' ') {
+      const p = line.trim().split(/\s+/);
+      vs.push([+p[1], +p[2], +p[3]]);
+    } else if (line[0] === 'f' && line[1] === ' ') {
+      const idx = line.trim().split(/\s+/).slice(1).map(t => {
+        const i = parseInt(t, 10);
+        return i > 0 ? i - 1 : vs.length + i;
+      });
+      for (let k = 1; k + 1 < idx.length; k++)
+        for (const j of [idx[0], idx[k], idx[k + 1]]) {
+          const v = vs[j];
+          if (!v) throw new Error('OBJの面がこわれています');
+          pos.push(v[0], v[1], v[2]);
+        }
+    }
+  }
+  if (pos.length < 9) throw new Error('OBJとして読めませんでした');
+  return [geomFromPositions(new Float32Array(pos))];
+}
+/* 3MF＝ZIP＋XML。★中央ディレクトリから読む（ローカルヘッダの大きさは0のことがある） */
+async function inflateRaw(u8) {
+  const st = new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(st).arrayBuffer());
+}
+async function unzipAll(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  let eo = -1;
+  for (let i = u8.length - 22; i >= 0 && i > u8.length - 66000; i--)
+    if (dv.getUint32(i, true) === 0x06054b50) { eo = i; break; }
+  if (eo < 0) throw new Error('ZIP（3MF）として読めませんでした');
+  const count = dv.getUint16(eo + 10, true), cd = dv.getUint32(eo + 16, true);
+  const out = {};
+  let p = cd;
+  for (let i = 0; i < count && dv.getUint32(p, true) === 0x02014b50; i++) {
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true);
+    const nl = dv.getUint16(p + 28, true), el = dv.getUint16(p + 30, true),
+          cl = dv.getUint16(p + 32, true), lho = dv.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nl));
+    const start = lho + 30 + dv.getUint16(lho + 26, true) + dv.getUint16(lho + 28, true);
+    const raw = u8.subarray(start, start + csize);
+    out[name] = method === 0 ? raw : await inflateRaw(raw);
+    p += 46 + nl + el + cl;
+  }
+  return out;
+}
+async function parse3MF(buf) {
+  const files = await unzipAll(new Uint8Array(buf));
+  const key = Object.keys(files).find(n => /3dmodel\.model$/i.test(n));
+  if (!key) throw new Error('3MFのなかにモデルが見つかりません');
+  const doc = new DOMParser().parseFromString(new TextDecoder().decode(files[key]), 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('3MFのXMLを読めませんでした');
+  const U = { micron:0.001, millimeter:1, centimeter:10, inch:25.4, foot:304.8, meter:1000 }
+            [doc.documentElement.getAttribute('unit') || 'millimeter'] || 1;
+  const byTag = (root, name) => [...root.getElementsByTagName('*')].filter(e => e.localName === name);
+  const objs = new Map();
+  for (const ob of byTag(doc, 'object')) objs.set(ob.getAttribute('id'), ob);
+  const pos = [];
+  const mul = (P, C) => {
+    if (!P) return C;
+    if (!C) return P;
+    const o = new Array(12);
+    for (let j = 0; j < 4; j++) for (let i = 0; i < 3; i++) {
+      let s = j === 3 ? P[9 + i] : 0;
+      for (let k = 0; k < 3; k++) s += P[3 * k + i] * C[3 * j + k];
+      o[3 * j + i] = s;
+    }
+    return o;
+  };
+  const tr = t => (t ? t.trim().split(/\s+/).map(Number) : null);
+  // ★<components> で組み立てられた3MFはたどらないと「モデルが空」になる
+  const emit = (ob, m, depth = 0) => {
+    const comps = byTag(ob, 'component');
+    if (comps.length) {
+      if (depth > 8) return;
+      for (const c of comps) {
+        const sub = objs.get(c.getAttribute('objectid'));
+        if (sub && sub !== ob) emit(sub, mul(m, tr(c.getAttribute('transform'))), depth + 1);
+      }
+      return;
+    }
+    const mesh = byTag(ob, 'mesh')[0];
+    if (!mesh) return;
+    const vs = byTag(mesh, 'vertex').map(v => {
+      const x = +v.getAttribute('x'), y = +v.getAttribute('y'), z = +v.getAttribute('z');
+      return m ? [m[0]*x + m[3]*y + m[6]*z + m[9],
+                  m[1]*x + m[4]*y + m[7]*z + m[10],
+                  m[2]*x + m[5]*y + m[8]*z + m[11]] : [x, y, z];
+    });
+    for (const t of byTag(mesh, 'triangle'))
+      for (const a of ['v1', 'v2', 'v3']) {
+        const v = vs[+t.getAttribute(a)];
+        if (!v) throw new Error('3MFの三角形がこわれています');
+        pos.push(v[0] * U, v[1] * U, v[2] * U);
+      }
+  };
+  const items = byTag(doc, 'item');
+  if (items.length) for (const it of items) {
+    const ob = objs.get(it.getAttribute('objectid'));
+    if (ob) emit(ob, tr(it.getAttribute('transform')));
+  } else {
+    const used = new Set(byTag(doc, 'component').map(c => c.getAttribute('objectid')));
+    for (const [id, ob] of objs) if (!used.has(id)) emit(ob, null);
+  }
+  if (pos.length < 9) throw new Error('3MFに三角形がありません');
+  return [geomFromPositions(new Float32Array(pos))];
+}
+/* GLB / glTF。AIで作らせたモデルはたいていこれ。
+   ★入れ子のノードがそれぞれ位置と大きさを持っているので、必ず世界行列を焼きこむ */
+function parseGLB(buf) {
+  return new Promise((res, rej) => {
+    new GLTFLoader().parse(buf, '', gltf => {
+      const out = [];
+      gltf.scene.updateMatrixWorld(true);
+      gltf.scene.traverse(o => {
+        if (!o.isMesh || !o.geometry) return;
+        const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+        g.applyMatrix4(o.matrixWorld);
+        out.push(g);
+      });
+      if (!out.length) rej(new Error('GLBのなかにメッシュがありません'));
+      else res(out);
+    }, e => rej(new Error(/draco/i.test(String(e && e.message))
+      ? 'DRACOで圧縮されたGLBは読めません。圧縮なしで書き出しなおしてください'
+      : 'GLBとして読めませんでした')));
+  });
+}
+/* ★読み方は「中身」で決める。拡張子はあてにならない
+     （3MFを .stl という名前で保存してしまう、などが実際にある）。
+     先頭が PK なら ZIP＝3MF、glTF なら GLB。 */
+async function parseModel(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const buf = await file.arrayBuffer();
+  const magic = new TextDecoder().decode(new Uint8Array(buf, 0, Math.min(buf.byteLength, 4)));
+  if (magic.startsWith('PK')) return await parse3MF(buf);
+  if (magic === 'glTF')       return await parseGLB(buf);
+  if (ext === 'obj') return parseOBJ(new TextDecoder().decode(buf));
+  if (ext === '3mf') return await parse3MF(buf);
+  if (ext === 'glb' || ext === 'gltf') return await parseGLB(buf);
+  return parseSTL(buf);                              // STLは中身で判定できるので既定
+}
+
+/* 読みこんだメッシュを1本の座標配列にまとめる（色は使わない。
+   キーキャップは形がすべてで、もとの色より刷る色のほうが大事） */
+function mergePositions(geoms) {
+  let n = 0;
+  for (const g of geoms) n += g.attributes.position.count;
+  const out = new Float32Array(n * 3);
+  let o = 0;
+  // ★getX/getY/getZ で読む。GLBの座標は詰めて並んでいる（interleaved）ことがあり、
+  //   生の array をそのままコピーすると法線や色まで混ざってしまう
+  for (const g of geoms) {
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) { out[o++] = p.getX(i); out[o++] = p.getY(i); out[o++] = p.getZ(i); }
+  }
+  return out;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   2Dの輪郭まわり
+   ══════════════════════════════════════════════════════════════ */
+const polyArea = p => {                     // 符号つき面積（＋＝反時計まわり）
+  let s = 0;
+  for (let i = 0; i < p.length; i++) {
+    const a = p[i], b = p[(i + 1) % p.length];
+    s += a[0] * b[1] - b[0] * a[1];
+  }
+  return s / 2;
+};
+const ccw = p => (polyArea(p) > 0 ? p : p.slice().reverse());
+const cw  = p => (polyArea(p) < 0 ? p : p.slice().reverse());
+
+function pointInPoly(pt, poly) {
+  let hit = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j];
+    if ((a[1] > pt[1]) !== (b[1] > pt[1]) &&
+        pt[0] < (b[0] - a[0]) * (pt[1] - a[1]) / (b[1] - a[1]) + a[0]) hit = !hit;
+  }
+  return hit;
+}
+// 線分どうしが交わるか（端点で触れるだけも交わりとみなす）
+function segCross(p1, p2, p3, p4) {
+  const d = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  const d1 = d(p3, p4, p1), d2 = d(p3, p4, p2), d3 = d(p1, p2, p3), d4 = d(p1, p2, p4);
+  if (((d1 > 0) !== (d2 > 0)) && ((d3 > 0) !== (d4 > 0))) return true;
+  const on = (a, b, c) => Math.abs(d(a, b, c)) < 1e-12 &&
+    Math.min(a[0], b[0]) - 1e-9 <= c[0] && c[0] <= Math.max(a[0], b[0]) + 1e-9 &&
+    Math.min(a[1], b[1]) - 1e-9 <= c[1] && c[1] <= Math.max(a[1], b[1]) + 1e-9;
+  return on(p3, p4, p1) || on(p3, p4, p2) || on(p1, p2, p3) || on(p1, p2, p4);
+}
+/* 内がわの輪郭が外の輪郭にすっぽり入っているか。
+   ★頂点が中にあるだけでは足りない（へこんだ形だと辺が外へ飛び出す）ので、
+     辺の交わりも見る。ここを見ないと、穴が外形をまたいだ壊れたふたができる */
+function fitsInside(inner, outer) {
+  for (const p of inner) if (!pointInPoly(p, outer)) return false;
+  for (let i = 0; i < inner.length; i++) {
+    const a = inner[i], b = inner[(i + 1) % inner.length];
+    for (let j = 0; j < outer.length; j++)
+      if (segCross(a, b, outer[j], outer[(j + 1) % outer.length])) return false;
+  }
+  return true;
+}
+// ふたつの輪郭がまったく触れあっていないか（十字が切り口の「穴」にかからないか見る）
+function disjoint(a, b) {
+  for (const p of a) if (pointInPoly(p, b)) return false;
+  for (const p of b) if (pointInPoly(p, a)) return false;
+  for (let i = 0; i < a.length; i++) {
+    const p = a[i], q = a[(i + 1) % a.length];
+    for (let j = 0; j < b.length; j++)
+      if (segCross(p, q, b[j], b[(j + 1) % b.length])) return false;
+  }
+  return true;
+}
+const circlePts = (r, cx = 0, cy = 0, seg = K.seg) => {
+  const p = [];
+  for (let i = 0; i < seg; i++) {
+    const a = (Math.PI * 2 * i) / seg;
+    p.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+  }
+  return p;
+};
+function roundRectPts(w, h, r, seg = 6) {
+  const hw = w / 2, hh = h / 2, p = [];
+  const corner = (cx, cy, a0) => {
+    for (let i = 0; i <= seg; i++) {
+      const a = a0 + (Math.PI / 2) * (i / seg);
+      p.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    }
+  };
+  corner(hw - r, hh - r, 0);
+  corner(-hw + r, hh - r, Math.PI / 2);
+  corner(-hw + r, -hh + r, Math.PI);
+  corner(hw - r, -hh + r, -Math.PI / 2);
+  return p;
+}
+// Cherry MX の受け口（十字）。12点のプラス形、反時計まわり
+function crossPts(arm, th, cx = 0, cy = 0) {
+  const a = arm / 2, b = th / 2;
+  return [[b,b],[b,a],[-b,a],[-b,b],[-a,b],[-a,-b],[-b,-b],[-b,-a],[b,-a],[b,-b],[a,-b],[a,b]]
+    .map(p => [p[0] + cx, p[1] + cy]);
+}
+const rectPts = (w, h, cx = 0, cy = 0) =>
+  [[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]].map(p => [p[0] + cx, p[1] + cy]);
+
+/* ══════════════════════════════════════════════════════════════
+   はめ込み（凹凸）の断面のかたち
+   ★どれも「差しわたし w」でそろえる。凸と凹で同じ関数を使い、
+     すきまのぶんだけ大きくした輪郭を凹に使う。 */
+function heartPts(w, seg = 40) {
+  const p = [];
+  for (let i = 0; i < seg; i++) {
+    const t = (Math.PI * 2 * i) / seg;
+    const x = 16 * Math.pow(Math.sin(t), 3);
+    const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+    p.push([x, y]);
+  }
+  let mx = 0;
+  for (const q of p) mx = Math.max(mx, Math.abs(q[0]), Math.abs(q[1]));
+  const k = (w / 2) / mx;
+  return p.map(q => [q[0] * k, q[1] * k]);
+}
+function starPts(w, points = 5, inner = 0.48) {
+  const p = [], R = w / 2;
+  for (let i = 0; i < points * 2; i++) {
+    const a = -Math.PI / 2 + (Math.PI * i) / points;
+    const r = i % 2 ? R * inner : R;
+    p.push([r * Math.cos(a), r * Math.sin(a)]);
+  }
+  return p;
+}
+/* はめ込みの輪郭。grow だけ外側に太らせる（凹＝受け側のすきま用） */
+function jointPts(shape, w, grow = 0) {
+  const W = w + grow * 2;
+  if (shape === 'round')  return circlePts(W / 2, 0, 0, K.seg);
+  if (shape === 'heart')  return offsetPts(heartPts(w), grow);
+  if (shape === 'star')   return offsetPts(starPts(w), grow);
+  return roundRectPts(W, W, Math.min(2.0, W * 0.12));      // square
+}
+
+/* 輪郭を外がわへ d だけ広げる（内がわは負の d）。
+   ★角の丸め処理はしない簡易版。とがった角では少し外に張り出すが、
+     はめ合いのすきまや「底の輪郭を広げて柱にする」用途にはこれで足りる。
+     広げたあとで自分と交わってしまう形（細いくびれ）は、呼ぶ側で見る。 */
+/* 輪郭が自分と交差していないか。
+   ★内がわへ寄せると、耳やしっぽのような出っぱりのところで輪が自分と交差する。
+     交差した輪でプリズムを作ると面が裏返って「開いた辺」になる（くまで出た）。 */
+function polySimple(pts) {
+  const n = pts.length;
+  if (n < 4) return false;
+  const sgn = (p, q, r) => Math.sign((q[0]-p[0])*(r[1]-p[1]) - (q[1]-p[1])*(r[0]-p[0]));
+  for (let i = 0; i < n; i++) {
+    const a = pts[i], b = pts[(i + 1) % n];
+    for (let j = i + 2; j < n; j++) {
+      if (i === 0 && j === n - 1) continue;         // 端どうしは隣り合わせ
+      const c = pts[j], d2 = pts[(j + 1) % n];
+      if (sgn(a,b,c) !== sgn(a,b,d2) && sgn(c,d2,a) !== sgn(c,d2,b)) return false;
+    }
+  }
+  return true;
+}
+/* 輪郭の中に入る、いちばん大きい角丸四角の一辺（mm） */
+function squareIn(pts, holes = []) {
+  const ok = w => {
+    const sq = roundRectPts(w, w, Math.min(2, w * 0.12));
+    return fitsInside(sq, pts) && holes.every(h => disjoint(sq, h));
+  };
+  let lo = 1, hi = 200;
+  if (!ok(lo)) return 0;
+  for (let i = 0; i < 16; i++) { const m = (lo + hi) / 2; if (ok(m)) lo = m; else hi = m; }
+  return lo;
+}
+/* 近すぎる点を落とす。
+   ★輪郭を内がわへ寄せたり縮めたりすると、点どうしが近づく。頂点をまとめる格子
+     （1/1000mm）より近い点が並ぶと、プリズムの側面がつぶれた三角形になって
+     「開いた辺」として数えられる（実物の猫データの下パーツで 3〜9本 出た）。 */
+function dedupePts(pts, eps = 0.02) {
+  const out = [];
+  for (const p of pts) {
+    const q = out[out.length - 1];
+    if (q && Math.hypot(p[0] - q[0], p[1] - q[1]) < eps) continue;
+    out.push(p);
+  }
+  while (out.length > 3) {
+    const a = out[0], b = out[out.length - 1];
+    if (Math.hypot(a[0] - b[0], a[1] - b[1]) < eps) out.pop(); else break;
+  }
+  return out.length >= 3 ? out : pts;
+}
+/* 中心から角度 th の向きに、輪郭までの距離をはかる（星形の輪ならこれで足りる） */
+function rayR(pts, th, cx = 0, cy = 0) {
+  const dx = Math.cos(th), dy = Math.sin(th);
+  const cr = p => (p[0] - cx) * dy - (p[1] - cy) * dx;   // 半直線の線からの横ずれ
+  const dot = p => (p[0] - cx) * dx + (p[1] - cy) * dy;  // 半直線の向きの進み
+  let best = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    const ca = cr(a), cb = cr(b);
+    if ((ca > 0 && cb > 0) || (ca < 0 && cb < 0)) continue;   // 辺がまたいでいない
+    const den = ca - cb;
+    const t = Math.abs(den) < 1e-12 ? 0 : ca / den;
+    const r = dot(a) + (dot(b) - dot(a)) * t;
+    if (r > best) best = r;
+  }
+  return best;
+}
+/* ふたつの輪の「外がわ」を取った輪（中心から見て遠いほう）。
+   ★多角形どうしの本当の足し算（ブーリアン）は入れていないので、
+     中心から放射状に見て遠いほうを拾う。星形の輪どうしならこれで合う。 */
+function radialMax(a, b, N = 96, lim = null) {
+  const out = [];
+  for (let i = 0; i < N; i++) {
+    const th = 2 * Math.PI * i / N;
+    let r = Math.max(rayR(a, th), rayR(b, th));
+    if (lim) r = Math.min(r, lim(th));
+    if (!(r > 0)) return null;
+    out.push([Math.cos(th) * r, Math.sin(th) * r]);
+  }
+  return out;
+}
+function offsetPts(pts, d) {
+  if (!d) return pts.slice();
+  const P = ccw(pts), n = P.length, out = [];
+  for (let i = 0; i < n; i++) {
+    const a = P[(i - 1 + n) % n], b = P[i], c = P[(i + 1) % n];
+    const n1 = norm(a, b), n2 = norm(b, c);
+    let vx = n1[0] + n2[0], vy = n1[1] + n2[1];
+    const len = Math.hypot(vx, vy);
+    if (len < 1e-9) { out.push([b[0], b[1]]); continue; }
+    vx /= len; vy /= len;
+    const cosHalf = Math.max(0.35, (n1[0]*vx + n1[1]*vy));   // とがりすぎを抑える
+    out.push([b[0] + vx * d / cosHalf, b[1] + vy * d / cosHalf]);
+  }
+  return out;
+}
+// 辺 a→b の外向き法線（反時計まわりの輪郭なら右手が外）
+function norm(a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
+  return [dy / L, -dx / L];
+}
+
+/* 輪郭（＋穴）を三角形に割る。
+   ★earcut は入り組んだ輪郭だと途中であきらめて、少ない三角形だけ返してくる。
+     そのまま使うと「ふたに穴があいた立体」ができ、書き出してから気づくことになる。
+     ちゃんと張れていれば 三角形の数＝点の数＋穴の数×2−2 になるので、そこで見る。 */
+let earcutBail = 0;
+function tri2d(flat, hi, holeCount) {
+  const tris = earcut(flat, hi, 2);
+  if (tris.length / 3 !== flat.length / 2 + holeCount * 2 - 2) earcutBail++;
+  return tris;
+}
+
+/* 輪郭（＋穴）を上下のふたと側面でかこった、閉じた立体にする。
+   ★このアプリの立体はぜんぶこれで作る。ブーリアンは一度も使わない */
+function prism(outer, holes, z0, z1) {
+  const O = ccw(outer), H = (holes || []).map(cw);
+  const flat = [], hi = [];
+  for (const p of O) flat.push(p[0], p[1]);
+  for (const h of H) { hi.push(flat.length / 2); for (const p of h) flat.push(p[0], p[1]); }
+  const tris = tri2d(flat, hi, H.length);
+  const pos = [];
+  const V = i => [flat[i * 2], flat[i * 2 + 1]];
+  for (let i = 0; i < tris.length; i += 3) {
+    const a = V(tris[i]), b = V(tris[i + 1]), c = V(tris[i + 2]);
+    // earcut の向きは入力しだいなので、面積の符号で上下の向きをそろえる
+    const s = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+    const [p, q, r] = s > 0 ? [a, b, c] : [a, c, b];
+    pos.push(p[0], p[1], z1, q[0], q[1], z1, r[0], r[1], z1);   // 上のふた（＋Z）
+    pos.push(p[0], p[1], z0, r[0], r[1], z0, q[0], q[1], z0);   // 下のふた（−Z）
+  }
+  const wall = ring => {
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i], b = ring[(i + 1) % ring.length];
+      pos.push(a[0], a[1], z0, b[0], b[1], z0, b[0], b[1], z1);
+      pos.push(a[0], a[1], z0, b[0], b[1], z1, a[0], a[1], z1);
+    }
+  };
+  wall(O);
+  for (const h of H) wall(h);
+  const g = geomFromPositions(new Float32Array(pos));
+  g.userData.shell = pos.length / 9;       // ★3MFの頂点をまとめる単位（＝ここまでで1カラ）
+  return g;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   平面で切る
+   ══════════════════════════════════════════════════════════════ */
+/* 三角形を z=z0 で切って、残すがわ（keepUp なら上）だけを返す。
+   同時に、切り口の線分（＝断面の輪郭になる）を集める。
+
+   ★かなめは eps。切る高さがモデルの頂点をかすめると、その頂点のすぐ横に
+     交点ができて「長さ0にちかい辺」が輪郭に混ざり、立体が閉じなくなる。
+     そこで **eps より近い頂点は「平面の上にある」とみなして、そこへ吸わせる**。
+     こうすると交点はもとの頂点そのものになり、となりの三角形とも座標がそろう。
+   ★平面にぴったり乗った面（全部の頂点が平面上）は捨てる。ふたが代わりになる。
+   ★切り口の線分は「残るがわの三角形」からだけ拾う。捨てるがわからも拾うと
+     同じ辺が逆向きに二重に入って、輪をたどるときに行って戻るヒゲになる。 */
+function clipAt(posArr, z0, keepUp, eps = 1e-5) {
+  const kept = [], segs = [];
+  const s = keepUp ? 1 : -1;
+  const push3 = p => kept.push(p[0], p[1], p[2]);
+  for (let i = 0; i < posArr.length; i += 9) {
+    const P = [[posArr[i],posArr[i+1],posArr[i+2]],
+               [posArr[i+3],posArr[i+4],posArr[i+5]],
+               [posArr[i+6],posArr[i+7],posArr[i+8]]];
+    const d = P.map(p => {
+      const v = (p[2] - z0) * s;
+      return Math.abs(v) < eps ? 0 : v;
+    });
+    const on = d.map(v => v === 0);
+    if (d[0] >= 0 && d[1] >= 0 && d[2] >= 0) {          // まるごと残るがわ
+      if (on[0] && on[1] && on[2]) continue;            // 平面に寝ている面は捨てる
+      for (const p of P) push3(p);
+      for (let k = 0; k < 3; k++) {
+        const k2 = (k + 1) % 3;
+        if (on[k] && on[k2]) segs.push([P[k], P[k2]]);
+      }
+      continue;
+    }
+    if (d[0] <= 0 && d[1] <= 0 && d[2] <= 0) continue;   // まるごと捨てるがわ
+    const poly = [], onPlane = [];
+    for (let k = 0; k < 3; k++) {
+      const k2 = (k + 1) % 3, a = P[k], b = P[k2], da = d[k], db = d[k2];
+      if (da >= 0) { poly.push(a); onPlane.push(on[k]); }
+      // 交点を作るのは、両はしとも平面から離れていて上下に分かれるときだけ
+      if (!on[k] && !on[k2] && (da > 0) !== (db > 0)) {
+        const t = da / (da - db);
+        poly.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, z0]);
+        onPlane.push(true);
+      }
+    }
+    if (poly.length < 3) continue;
+    for (let k = 1; k + 1 < poly.length; k++)
+      for (const p of [poly[0], poly[k], poly[k + 1]]) push3(p);
+    for (let k = 0; k < poly.length; k++) {
+      const k2 = (k + 1) % poly.length;
+      if (onPlane[k] && onPlane[k2]) segs.push([poly[k], poly[k2]]);
+    }
+  }
+  return { kept, segs };
+}
+
+/* 切り口の線分を輪をつくる順につなぐ。
+   ★AIが作ったモデルは穴があいている（水密でない）ことがあり、そのままだと輪が閉じない。
+     行き止まりになったら、いちばん近い行き止まりへ飛んでつなぐ（すきま 0.5mm まで）。 */
+function buildLoops(segs, tol = 0.5) {
+  const q = 1e-4;
+  const key = p => `${Math.round(p[0] / q)},${Math.round(p[1] / q)}`;
+  const from = new Map();
+  for (const s of segs) {
+    const k = key(s[0]);
+    if (!from.has(k)) from.set(k, []);
+    from.get(k).push(s);
+  }
+  const used = new Set();
+  const loops = [], open = [];
+  for (const s0 of segs) {
+    if (used.has(s0)) continue;
+    const pts = [];
+    let cur = s0;
+    while (cur && !used.has(cur)) {
+      used.add(cur);
+      pts.push([cur[0][0], cur[0][1]]);
+      const list = from.get(key(cur[1]));
+      cur = list && list.find(t => !used.has(t));
+    }
+    if (pts.length < 3) continue;
+    const head = pts[0], tail = pts[pts.length - 1];
+    (Math.hypot(head[0] - tail[0], head[1] - tail[1]) < 5e-3 ? loops : open).push(pts);
+  }
+  // 閉じなかった鎖どうしを、端が近い順につなぐ
+  while (open.length) {
+    let cur = open.shift();
+    for (let guard = 0; guard < 500; guard++) {
+      const tail = cur[cur.length - 1], head = cur[0];
+      if (Math.hypot(head[0] - tail[0], head[1] - tail[1]) < tol) break;
+      let best = -1, bestD = tol, flip = false;
+      open.forEach((o, i) => {
+        const d0 = Math.hypot(tail[0] - o[0][0], tail[1] - o[0][1]);
+        const d1 = Math.hypot(tail[0] - o[o.length-1][0], tail[1] - o[o.length-1][1]);
+        if (d0 < bestD) { bestD = d0; best = i; flip = false; }
+        if (d1 < bestD) { bestD = d1; best = i; flip = true; }
+      });
+      if (best < 0) break;
+      const add = open.splice(best, 1)[0];
+      cur = cur.concat(flip ? add.slice().reverse() : add);
+    }
+    if (cur.length >= 3 && Math.abs(polyArea(cur)) > 1e-4) loops.push(cur);
+  }
+  return loops.filter(p => Math.abs(polyArea(p)) > 1e-4);
+}
+/* 輪の入れ子をしらべる。深さが偶数＝外がわ、奇数＝穴。
+   穴は「自分をふくむ、いちばん小さい外がわ」のものにする */
+function nestLoops(loops) {
+  const items = loops.map(p => ({ pts:p, a:Math.abs(polyArea(p)), depth:0, holes:[] }));
+  items.sort((x, y) => y.a - x.a);
+  for (let i = 0; i < items.length; i++)
+    for (let j = 0; j < i; j++)
+      if (pointInPoly(items[i].pts[0], items[j].pts)) items[i].depth++;
+  const outers = items.filter(o => o.depth % 2 === 0);
+  for (const h of items.filter(o => o.depth % 2 === 1)) {
+    let host = null;
+    for (const o of outers)
+      if (o.depth === h.depth - 1 && pointInPoly(h.pts[0], o.pts) && (!host || o.a < host.a)) host = o;
+    if (host) host.holes.push(h.pts);
+  }
+  return outers;
+}
+
+/* 切る高さを、頂点のかたまりから少し離れたところへ寄せる。
+   ★スライダーの位置がたまたま「平らな面」に当たると、その面の頂点が
+     まるごと平面に吸われて（clipAt の eps）面が消え、切り口の輪が抜ける。
+     頂点がまばらなところは eps だけで足りるが、フィギュアの底や
+     水平な段のように何百点も同じ高さにならぶところは避けるしかない。
+   ★動かす幅はモデルの高さの 1% まで。それ以上ずらすと
+     スライダーの数字と見た目が合わなくなる。 */
+function safeZ(posArr, z) {
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 2; i < posArr.length; i += 3) {
+    const v = posArr[i];
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  const H = (hi - lo) || 1;
+  const win  = H * 0.01;      // これだけの幅のなかで逃げ場をさがす
+  const need = H * 0.002;     // 頂点からこれだけ離れていれば安全
+  if (z <= lo + need || z >= hi - need) return z;   // 端はそもそも切っても意味がない
+
+  // 近くの頂点の高さをあつめて、同じ高さのものはひとまとめにする
+  const near = [];
+  for (let i = 2; i < posArr.length; i += 3) {
+    const v = posArr[i];
+    if (Math.abs(v - z) <= win * 1.5) near.push(v);
+  }
+  if (!near.length) return z;
+  near.sort((a, b) => a - b);
+  const cl = [near[0]];
+  for (const v of near) if (v - cl[cl.length - 1] > need * 0.5) cl.push(v);
+
+  const far = t => {
+    let d = Infinity;
+    for (const c of cl) d = Math.min(d, Math.abs(t - c));
+    return d;
+  };
+  if (far(z) >= need) return z;                     // もともと離れている
+
+  // かたまりとかたまりのあいだ（と、窓のはし）から、いちばん近い逃げ場をえらぶ
+  const cand = [z - win, z + win];
+  for (let i = 0; i + 1 < cl.length; i++) cand.push((cl[i] + cl[i + 1]) / 2);
+  let best = null, bd = Infinity;
+  for (const t of cand) {
+    if (t <= lo + need || t >= hi - need || far(t) < need) continue;
+    const d = Math.abs(t - z);
+    if (d < bd) { bd = d; best = t; }
+  }
+  return best === null ? z : best;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   組み立て
+   ══════════════════════════════════════════════════════════════ */
+const state = {
+  raw   : null,        // 読みこんだ生の座標（Float32Array）
+  name  : '',
+  up    : 'z',
+  spin  : 0, tiltA: 0, tiltB: 0, flip: false,
+  size  : 24,
+  fat   : 1, stretch: 1,          // 横に太らせる／高さだけ伸ばす
+  cut   : 30,          // 0〜90（%）
+  keep  : 'up',
+  cutMode   : 'plane',            // plane（平面）／joint（凹凸）／none（切らない）
+  jointShape: 'square', jointW: 21, jointH: 5, jointClr: 0.3,
+  guide : 18,                     // 切り口に置く半透明の四角
+  round : 0.8,                    // 切り口の角の丸み（mm）
+  stage : 'aim',                  // aim=切る前／hole=穴の位置決め／done=下パーツを決める／press=押してみる
+  auto  : true,                   // true=自動でつくる／false=手動で調整（8手順）
+  stem  : 'mx',
+  arm   : SW.mx.arm, th: SW.mx.th, depth: SW.mx.depth, out: SW.mx.out,
+  offX  : 0, offY: 0,
+  // 下パーツ
+  lower : true, lowerMode: 'square', lowerW: 24, lowerH: 14, lowerScale: 1.2,
+  cutout: 14.1, plateT: 1.3, cavDeep: 5.6, abovePlate: 6.6, digUp: true,
+  /* かぶせる（上パーツをスカートにして、下パーツの外がわへおろす）
+     groove … プレートより上の溝の深さ。6.6でスイッチの箱がちょうど埋まる（0.2はあそび） */
+  cover : true, groove: 6.4, coverOver: 3.0, coverClr: 0.2, coverWall: 1.6,
+  /* シェル方式（自動モードが使う。自動モード.md 参照）
+     下パーツのふちを上パーツの外がわへ立ちあげて、スイッチとすき間を隠す。
+  */
+  shell : false,
+  /* シェルの作り
+       flush（タイプ1）… ふちを切り口の内がわに立てる。外観は読みこんだモデルのまま
+       case （タイプ2）… 下パーツを一回り大きいケースにして、上パーツがその中へ沈む
+                        （市販のクリッカーに多い作り。フィギュアの下側の形は使わない） */
+  shellType: 'flush',
+  fit   : 'skirt',                // skirt=かぶせる／shell=シェル／none=なし（UIの3択）
+  view  : 'solid',
+};
+let built = null;
+
+// 向きと大きさを反映した座標を作る（元データは触らない）
+function orientedPositions() {
+  const m = new THREE.Matrix4();
+  const q = new THREE.Matrix4();
+  if (state.up === 'y') m.makeRotationX(Math.PI / 2);
+  else if (state.up === 'x') m.makeRotationY(-Math.PI / 2);
+  const R = (fn, a) => { q[fn](a * Math.PI / 180); m.premultiply(q); };
+  if (state.spin)  R('makeRotationZ', state.spin);
+  if (state.tiltA) R('makeRotationX', state.tiltA);
+  if (state.tiltB) R('makeRotationY', state.tiltB);
+  if (state.flip)  R('makeRotationX', 180);
+
+  const src = state.raw, n = src.length;
+  const out = new Float32Array(n);
+  const e = m.elements;
+  let minZ = Infinity, maxZ = -Infinity;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < n; i += 3) {
+    const x = src[i], y = src[i + 1], z = src[i + 2];
+    const X = e[0]*x + e[4]*y + e[8]*z,
+          Y = e[1]*x + e[5]*y + e[9]*z,
+          Z = e[2]*x + e[6]*y + e[10]*z;
+    out[i] = X * state.fat; out[i + 1] = Y * state.fat; out[i + 2] = Z * state.stretch;
+    const Zs = Z * state.stretch;
+    if (Zs < minZ) minZ = Zs;
+    if (Zs > maxZ) maxZ = Zs;
+    const Xs = X * state.fat, Ys = Y * state.fat;
+    if (Xs < minX) minX = Xs;
+    if (Xs > maxX) maxX = Xs;
+    if (Ys < minY) minY = Ys;
+    if (Ys > maxY) maxY = Ys;
+  }
+  // 「大きさ」はモデル全体のいちばん長いところで決める（切る前に決められる）
+  const span = Math.max(maxX - minX, maxY - minY, maxZ - minZ) || 1;
+  return { pos: out, minZ, maxZ, span, wx: maxX - minX, wy: maxY - minY };
+}
+
+function buildAll() {
+  if (!state.raw) return null;
+  const warn = [];
+  earcutBail = 0;
+  const { pos, minZ, maxZ, span } = orientedPositions();
+  const H0 = maxZ - minZ || 1;
+
+  // ★③「切らない」は、底を平らにするために 0% で切ったのと同じ扱いにする
+  const cutPct = state.cutMode === 'none' ? 0 : state.cut;
+  const keepUp = state.cutMode === 'none' ? true : state.keep === 'up';
+  /* 切る高さ（もとの寸法での位置）。
+     ★0% はモデルのいちばん下＝ふつうは点か線なので、切り口の輪ができない。
+       読みこんだ直後がまさにこれで、そのままだとエラーだけが出て何も見えない。
+       輪ができるまで少しずつ持ちあげる。 */
+  let zc = 0, kept = null, loops = null, lifted = 0;
+  for (const add of [0, 0.4, 1, 2, 4]) {
+    const z = safeZ(pos, minZ + H0 * Math.min(cutPct + add, 99) / 100);
+    const r = clipAt(pos, z, keepUp);
+    if (!r.kept.length) return { error:'切りすぎて何も残っていません' };
+    const L = buildLoops(r.segs);
+    if (L.length) { zc = z; kept = r.kept; loops = L; lifted = add; break; }
+  }
+  if (!loops) return { error:'その高さに切るものがありません。'
+    + 'モデルがとぎれている（別々の部品が離れて入っている）ことがあるので、切る高さを変えてみてください' };
+  if (lifted) warn.push(`その高さは点だけで切り口にならないので、${lifted}% 上で切った`);
+
+  // 残ったぶんの高さで倍率を決める（＝「高さ」スライダーは切ったあとの本体の高さ）
+  let hi = -Infinity, lo = Infinity;
+  for (let i = 2; i < kept.length; i += 3) { if (kept[i] > hi) hi = kept[i]; if (kept[i] < lo) lo = kept[i]; }
+  const rawH = keepUp ? (hi - zc) : (zc - lo);
+  // ★倍率は「大きさ」（モデル全体のいちばん長いところ）で決める。
+  //   切る高さを動かしても上パーツの寸法が変わらないので、狙いを決めやすい
+  const s = state.size / span;
+
+  // 切った面が z=0、残したがわが上にくるように置きなおす（下を残したときは裏返す）
+  const flipZ = keepUp ? 1 : -1;
+  const body = new Float32Array(kept.length);
+  let cx = 0, cy = 0, cn = 0;
+  for (let i = 0; i < kept.length; i += 3) {
+    body[i]     = kept[i] * s * flipZ;               // ★裏返すときはXも反転（鏡にしない）
+    body[i + 1] = kept[i + 1] * s;
+    body[i + 2] = (kept[i + 2] - zc) * s * flipZ;
+  }
+  // 切り口の輪郭も同じ倍率で
+  const loops2d = loops.map(p => p.map(q => [q[0] * s * flipZ, q[1] * s]));
+  const outers = nestLoops(loops2d);
+
+  // 切り口の重心にそろえる（十字穴を中央にしたいので、XYは切り口を基準にする）
+  const big = outers.reduce((a, b) => (a.a > b.a ? a : b));
+  let bx = 0, by = 0;
+  for (const p of big.pts) { bx += p[0]; by += p[1]; }
+  bx /= big.pts.length; by /= big.pts.length;
+  for (let i = 0; i < body.length; i += 3) { body[i] -= bx; body[i + 1] -= by; }
+  const shift = p => [p[0] - bx, p[1] - by];
+  for (const o of outers) { o.pts = o.pts.map(shift); o.holes = o.holes.map(h => h.map(shift)); }
+
+  /* 切り口の輪郭に「ふた」を張る。up=true なら上向き（＋Z）、false なら下向き（−Z）。
+     ★本体の底のふたと、土台の上のふたで向きが逆になるので、引数で分ける */
+  const capTris = (os, z, up) => {
+    const out = [];
+    for (const o of os) {
+      const O = ccw(o.pts), Hs = o.holes.map(cw);
+      const flat = [], hidx = [];
+      for (const p of O) flat.push(p[0], p[1]);
+      for (const h of Hs) { hidx.push(flat.length / 2); for (const p of h) flat.push(p[0], p[1]); }
+      const tris = tri2d(flat, hidx, Hs.length);
+      for (let i = 0; i < tris.length; i += 3) {
+        const V = k => [flat[tris[i + k] * 2], flat[tris[i + k] * 2 + 1]];
+        const a = V(0), b = V(1), c = V(2);
+        const sg = (b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0]);
+        const down = sg > 0 ? [a, c, b] : [a, b, c];
+        const [p, q, r] = up ? [down[0], down[2], down[1]] : down;
+        out.push(p[0], p[1], z, q[0], q[1], z, r[0], r[1], z);
+      }
+    }
+    return out;
+  };
+
+  /* 切り口の「反対がわ（＝切り落とした残り）」から、厚さ h mm の板を切り出す。
+     底面が z0、上面が z0+h にくるように置いた閉じたカラと、上下の輪郭を返す。
+     ★本体とまったく同じ変換（倍率 s・反転 flipZ・切り口の重心へ寄せる）をかけるので、
+       そのまま重ねればぴったり合う。台座の「残りを使う」と、下パーツの両方で使う */
+  const shift2d = p => p.map(q => [q[0] * s * flipZ - bx, q[1] * s - by]);
+  /* skip … 切り口から下へ何mm飛ばしてから切り出すか。
+     ★台座で「残りを使う」を選ぶと、台座と下パーツが同じところを取り合ってしまう。
+       下パーツは、台座が使ったぶんの「続き」から取る */
+  const leftoverSlab = (h, z0, skip = 0, topHoles = [], botHoles = []) => {
+    if (h <= 0) return null;
+    const zTop = skip > 0 ? zc - (skip / s) * flipZ : zc;
+    const rest = clipAt(pos, zTop, !keepUp);
+    if (!rest.kept.length) return null;
+    const zMid = zc - ((skip + h) / s) * flipZ;
+    const sl = clipAt(rest.kept, zMid, keepUp);
+    const loopsB = buildLoops(sl.segs);
+    if (!sl.kept.length || !loopsB.length) return null;
+    const bot = nestLoops(loopsB.map(shift2d));
+    /* ★上のふたは「残りがわの切り口」で張る。本体がわの outers を使いまわすと、
+         同じ平面でも反対がわから交点を出したぶんだけ数字がずれて、
+         1〜2辺だけ縫い合わない（実際に出た） */
+    const top = nestLoops(buildLoops(rest.segs).map(shift2d));
+    const side = new Float32Array(sl.kept.length);
+    for (let i = 0; i < sl.kept.length; i += 3) {
+      side[i]     = sl.kept[i] * s * flipZ - bx;
+      side[i + 1] = sl.kept[i + 1] * s - by;
+      side[i + 2] = (sl.kept[i + 2] - zc) * s * flipZ + z0 + h;
+    }
+    // ふたに穴を足す（いちばん大きい輪にあける）
+    const withHole = (os, holes) => {
+      if (!holes.length) return os;
+      const big = os.reduce((a, b) => (a.a > b.a ? a : b));
+      return os.map(o => (o === big ? { pts:o.pts, holes:[...o.holes, ...holes] } : o));
+    };
+    const capUp = capTris(withHole(top, topHoles), z0 + h, true);
+    const capDn = capTris(withHole(bot, botHoles), z0, false);
+    const arr = new Float32Array(side.length + capUp.length + capDn.length);
+    arr.set(side, 0);
+    arr.set(capUp, side.length);
+    arr.set(capDn, side.length + capUp.length);
+    const g = geomFromPositions(arr);
+    g.userData.shell = arr.length / 9;
+    return { geom:g, bot, top };
+  };
+
+  /* 切ったオブジェクトそのものに「止まり穴」をあける。
+     ★底のふたに穴をあけ、そのふちから筒を立ち上げて、上を天井でふさぐ。
+       材料を足さないので、見た目は切ったモデルのまま。ブーリアンも使わない。
+     ★穴のふち（リング）は、prism の穴とおなじ向き（時計まわり）にすると
+       壁の表が穴の内がわを向く。 */
+  const drillBlind = (rings, z0, z1, noCeil = false) => {
+    const out = [];
+    for (const r of rings) {
+      const R = cw(r);
+      for (let i = 0; i < R.length; i++) {
+        const a = R[i], b = R[(i + 1) % R.length];
+        out.push(a[0], a[1], z0, b[0], b[1], z0, b[0], b[1], z1);
+        out.push(a[0], a[1], z0, b[0], b[1], z1, a[0], a[1], z1);
+      }
+    }
+    // 天井（材料は上、空は下なので下向き）。上にもう1段あけるときは張らない
+    if (!noCeil)
+      for (const t of capTris(rings.map(r => ({ pts:r, holes:[] })), z1, false)) out.push(t);
+    return out;
+  };
+
+  // ── スイッチの穴（十字／Chocのピン）
+  const sw = SW[state.stem];
+  const stemOut = state.out;
+  /* ★かぶせる … 上パーツをスカートにして下パーツの外がわへおろす作り。
+       本体にはくぼみも十字も掘らない（十字はスカートの天井にあける）。 */
+  const isShell = state.shell && state.cutMode !== 'joint';
+  /* 帯 … シェルのふちの中を通る、上パーツの底のまっすぐな部分。
+     高さは「沈む量 ＋ かぶせしろ」。ここだけフィギュアを細くして、
+     そのぶんの肉をふち（下パーツ）に回す。 */
+  const shellCase  = isShell && state.shellType === 'case';    // タイプ2
+  const shellFlush = isShell && !shellCase;                     // タイプ1
+  /* 帯（タイプ1だけ）… ふちの中を通る、上パーツの底のまっすぐな部分。 */
+  const bandH = shellFlush ? SW[state.stem].travel + state.coverOver : 0;
+  const isCover = state.cover && !isShell && state.cutMode !== 'joint';
+  /* ★穴が深いと、ステムの先が天井に当たったところで止まってしまい沈まない。
+       沈める条件は「ステムの出っぱり ≧ 穴の深さ ＋ 沈む量」。
+       深すぎたら自動で浅くする（そうしないと、どう組んでも押せない）。 */
+  const Dmax = Math.max(1.5, stemOut - SW[state.stem].travel);
+  const D = Math.min(state.depth, Dmax);
+  if (D < state.depth - 0.01)
+    warn.push(`穴の深さを ${state.depth.toFixed(1)} → ${D.toFixed(1)}mm にした。`
+            + `ステムの出っぱり ${stemOut.toFixed(1)}mm から沈む量 ${SW[state.stem].travel}mm を引いた深さまでしか、`
+            + `十字の穴はあけられない`);
+  const holeShapes = state.stem === 'mx'
+    ? [crossPts(state.arm, state.th, state.offX, state.offY)]
+    : [rectPts(sw.pin[0], sw.pin[1], state.offX - sw.gap / 2, state.offY),
+       rectPts(sw.pin[0], sw.pin[1], state.offX + sw.gap / 2, state.offY)];
+  const reliefPts = roundRectPts(K.relief, K.relief, 1.2);
+
+  /* ★十字穴のまわりには、実物で確かめた分の肉（5.8 × 5.0mm）が要る。
+       ここが薄いと押したときに割れる。実物の上パーツはこれを「柱」として持っていたが、
+       アプリは材料を足さない方針なので、足りないときは知らせるだけにする。 */
+  if (state.stem === 'mx' && outers.length && !isCover && !shellFlush) {
+    const bossRing = rectPts(K.bossW, K.bossD, state.offX, state.offY);
+    const bigSec = outers.reduce((a, b) => (a.a > b.a ? a : b));
+    if (!fitsInside(bossRing, bigSec.pts) || !bigSec.holes.every(h => disjoint(bossRing, h)))
+      warn.push(`十字穴のまわりの肉が足りない`
+              + `（実物で確かめた ${K.bossW} × ${K.bossD}mm の柱が切り口に入らない）。`
+              + `押したときに割れやすい。「大きさ」を上げるか、穴の位置をずらして`);
+  }
+
+  /* ── 本体（切り取ったフィギュア）に、そのまま止まり穴をあける
+     ★材料を足さない。底のふたに穴をあけて、筒と天井を張るだけ。
+       ②（凹凸）のときだけは、あとで凸（中空の筒）を足す。
+     ★2段の穴にする：
+         下（0〜relH）… スイッチの箱(15.6角)を逃がすくぼみ。これが無いと箱に乗り上げて沈まない
+         上（relH〜relH+D）… 十字。ステムの先が入る
+       くぼみが切り口に入らないときは、十字だけをあける（沈みは浅くなる）。 */
+  const isJointCut = state.cutMode === 'joint';
+
+  /* ── 切り口の角を丸める
+     ★平らに切ったままだと「スパッと切った」見た目になる。本体を丸みのぶん持ちあげて、
+       下にできたすきまを「だんだん細くなる輪」で埋めると、角が丸くなる。
+     ★輪を内がわへ寄せるのは offsetPts。寄せすぎて形がつぶれる手前でやめる。 */
+  const roundR = Math.max(0, Math.min(state.round, 3));
+  const STEP = 6;
+  let rings = null;
+  if (roundR > 0.05) {
+    const inset = t => roundR - Math.sqrt(Math.max(roundR * roundR - (roundR - t) * (roundR - t), 0));
+    /* ★輪を「外向きの法線ぶん内がわへずらす」やり方だと、耳や尻尾のような
+         出っぱりのところで輪が自分と交差して、ふたが張れなくなる（実際に壊れた）。
+         重心へ向かって縮める方式なら、形が交差しないので安全。
+         丸みは数mmなので、見た目のちがいは出ない。 */
+    const list = [];
+    let ok = true;
+    for (let i = 0; i <= STEP; i++) {
+      const d = inset(roundR * i / STEP);
+      const set = outers.map(o => {
+        let cx2 = 0, cy2 = 0;
+        for (const q of o.pts) { cx2 += q[0]; cy2 += q[1]; }
+        cx2 /= o.pts.length; cy2 /= o.pts.length;
+        let rad = 0;
+        for (const q of o.pts) rad += Math.hypot(q[0] - cx2, q[1] - cy2);
+        rad /= o.pts.length;
+        const k2 = rad > 1e-6 ? Math.max(0.3, 1 - d / rad) : 1;
+        if (k2 > 0.999) return { pts:o.pts, holes:o.holes, a:o.a };
+        return {
+          pts: o.pts.map(q => [cx2 + (q[0] - cx2) * k2, cy2 + (q[1] - cy2) * k2]),
+          holes: o.holes.map(h => h.map(q => [cx2 + (q[0] - cx2) * k2, cy2 + (q[1] - cy2) * k2])),
+          a: o.a * k2 * k2,
+        };
+      });
+      list.push(set);
+    }
+    if (ok) rings = list;
+  }
+  const lift0 = rings ? roundR : 0;          // 本体を持ちあげる高さ
+  const capZ  = lift0;                       // 本体のふたの高さ
+  const baseOuters = rings ? rings[0] : outers;   // いちばん下（底）の輪
+
+  /* ── 本体（切り取ったフィギュア）に、そのまま止まり穴をあける
+     ★材料を足さない。底のふたに穴をあけて、筒と天井を張るだけ。
+     ★2段の穴：下がスイッチの箱を逃がすくぼみ、上が十字。 */
+  const hostLoop = baseOuters.reduce((a2, b2) => (a2.a > b2.a ? a2 : b2));
+  /* ★シェルのときは、上パーツの底に「帯」を足してそこに十字をあける。
+       本体（フィギュア）には掘らない。スイッチの箱はシェルの中に収まる。 */
+  const canRelief = !isJointCut && !isCover && !shellFlush && fitsInside(reliefPts, hostLoop.pts)
+                    && hostLoop.holes.every(h => disjoint(reliefPts, h));
+  const relH = canRelief ? Math.max(state.abovePlate, 0) : 0;
+  const canCross = holeShapes.every(h => fitsInside(h, hostLoop.pts))
+                   && hostLoop.holes.every(h => holeShapes.every(x => disjoint(x, h)));
+
+  const capHoles = [];
+  let drillPos = [];
+  if (!isJointCut && !isCover && !shellFlush) {
+    if (canRelief) {
+      capHoles.push(reliefPts);
+      drillPos = drillBlind([reliefPts], 0, relH, true)
+        .concat(capTris([{ pts:reliefPts, holes:holeShapes }], relH, false))
+        .concat(drillBlind(holeShapes, relH, relH + D));
+    } else if (canCross) {
+      capHoles.push(...holeShapes);
+      drillPos = drillBlind(holeShapes, 0, D);
+    } else {
+      warn.push('切り口が細くて十字があけられない。「横に太らせる」で太くするか、'
+              + '穴の位置をずらすか、切る高さを変えて太いところで切って');
+    }
+  }
+
+  // 丸みの輪（下から順に積む）。穴は輪ごとに通す
+  const filletGeoms = [];
+  if (rings) {
+    for (let i = 0; i < STEP; i++) {
+      const z0 = roundR * i / STEP, z1 = roundR * (i + 1) / STEP;
+      for (const o of rings[i])
+        filletGeoms.push(prism(o.pts, [...o.holes, ...(o === rings[i].reduce((x, y) => (x.a > y.a ? x : y)) ? capHoles : [])], z0, z1));
+    }
+  }
+
+  // 本体を持ちあげて、そのふた（穴つき）を張る
+  if (lift0) for (let i = 2; i < body.length; i += 3) body[i] += lift0;
+  const capPos = capTris(outers.map(o =>
+    (o.a === Math.max(...outers.map(x => x.a)) && capHoles.length)
+      ? { pts:o.pts, holes:[...o.holes, ...capHoles] } : o), capZ, false);
+  if (lift0) for (let i = 2; i < drillPos.length; i += 3) drillPos[i] += lift0;
+
+  /* ★本体とふたは「ひとつの閉じたカラ」。別々のジオメトリにすると、3MFに書くときの
+     頂点の溶接がカラごとに行われるせいで切り口のぐるりが縫い合わされず、
+     スライサーから「開いた辺だらけ」に見えてしまう。だから最初からつなげておく */
+  let bodyArr;
+  if (shellFlush) {
+    /* ★シェルのときは、本体の下 bandH ぶんを落とす。そこは「帯」で作りなおすので、
+         フィギュアの形のままだと ふちと同じ場所を取り合ってしまう。
+       切り口のふた・止まり穴・丸みは要らない（帯がその役をする）。 */
+    const r2 = clipAt(body, bandH, true);
+    const L2 = buildLoops(r2.segs);
+    const os2 = L2.length ? nestLoops(L2) : [];
+    const cap2 = capTris(os2, bandH, false);
+    bodyArr = new Float32Array(r2.kept.length + cap2.length);
+    bodyArr.set(r2.kept, 0);
+    bodyArr.set(cap2, r2.kept.length);
+  } else {
+    bodyArr = new Float32Array(body.length + capPos.length + drillPos.length);
+    bodyArr.set(body, 0);
+    bodyArr.set(capPos, body.length);
+    bodyArr.set(drillPos, body.length + capPos.length);
+  }
+  const bodyGeom = geomFromPositions(bodyArr);
+  bodyGeom.userData.shell = bodyArr.length / 9;
+  const bodyGeoms = [bodyGeom, ...(shellFlush ? [] : filletGeoms)];
+
+  const addSlab = (arr, outer, holes, z0, z1) => {
+    if (z1 > z0 + 1e-6) arr.push(prism(outer, holes, z0, z1));
+  };
+  const secBox = (() => {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const o of outers) for (const p of o.pts) {
+      x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]);
+      y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]);
+    }
+    return { w:x1 - x0, d:y1 - y0 };
+  })();
+  const secW = Math.max(secBox.w, secBox.d);
+
+  /* ── 下パーツの上面の輪郭。かぶせるスカートの内がわは、これに「すきま」を足したもの。
+       ①② … 切った面そのもの（下パーツの上面＝切り口）
+       ③　 … 選んだ柱のかたち（下で作る outline もこれを使う。ずれるとかぶさらない） */
+  const lowTopPts = (() => {
+    if (state.cutMode === 'none') {
+      if (state.lowerMode === 'round')  return circlePts(state.lowerW / 2);
+      if (state.lowerMode === 'square') return roundRectPts(state.lowerW, state.lowerW, 2.0);
+      const big = outers.reduce((a, b) => (a.a > b.a ? a : b));
+      return offsetPts(big.pts, Math.max(state.lowerW - secW, 0) / 2);
+    }
+    return outers.reduce((a, b) => (a.a > b.a ? a : b)).pts;
+  })();
+  /* ★溝の深さは、下パーツを作るより先に確定させる。
+       スカートの丈がこれで決まるので、あとから下パーツだけ切りつめると
+       そのぶん上パーツが浮いてしまう（実際に、残りの薄いモデルで出た）。
+       深さの上限は「箱の高さ ＋ ステムの出 − 穴の深さ − 沈む量」。
+       既定値どうしだと ちょうど abovePlate(6.6) ＝ スイッチが埋まりきる深さになる。 */
+  /* ★下パーツは「切り口から下へ lowerH だけ」の板。残りのほうが厚いと、
+       モデルのいちばん下が消える（報告された「下パーツの一番下がなくなった」）。
+       シェルのときは、余ったぶんを底板に足して、残りの形をまるごと使う。
+       中身（空洞・プレート・箱）の位置は上から決まるので、増えるのは底板だけ。 */
+  /* ★残りぴったりで切り出そうとすると、いちばん下の断面が点や線になって
+       板が切り出せない（「切り口の反対がわに残りがない」と言って下パーツが消える）。
+       0.05mm だけ内がわで止める。見た目には出ない。 */
+  const availLowRaw = Math.max(0, (keepUp ? (zc - minZ) : (maxZ - zc)) * s - 0.05);
+  const needLow  = K.floor + state.cavDeep + state.plateT + state.abovePlate;
+  const floorZ   = (shellFlush && state.cutMode !== 'none')
+    ? K.floor + Math.max(0, availLowRaw - needLow)
+    : K.floor;
+  const plateTop0 = floorZ + state.cavDeep + state.plateT;
+  const availLow0 = (keepUp ? (zc - minZ) : (maxZ - zc)) * s;
+  const grooveCap = Math.max(0, state.abovePlate + stemOut - D - sw.travel);
+  let effGroove = Math.min(Math.max(state.groove, state.lowerH - plateTop0, 0), grooveCap);
+  if (state.cutMode !== 'none')
+    effGroove = Math.min(effGroove, Math.max(availLow0 - plateTop0, 0));
+  /* スカートの丈は「かぶせしろ」から逆算する。
+     上パーツが止まる高さはステムの先で決まっているので
+       丈 ＝ かぶせしろ ＋（プレート上の箱の高さ ＋ ステムの出）− 十字穴の深さ − 溝の深さ */
+  const skirtH   = isCover
+    ? Math.max(1.0, state.coverOver + state.abovePlate + stemOut - D - effGroove)
+    : 0;
+  if (isCover && state.groove > grooveCap + 0.01)
+    warn.push(`溝は ${grooveCap.toFixed(1)}mm より深くできない（${sw.travel}mm 沈むすきまが要る）ので、`
+            + `${effGroove.toFixed(1)}mm にした`);
+  else if (isCover && effGroove < state.groove - 0.01)
+    warn.push(`残りの厚みが ${availLow0.toFixed(1)}mm しかないので、溝は ${effGroove.toFixed(1)}mm までにした`
+            + `（スカートの丈もそれに合わせてある）`);
+  const skirtIn  = isCover ? offsetPts(lowTopPts, state.coverClr) : null;
+  const skirtOut = isCover ? offsetPts(lowTopPts, state.coverClr + state.coverWall) : null;
+  /* ★シェルのふちは、切り口の輪郭の「内がわ」に立てる。
+       外がわ（shellOut）＝切り口そのもの＝モデルの面。だから
+         ・外形が太らない（外観は読みこんだモデルのまま）
+         ・下パーツの上面（切り口）の上に、ちゃんと肉が乗る＝つながる
+       外へ出して立てていたころは、ふちが下パーツの縁の外に浮いていて、
+       どこにも付いていなかった。
+     上パーツは、そのぶん（厚み＋すきま）細い「帯」を底に足して、
+     ふちの中をすべらせる。 */
+  let shellOut = null, shellIn = null, upInset = null, rimWall = state.coverWall;
+  let thinCut = false;      // 切り口に細い出っぱりがあって、そのままの形で帯を作れなかった
+  let lostLoops = 0;        // 細すぎて残せなかった輪の数
+  const rimSets = [];       // 切り口の輪ごとの { 外, ふちの内, 帯 }
+  if (shellCase) {
+    /* ── タイプ2（ケース）… 下パーツを一回り大きくして、上パーツをその中へ沈める。
+         市販のクリッカーに多い作り。上パーツはフィギュアのかたちのまま
+         （細くしない）ので、下側の形は使わずケースを作る。 */
+    shellIn  = dedupePts(offsetPts(lowTopPts, state.coverClr));                    // 上パーツが通る穴
+    shellOut = dedupePts(offsetPts(lowTopPts, state.coverClr + state.coverWall));  // ケースの外
+    /* ★ケースの中にはスイッチの空洞（15.2mm角）やプレートの開口が入る。
+         フィギュアが細いと、輪郭を広げただけでは足りずに穴が外へはみ出して、
+         ふたが張れなくなる（開いた辺だらけになった）。
+         足りないときは、必要な寸法の角丸四角のケースにする（参考モデルと同じ箱型）。 */
+    const needW = K.cav + state.coverWall * 2 + 0.4;
+    const okOut = polySimple(shellOut)
+      && fitsInside(rectPts(K.cav, K.cav), shellOut)
+      && fitsInside(roundRectPts(state.cutout, state.cutout, 0.4), shellOut);
+    if (!okOut) {
+      const grow = (state.coverClr + state.coverWall) * 2;
+      shellOut = roundRectPts(Math.max(secBox.w + grow, needW),
+                              Math.max(secBox.d + grow, needW), 2.0);
+    }
+    if (!polySimple(shellIn)) {
+      shellIn = roundRectPts(secBox.w + state.coverClr * 2, secBox.d + state.coverClr * 2, 2.0);
+    }
+  } else if (shellFlush) {
+    shellOut = lowTopPts;
+    const bigTop = outers.reduce((a, b) => (a.a > b.a ? a : b));
+    const inSq = squareIn(lowTopPts, state.cutMode === 'none' ? [] : bigTop.holes);
+    /* ★ふちの厚みは「スイッチの箱が通るぶん」を残せる範囲まで。
+         組むときスイッチはふちの穴から落としこむので、内がわが箱(15.6)より
+         細いと入らない。18mm角の切り口に 1.6mm のふちを立てると 14.8mm しか
+         残らず入らなかった。 */
+    rimWall = Math.max(0.6, Math.min(state.coverWall, (inSq - K.housing - 0.6) / 2));
+    shellIn = dedupePts(offsetPts(lowTopPts, -rimWall));
+    upInset = dedupePts(offsetPts(lowTopPts, -(rimWall + state.coverClr)));
+    if (!polySimple(shellIn) || !polySimple(upInset) || inSq <= 0) {
+      /* ★内がわへ寄せると形が交差する（しっぽや耳のような細い出っぱりがある切り口）。
+           前は角丸四角に置きかえていたが、それだと上パーツの底7mmだけが四角い柱になり、
+           しっぽがそこで消えて7mm上から再開する＝上下でずれて見えた（報告された症状）。
+           代わりに「重心から見て縮める」。形はそのまま小さくなるだけなので、
+           出っぱりも細くはなるが同じ場所に残る。 */
+      let cx2 = 0, cy2 = 0;
+      for (const p of lowTopPts) { cx2 += p[0]; cy2 += p[1]; }
+      cx2 /= lowTopPts.length; cy2 /= lowTopPts.length;
+      let rMax = 0;
+      for (const p of lowTopPts) rMax = Math.max(rMax, Math.hypot(p[0] - cx2, p[1] - cy2));
+      const shrinkBy = d => {
+        const k = Math.max(0.05, 1 - d / Math.max(rMax, 0.1));
+        return lowTopPts.map(p => [cx2 + (p[0] - cx2) * k, cy2 + (p[1] - cy2) * k]);
+      };
+      shellIn = dedupePts(shrinkBy(rimWall));
+      upInset = dedupePts(shrinkBy(rimWall + state.coverClr));
+      thinCut = true;
+    }
+    /* ★内がわの輪が、外の輪からはみ出していないかを必ず確かめる。
+         へこみのある輪郭を内がわへ寄せると、へこみのところで外へ出てしまうことがあり、
+         そのままふたを張ると開いた辺になる（実物の猫データの下パーツで 3〜15本 出た）。
+         はみ出したときは「重心から見て縮める」ほうに切りかえる。 */
+    if (!fitsInside(shellIn, lowTopPts) || !fitsInside(upInset, shellIn)) {
+      let cx3 = 0, cy3 = 0;
+      for (const p of lowTopPts) { cx3 += p[0]; cy3 += p[1]; }
+      cx3 /= lowTopPts.length; cy3 /= lowTopPts.length;
+      let rMax3 = 0;
+      for (const p of lowTopPts) rMax3 = Math.max(rMax3, Math.hypot(p[0] - cx3, p[1] - cy3));
+      const shrink3 = d => {
+        const k = Math.max(0.05, 1 - d / Math.max(rMax3, 0.1));
+        return lowTopPts.map(p => [cx3 + (p[0] - cx3) * k, cy3 + (p[1] - cy3) * k]);
+      };
+      shellIn = dedupePts(shrink3(rimWall));
+      upInset = dedupePts(shrink3(rimWall + state.coverClr));
+      thinCut = true;
+    }
+    /* ★切り口がいくつかの輪に分かれるとき（しっぽ・耳など）、いちばん大きい輪だけに
+         ふちを立てると、そのほかは帯ごと消えて上下でずれて見える。
+         輪ごとにふちと帯を作る。細くて残せない輪だけ、そう知らせて飛ばす。 */
+    for (const o of outers) {
+      if (o.pts === lowTopPts) { rimSets.push({ out:o.pts, rimIn:shellIn, band:upInset, main:true }); continue; }
+      let rimIn = null, band = null;
+      for (const w of [rimWall, rimWall * 0.6, 0.5]) {          // 入らなければ細くして粘る
+        const a = dedupePts(offsetPts(o.pts, -w)), b = dedupePts(offsetPts(o.pts, -(w + state.coverClr)));
+        /* ★内がわの輪が外の輪にちゃんと収まっているかも見る。
+             はみ出したままふたを張ると、開いた辺になる（猫の耳で出た）。 */
+        if (polySimple(a) && polySimple(b) && fitsInside(a, o.pts) && fitsInside(b, a)
+            && Math.abs(polyArea(b)) > 1.2) { rimIn = a; band = b; break; }
+      }
+      if (rimIn) rimSets.push({ out:o.pts, rimIn, band, main:false });
+      else       lostLoops++;
+    }
+    if (lostLoops)
+      warn.push(`切り口の細い出っぱり ${lostLoops}か所は、ふちを立てるには細すぎるので`
+              + '上パーツから切り落とした（そこだけ上下でずれて見える）。'
+              + '形のまま作りたいなら【タイプ2】にして');
+    if (rimWall < state.coverWall - 0.01)
+      warn.push(`シェルのふちを ${rimWall.toFixed(1)}mm に細くした`
+              + `（スイッチ（${K.housing}mm角）が通る穴を残すため）`);
+    if (thinCut)
+      warn.push('切り口に細い出っぱり（しっぽ・耳など）がある。タイプ1では'
+              + 'そこがふちの厚みぶん細くなるので、上下でずれて見える。'
+              + '形のまま作りたいなら【タイプ2】にして');
+  }
+  /* ★シェルの穴は「切り口の輪郭」で作る。切り口より上でフィギュアが太っていると、
+       沈みきる前にふちへ当たって止まる。すべる範囲（かぶせしろ＋沈む量）の
+       上端で確かめる。かぶせる（スカート）のときの、下向きの検査と同じ考え方。 */
+  if (isShell) {
+    /* フィギュアが切り口より上で太っていると
+         タイプ1 … ふちの上に庇のようにかぶさる（押すと当たる）
+         タイプ2 … ケースの穴に入らないので沈まない
+       すべる範囲の上端で確かめる。
+       ★まっすぐな形は「切り口と同じ太さ」になる。輪郭が自分自身に入るかを
+         聞くと false になるので、0.15mm だけ外へ逃がしたものと比べる。 */
+    const dz  = state.coverOver + sw.travel;
+    const zUp = zc + (dz * 0.98 / s) * flipZ;
+    const up2 = buildLoops(clipAt(pos, zUp, keepUp).segs);
+    const os2 = up2.length ? nestLoops(up2.map(shift2d)) : null;
+    /* ★くらべる相手を「外へふくらませた輪」にすると、指のあいだのような
+         へこみで輪が自分と交差して、太っていないのに太っていると出る（肉球で出た）。
+         代わりに、上の断面のほうを重心へ1.5%だけ縮めてから比べる。
+         縮めた形はかならず素直な輪のままなので、こういう誤りが起きない。 */
+    const ref = shellFlush ? lowTopPts : shellIn;
+    const shrinkTo = pts => {
+      let ax = 0, ay = 0;
+      for (const p of pts) { ax += p[0]; ay += p[1]; }
+      ax /= pts.length; ay /= pts.length;
+      return pts.map(p => [ax + (p[0] - ax) * 0.985, ay + (p[1] - ay) * 0.985]);
+    };
+    if (os2 && os2.length && !os2.every(o => fitsInside(shrinkTo(o.pts), ref)))
+      warn.push(shellFlush
+        ? `切り口より ${dz.toFixed(1)}mm 上でフィギュアが太っていて、`
+          + 'シェルのふちの上にかぶさる。押すと当たるので、切る高さを変えて'
+        : `切り口より ${dz.toFixed(1)}mm 上でフィギュアが太っていて、`
+          + 'ケースの穴に入らない（沈まない）。切る高さを変えるか、「すきま」を増やして');
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     新しい組み立て（3つのカットで共通のしくみ）
+
+       上パーツ ＝ [凸（中空の筒）] ＋ [十字穴の入る台] ＋ [本体]
+       下パーツ ＝ [空洞] ＋ [プレート] ＋ [くぼみ（凹）] ＋ [まわりの形]
+
+     ★スイッチは いつも 下パーツの「くぼみ」の中に収まる。
+       上パーツの凸がそのくぼみをすべって上下するので、
+       スイッチは外から見えず、まっすぐ沈む案内にもなる。
+     ★①と③は四角のくぼみ、②は選んだかたち（四角柱・円柱・ハート・星）。
+       ちがうのはくぼみの断面と深さだけ。
+     ══════════════════════════════════════════════════════════ */
+  const isJoint = state.cutMode === 'joint';
+  const clr     = state.jointClr;
+  const shape   = isJoint ? state.jointShape : 'square';
+  /* ★①③のくぼみは「スイッチの箱(15.6mm角)が入ればいい」ので K.relief(16.4)。
+       ②だけは、中空の凸が壁の厚みぶん外へ出るので太さが要る。
+       ここを一緒にしていたせいで、①③でも21mm角を要求して掘れなくなっていた。 */
+  const pocketW = isJoint ? state.jointW : K.relief;
+  const bossH   = isJoint ? state.jointH : K.bossH;
+
+  const socketPts = jointPts(shape, pocketW);                 // 凹（穴）
+  const bossOuter = jointPts(shape, pocketW - clr * 2);       // 凸の外
+  const bossInner = jointPts(shape, pocketW - clr * 2 - K.wallJ * 2);   // 凸の中
+  const innerW    = pocketW - clr * 2 - K.wallJ * 2;
+  if (isJoint && innerW < K.housing + 0.4)
+    warn.push(`はめ込みが細くて、中にスイッチ（${K.housing}mm角）が入らない。`
+            + `太さを ${(K.housing + 0.4 + clr * 2 + K.wallJ * 2).toFixed(1)}mm 以上に`);
+
+  /* ── 上パーツ ─────────────────────────────────────
+     ★①③は、切ったモデルそのもの（もう止まり穴があいている）。柱も台座も足さない。
+       ローカル z＝0 が、そのまま切り口＝底の面。
+     ★②だけは、下パーツの凹にはまる「凸（中空の筒）」を底に足す。
+       このとき十字はその筒の天井にあける（＝本体の底に足した台の中）。 */
+  const bossGeoms = [], upGeoms = [];
+  let mountH = 0, lift = 0;
+  if (isJoint) {
+    mountH = Math.max(D + K.ceil, 4.4);
+    lift   = bossH + mountH;
+    addSlab(bossGeoms, bossOuter, [bossInner], 0, bossH);        // 中空の筒
+    addSlab(upGeoms, bossOuter, holeShapes, bossH, bossH + D);   // 十字をあける
+    addSlab(upGeoms, bossOuter, [], bossH + D, lift);
+    const needSkirt = secW > pocketW - clr * 2 + 0.2;
+    if (needSkirt) for (const o of outers)
+      addSlab(upGeoms, o.pts, [], lift - K.ceil, lift);
+    for (const g of bodyGeoms) g.translate(0, 0, lift);
+  } else if (shellFlush) {
+    /* ── シェル … 下パーツのふちの中を通る「帯」を、上パーツの底に足す。
+         下から　十字をあける帯 → 帯の残り → 本体（フィギュア）
+       ★本体はすでに bandH より上だけになっているので、持ちあげない（lift=0）。 */
+    mountH = bandH;
+    for (const rs of rimSets) {
+      addSlab(upGeoms, rs.band, rs.main ? holeShapes : [], 0, D);
+      addSlab(upGeoms, rs.band, [], D, bandH);
+    }
+  } else if (isCover) {
+    /* ── かぶせる … 下パーツの外がわへおりるスカートを足す。
+         下から　スカート（中空の筒）→ 天井（ここに十字をあける）→ 本体
+       ★スカートは下パーツの「外」をすべるので、下パーツ側にくぼみは要らない。
+         そのぶん溝（プレートより上）を深くして、スイッチをまるごと埋められる。 */
+    mountH = Math.max(D + K.ceil, 2.0);
+    lift   = skirtH + mountH;
+    addSlab(bossGeoms, skirtOut, [skirtIn], 0, skirtH);            // 中空のスカート
+    addSlab(upGeoms, skirtOut, holeShapes, skirtH, skirtH + D);    // 十字をあける天井
+    addSlab(upGeoms, skirtOut, [], skirtH + D, lift);
+    // 本体のほうが太いときは、その輪郭のふたを足して段差をふさぐ
+    const sb = skirtOut.reduce((a, q) => [Math.min(a[0], q[0]), Math.max(a[1], q[0]),
+                                          Math.min(a[2], q[1]), Math.max(a[3], q[1])],
+                               [Infinity, -Infinity, Infinity, -Infinity]);
+    if (secW > Math.max(sb[1] - sb[0], sb[3] - sb[2]) + 0.2) for (const o of outers)
+      addSlab(upGeoms, o.pts, [], lift - K.ceil, lift);
+    if (outers.length > 1)
+      warn.push('切り口が2つ以上に分かれている。スカートはいちばん大きいところにしか付かないので、'
+              + '切る高さを変えて1つにまとめて');
+    for (const g of bodyGeoms) g.translate(0, 0, lift);
+  }
+
+  const parts = [];
+  if (bossGeoms.length) parts.push({ name:isCover ? 'スカート' : '凸', color:COL.post, geoms:bossGeoms });
+  if (upGeoms.length)   parts.push({ name:'台座', color:COL.base, geoms:upGeoms });
+  parts.push({ name:'上パーツ', color:COL.body, geoms:bodyGeoms });
+
+  // ── 下パーツ ───────────────────────────────────────
+  // 凹の深さ。②は凸が沈みきるまで、①③はスイッチの箱が沈むぶんだけ
+  const socketDeep = isJoint ? bossH + sw.travel + 0.5 : (isCover ? effGroove : 0.0);
+  const plateTop   = plateTop0;                                // 底板ぶん持ちあがる
+  const lowMin     = socketDeep + plateTop;
+  // 切り落とした残りの厚み（mm）。下パーツはこれ以上には作れない
+  const availLow = (keepUp ? (zc - minZ) : (maxZ - zc)) * s;
+  /* ★沈むぶんのすきまを必ず作る。
+       ステムの先が天井に当たる位置から、上パーツの底までの高さが決まるので、
+       下パーツの上面はそれより「沈む量」だけ下でなければならない。 */
+  const stemTipZ = plateTop + state.abovePlate + stemOut;
+  const upZeroZ  = stemTipZ - (isJoint ? bossH + D : (isCover ? skirtH + D : relH + D));
+  /* 上パーツのどの面が下パーツの上面に当たるか。
+       ②　　　… 本体の底（凸も台座も凹の中へ入る）
+       かぶせる… スカートの天井の下面（スカートは外をすべるので当たらない）
+       ①③　　… 本体の底 */
+  const landZ    = isJoint ? lift : (isCover ? skirtH : 0);
+  const lowerCap = upZeroZ + landZ - sw.travel;
+  let lowerH = Math.max(state.lowerH, lowMin);
+  if (lowerH > lowerCap) {
+    lowerH = Math.max(lowerCap, lowMin);
+    /* ★ぴったり同じになる（lowerCap === lowMin）のがふつう。
+         D は「出っぱり − 沈む量」で頭打ちにしているので、計算すると必ずここで一致する。
+         小数のごみで 1e-15 だけ下回ることがあるので、あそびを持たせる。
+         入れないと「すきまが作れない」という嘘の警告が出る。 */
+    if (lowerCap >= lowMin - 1e-6)
+      warn.push(`下パーツの高さを ${lowerH.toFixed(1)}mm にした`
+              + `（${sw.travel}mm 沈むすきまを残すため）`);
+    else
+      warn.push(`スイッチの寸法では、${sw.travel}mm 沈むすきまが作れない。`
+              + `「下の逃げの深さ」を ${(state.cavDeep - (lowMin - lowerCap)).toFixed(1)}mm 以下にして`);
+  }
+  const boxShell = shellCase;   // タイプ2 … 一回り大きいケースを作る
+  if (state.cutMode !== 'none' && !boxShell && lowerH > availLow) {
+    lowerH = availLow;
+    if (availLow >= lowMin)
+      warn.push(`残りの厚みが ${availLow.toFixed(1)}mm しかないので、下パーツはその高さにした`);
+  }
+  /* ★シェルは「残りの形をまるごと」使う。底板を足したぶん、上限（lowerCap）も
+       残りの厚みまで伸びているので、ここで残り全部にそろえる。 */
+  if (shellFlush && state.cutMode !== 'none' && !shellCase)
+    lowerH = Math.min(availLowRaw, lowerCap);
+  if (state.cutMode !== 'none' && !boxShell && availLow < lowMin)
+    warn.push(`残りが ${availLow.toFixed(1)}mm しかなく、スイッチの入る厚み（${lowMin.toFixed(1)}mm）に足りない。`
+            + `切る高さを下げるか、「高さだけ伸ばす」で伸ばして`);
+  let lowerInfo = null, baseZ = 0;
+
+  if (state.lower && (state.stage === 'done' || state.stage === 'press')) {
+    const hGeoms = [];
+    const cavPts  = rectPts(K.cav, K.cav);
+    const cutPts  = roundRectPts(state.cutout, state.cutout, 0.4);
+    const polePts = circlePts(K.poleD / 2, 0, 0, 32);   // 中心ポールの逃げ
+    const cavTop  = floorZ + state.cavDeep;    // 空洞の天井＝プレートの下面
+    const poleTop = floorZ;                    // ポールの止まり穴は底板のいちばん上に
+    const poleBot = Math.max(0, floorZ - (K.poleL + 0.2));
+    /* ── 下パーツも「残りの形そのもの」に掘る。囲いや箱は足さない。
+         下から　… 底板3.5（まんなかに φ4.35。ポールを収める）→ 空洞（15.2角）→ プレート（開口14.1）
+         上から　… スイッチのくぼみ → プレートの上面
+       ★底板があるので空洞は「止まり穴」。ここを貫通にすると、
+         スイッチが下へ抜けて高さが決まらない（実物は底板で受けている）。
+       掘れないときは何も足さずに、どうすれば掘れるかを知らせる。 */
+    let outline = null, sl = null, dug = false;
+
+    if (shellCase) {
+      /* ── タイプ2（ケース）
+           下パーツ ＝ 切り口の輪郭を すきま＋厚み ぶん外へ広げた入れもの。
+           上パーツはフィギュアのかたちのまま、この中へ沈む。
+           プレートより上は、上パーツが通る穴（切り口＋すきま）をあけたまま
+           「上パーツの底＋かぶせしろ」まで立ちあげる。 */
+      outline = shellOut;
+      const caseTop = Math.max(plateTop + 0.2, upZeroZ + state.coverOver);
+      addSlab(hGeoms, outline, [], 0, poleBot);                // ★真下は塞ぐ
+      addSlab(hGeoms, outline, [polePts], poleBot, poleTop);
+      addSlab(hGeoms, outline, [cavPts], poleTop, cavTop);
+      addSlab(hGeoms, outline, [cutPts], cavTop, plateTop);
+      addSlab(hGeoms, outline, [shellIn], plateTop, caseTop);
+      if (!fitsInside(reliefPts, shellIn))
+        warn.push(`ケースの穴が細くて、スイッチの箱（${K.relief}mm角）が入らない。`
+                + '「大きさ」を上げるか、切る高さを変えて');
+      dug = true;
+    } else if (state.cutMode === 'none') {
+      // ③ 切らない … ここだけは下パーツの実体が無いので、選んだかたちで柱を作る
+      outline = lowTopPts;     // ★スカートの内がわと同じ輪郭。ここがずれるとかぶさらない
+      if (!fitsInside(socketPts, outline))
+        warn.push(`柱が細くて、スイッチのくぼみ（${pocketW.toFixed(1)}mm）が入らない。`
+                + '「太さ」を上げて');
+      addSlab(hGeoms, outline, [], 0, poleBot);                // ★真下は塞ぐ
+      addSlab(hGeoms, outline, [polePts], poleBot, poleTop);
+      addSlab(hGeoms, outline, [cavPts], poleTop, cavTop);
+      addSlab(hGeoms, outline, [cutPts], cavTop, plateTop);
+      addSlab(hGeoms, outline, [socketPts], plateTop, lowerH);
+      dug = true;
+    } else {
+      // ①② 切り落とした残りの形に、そのまま掘る
+      /* ★②では、下パーツを「高さはそのまま・横だけ」広げる（既定1.2倍）。
+           上パーツがかぶさりながらはまり、くぼみの壁の肉もここで稼げる。
+           ★広げるのは形だけ。くぼみ・プレート・逃げは実寸のままでないと
+             スイッチが入らないので、輪郭のほうを 1/倍率 に縮めてから広げる。 */
+      const LS = isJoint ? Math.max(1, state.lowerScale) : 1;
+      const shrink = r => (LS === 1 ? r : r.map(q => [q[0] / LS, q[1] / LS]));
+      const scaleXY = g => {
+        if (LS === 1) return g;
+        const q = g.attributes.position.array;
+        for (let i = 0; i < q.length; i += 3) { q[i] *= LS; q[i + 1] *= LS; }
+        return g;
+      };
+      // ★まず穴なしで作って、輪郭に入るか確かめる。入らないなら掘らない（形も足さない）
+      const trial = leftoverSlab(lowerH, 0);
+      if (!trial) {
+        warn.push('切り口の反対がわに残りがない（切る高さが端）ので、下パーツが作れない。'
+                + '切る高さを変えて');
+      } else {
+        const topBig = trial.top.reduce((a, b) => (a.a > b.a ? a : b));
+        const botBig = trial.bot.reduce((a, b) => (a.a > b.a ? a : b));
+        /* ★入口だけ見ても足りない。穴は上下に長いので、
+             途中で細くなっている形だと横に突き抜けてしまう（実際に出た）。
+             それぞれの穴の「上の端」と「下の端」の断面で確かめる。 */
+        const fitsAt = (ring, os) => {
+          if (!os || !os.length) return false;
+          const big = os.reduce((a, b) => (a.a > b.a ? a : b));
+          return fitsInside(ring, big.pts) && big.holes.every(h => disjoint(ring, h));
+        };
+        /* ★下パーツの「高さ h（下から）」の断面を返す。
+             leftoverSlab(h) の top は "切り口の断面" で、h をいくつにしても
+             同じものが返る。ここで top を見ていたせいで、空洞・くぼみが
+             下のほうで外へ突き抜けていても気づけなかった
+             （下がすぼまった形で、下パーツの外がわが破れる）。
+             厚み lowerH−h の板を切り出して、その "底" を見るのが正しい。 */
+        const secAt = h => {
+          const t = leftoverSlab(Math.max(lowerH - h, 0.05), 0);
+          return t ? t.bot : null;
+        };
+        /* ★かぶせるとき、切り口より下でモデルが太くなっているとスカートが入らない。
+             すべる範囲（かぶせしろ＋沈む量）の下端で確かめる。 */
+        if (isCover) {
+          const dz = state.coverOver + sw.travel;
+          const s2 = secAt(Math.max(lowerH - dz, 0.2));
+          if (s2 && !s2.every(o => fitsInside(o.pts, skirtIn)))
+            warn.push(`切り口より下でモデルが太くなっていて、スカートが ${dz.toFixed(1)}mm 下まで`
+                    + 'かぶせられない。「すきま」を増やすか、「かぶせしろ」を減らすか、切る高さを変えて');
+        }
+        const okTop = fitsAt(shrink(socketPts), trial.top) && fitsAt(shrink(socketPts), secAt(plateTop));
+        /* ★ポールの止まり穴は「底板のいちばん上」にある。底板を厚くしたぶん
+             部品の底とは別の高さなので、そこの断面で確かめる。
+             部品の底で見ていたころは、すぼまった形（球の底など）で必ず落ちて
+             「くぼみが掘れない」になっていた。 */
+        const okBot = fitsAt(shrink(polePts), secAt(poleBot))
+                   && fitsAt(shrink(cavPts), secAt(floorZ)) && fitsAt(shrink(cavPts), secAt(cavTop));
+        if (!okTop || !okBot) {
+          /* あと何倍にすれば入るかを出す。
+             ★「断面の直径」では判定できない（丸い断面19mmでも、16.4mm角は角がはみ出す）。
+               くぼみのほうを縮めて、どこまでなら入るかを二分探索で調べる。 */
+          const ring = okTop ? cavPts : socketPts;
+          const os   = okTop ? trial.bot : trial.top;
+          const big  = os.reduce((a, b) => (a.a > b.a ? a : b));
+          const wide = okTop ? K.cav : pocketW;
+          let lo2 = 0.05, hi2 = 1.0;
+          const fitsScaled = k => fitsInside(ring.map(q => [q[0] * k, q[1] * k]), big.pts);
+          if (!fitsScaled(lo2)) hi2 = lo2;
+          else for (let i = 0; i < 12; i++) {
+            const mid = (lo2 + hi2) / 2;
+            if (fitsScaled(mid)) lo2 = mid; else hi2 = mid;
+          }
+          const need = 1 / Math.max(lo2, 0.05);          // 何倍にすれば入るか
+          warn.push(`下パーツが細くて、${okTop ? `底の逃げ（${K.cav}mm角）` : `スイッチのくぼみ（${pocketW.toFixed(1)}mm角）`}が掘れない。`
+                  + `いまの太さで入るのは ${(wide * lo2).toFixed(1)}mm角まで。`
+                  + `「大きさ」を ${Math.ceil(state.size * need)}mm 以上にするか、`
+                  + `「横に太らせる」を ${(state.fat * need).toFixed(2)}倍 以上にすると掘れる`
+                  + '（形を勝手に足すことはしません）');
+          hGeoms.push(scaleXY(trial.geom));  // 掘らずに、残りの形だけ
+        } else {
+        /* ★掘ったぶんは、残りの形と「ひとつの閉じたカラ」にまとめる。
+             別々のジオメトリにすると、つながっているのに開いた辺として数えられ、
+             3MFに書くときも縫い合わされない（本体＋ふたと同じ理由）。 */
+        dug = true;
+        sl = leftoverSlab(lowerH, 0, 0, [shrink(socketPts)], []);   // ★底に穴はあけない
+        const side = scaleXY(sl.geom).attributes.position.array;
+        const extra = []
+          // 上から：くぼみの壁 → その底（プレートの上面。まんなかに開口）
+          .concat(drillBlind([socketPts], plateTop, lowerH, true))
+          .concat(capTris([{ pts:socketPts, holes:[cutPts] }], plateTop, true))
+          // 下から：中心ポールの止まり穴（真下は塞ぐ）→ 底板の上面（＝空洞の床）
+          .concat(drillBlind([polePts], poleBot, poleTop, true))
+          .concat(capTris([{ pts:polePts, holes:[] }], poleBot, true))
+          .concat(capTris([{ pts:cavPts, holes:[polePts] }], poleTop, true))
+          //         → 空洞の壁 → その天井（プレートの下面。まんなかに開口）
+          .concat(drillBlind([cavPts], poleTop, cavTop, true))
+          .concat(capTris([{ pts:cavPts, holes:[cutPts] }], cavTop, false))
+          // プレートの開口の内がわの壁
+          .concat(drillBlind([cutPts], cavTop, plateTop, true));
+        const all = new Float32Array(side.length + extra.length);
+        all.set(side, 0);
+        all.set(extra, side.length);
+        const gAll = geomFromPositions(all);
+        gAll.userData.shell = all.length / 9;
+        hGeoms.push(gAll);
+        }
+      }
+    }
+
+    /* ── シェルのふち … 上パーツの外がわへ立ちあげて、スイッチとすき間を隠す。
+         下端 … 箱シェルは「上パーツの底＋沈む量」まで箱で上がっているのでその上、
+                フィギュアシェルは下パーツの上面（＝lowerH）
+         上端 … 上パーツの底 ＋ かぶせしろ
+       ★上パーツの底は upZeroZ（ステムの先で決まる）。ここから かぶせしろ ぶん
+         上まで囲うので、指を離していてもすき間が見えない。 */
+    if (shellFlush && hGeoms.length) {
+      /* ★ふちは下パーツの上面（切り口）にそのまま立てる。
+           外がわは切り口そのものなので、下の肉と面がつながる。 */
+      const rimTop = upZeroZ + state.coverOver;
+      if (rimTop > lowerH + 0.05)
+        for (const rs of rimSets) {
+          let hole = rs.rimIn;
+          if (rs.main) {
+            /* ★スイッチの入る空洞は、どんな形のモデルでも「四角柱」にする。
+                 ふちの穴を、帯の輪郭と 16.4mm角 の外がわ（遠いほう）にすると、
+                 プレートの上から ふちの上まで まっすぐな四角い部屋になる。
+               ★ただし下パーツの外形から 0.6mm は肉を残す（穴が外へ抜けないように）。
+                 残せないときは、これまでどおり知らせるだけにする。 */
+            const lim = th => rayR(rs.out, th) - 0.6;
+            const merged = radialMax(rs.rimIn, reliefPts, 96, lim);
+            if (merged && polySimple(merged) && fitsInside(merged, rs.out)) hole = merged;
+          }
+          addSlab(hGeoms, rs.out, [hole], lowerH, rimTop);
+        }
+      else warn.push('シェルのふちが立てられない（上パーツの底が下パーツの上面より低い）。'
+                   + '「かぶせしろ」を増やすか、切る高さを変えて');
+      /* ふちの中をスイッチが通る。四角い部屋を掘るには、切り口が
+         「16.4mm角 ＋ 肉0.6mm ずつ」より太くないといけない */
+      if (!fitsInside(offsetPts(reliefPts, 0.6), lowTopPts))
+        warn.push(`切り口が細くて、スイッチの箱（${K.relief}mm角）の四角い部屋が掘れない。`
+                + '「大きさ」を上げるか、切る高さを変えて');
+    }
+
+    /* 組んだときの高さへ動かす。
+       ステムの先が「十字の天井」に当たるところが、指を離しているときの高さ。
+         ②　　… 天井は 凸の下から bossH + D
+         ①③　… 天井は 本体の底から relH + D（くぼみを掘れないときは D） */
+    const upZero  = upZeroZ;
+    for (const g of hGeoms) g.translate(0, 0, -upZero);
+    if (hGeoms.length) parts.push({ name:'下パーツ', color:COL.holder, geoms:hGeoms });
+
+    const roomBoss = (isCover ? upZero + landZ : upZero) - plateTop;   // 上パーツのいちばん下からプレートまで
+    const roomTop  = (upZero + landZ) - lowerH;  // 上パーツの底が下パーツの上面に当たるまで
+    lowerInfo = { h:lowerH, socketDeep, plateTop, dug, room:Math.min(roomBoss, roomTop) };
+    baseZ = upZero;   // 下パーツの底は −upZero にある。ここを 0（格子の面）へ上げる
+    if (!shellFlush && lowerH > lowMin + 0.001 && lowerH !== state.lowerH)
+      warn.push(`下パーツの高さは ${lowMin.toFixed(1)}mm 以上ないと収まらないので上げた`);
+  }
+
+  // ── 数字
+  let vol = 0;
+  for (const p of parts) for (const g of p.geoms) vol += geomVolume(g);
+  const stroke = Math.min(sw.travel, lowerInfo ? Math.max(0, lowerInfo.room) : sw.travel);
+  const info = {
+    mode: state.cutMode, warn, D, mountH, bossH, pocketW, shape, relH, skirtH, floor: floorZ, baseZ,
+    thinCut, lostLoops, loops: outers.length,
+    w: secBox.w, d: secBox.d, lower: lowerInfo,
+    total: lift + rawH * s,
+    vol, gram: vol / 1000 * 1.24,
+    stroke, travel: sw.travel, botW: pocketW,
+    guideZ: bossH + mountH,   // 切り口（半透明の四角を置く高さ）
+  };
+  if (stroke < sw.travel - 0.05)
+    warn.push(`沈むのは ${stroke.toFixed(1)}mm まで（スイッチは ${sw.travel.toFixed(1)}mm）。`
+            + `下パーツの高さを ${(sw.travel - stroke).toFixed(1)}mm 下げるか、`
+            + `はめ込みの深さを浅くするとフルストロークになる`);
+  if (secW > 18.2)
+    warn.push(`上パーツの底が ${secW.toFixed(1)}mm あって、となりのキーと当たる（1uの間隔は19.05mm）`);
+  if (info.gram > 20)
+    warn.push(`材料が ${info.gram.toFixed(0)}g もいる（ふつうのキーキャップは2〜4g）。`
+            + `「大きさ」を小さくするか、切る高さを上げて上パーツを薄くして`);
+  if (earcutBail)
+    warn.push(`切り口が入り組みすぎて、ふたを ${earcutBail}か所 張りきれなかった。`
+            + `切る高さを 1〜2% ずらすと直ることが多い`);
+  info.bail = earcutBail;
+
+  return { parts, info };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   くびれ（分かれそうなところ）をさがす
+   ★高さごとに「切り口のぐるりの長さ（周長）」を測ると、
+     首や胴のくびれで短くなる。その谷を切る位置の候補にする。
+   ★三角形ごとに、またいでいる高さの段だけ計算するので、
+     モデル全体を何十回も切りなおすより ずっと速い。
+   ══════════════════════════════════════════════════════════════ */
+function findNecks(posArr, minZ, maxZ, N = 96) {
+  const H = maxZ - minZ || 1;
+  const per = new Float64Array(N);      // 高さごとの「切り口のぐるりの長さ」
+  const flat = new Float64Array(N);     // 高さごとの「水平に近い面の広さ」
+  const zAt = k => minZ + H * k / (N - 1);
+  for (let i = 0; i < posArr.length; i += 9) {
+    const P = [[posArr[i],posArr[i+1],posArr[i+2]],
+               [posArr[i+3],posArr[i+4],posArr[i+5]],
+               [posArr[i+6],posArr[i+7],posArr[i+8]]];
+    const lo = Math.min(P[0][2], P[1][2], P[2][2]);
+    const hi = Math.max(P[0][2], P[1][2], P[2][2]);
+    const k0 = Math.max(0, Math.ceil((lo - minZ) / H * (N - 1)));
+    const k1 = Math.min(N - 1, Math.floor((hi - minZ) / H * (N - 1)));
+    for (let k = k0; k <= k1; k++) {
+      const z = zAt(k), pt = [];
+      for (let e = 0; e < 3; e++) {
+        const a = P[e], b = P[(e + 1) % 3];
+        if ((a[2] - z) * (b[2] - z) > 0) continue;          // またいでいない
+        if (Math.abs(b[2] - a[2]) < 1e-12) continue;
+        const t = (z - a[2]) / (b[2] - a[2]);
+        if (t < 0 || t > 1) continue;
+        pt.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+      }
+      if (pt.length >= 2) per[k] += Math.hypot(pt[0][0] - pt[1][0], pt[0][1] - pt[1][1]);
+    }
+    /* ★角度でも見る。頭と胴の境目のような「段」には、水平に近い面（＝上や下を向いた面）が
+       輪になって並ぶ。そこはモデルが分かれている場所なので、切る候補になる。 */
+    const ux = P[1][0]-P[0][0], uy = P[1][1]-P[0][1], uz = P[1][2]-P[0][2];
+    const vx = P[2][0]-P[0][0], vy = P[2][1]-P[0][1], vz = P[2][2]-P[0][2];
+    const nx = uy*vz - uz*vy, ny = uz*vx - ux*vz, nz = ux*vy - uy*vx;
+    const len = Math.hypot(nx, ny, nz);
+    if (len > 1e-12 && Math.abs(nz) / len > 0.86) {          // 水平から30°以内
+      const cz = (P[0][2] + P[1][2] + P[2][2]) / 3;
+      const k = Math.round((cz - minZ) / H * (N - 1));
+      if (k >= 0 && k < N) flat[k] += len / 2;               // 三角形の面積
+    }
+  }
+  const smooth = arr => {
+    const o = new Float64Array(N);
+    for (let k = 0; k < N; k++) {
+      let a = 0, c = 0;
+      for (let d = -1; d <= 1; d++) { const j = k + d; if (j >= 0 && j < N) { a += arr[j]; c++; } }
+      o[k] = a / c;
+    }
+    return o;
+  };
+  const sm = smooth(per), sf = smooth(flat);
+  let flatMax = 0;
+  for (const v of sf) flatMax = Math.max(flatMax, v);
+
+  const lo = Math.floor(N * 0.08), hi = Math.ceil(N * 0.88);
+  const cand = [];
+  for (let k = lo + 1; k < hi - 1; k++) {
+    /* ★くらべる範囲は広めに（高さの±12%）。せまいと、なだらかな首の谷を
+         「まわりと同じくらい」と見なして取りこぼす（猫の首で実際に取りこぼした）。 */
+    let around = 0;
+    for (let d = -12; d <= 12; d++) { const j = k + d; if (j >= lo && j < hi) around = Math.max(around, sm[j]); }
+    // ① くびれ（まわりより細い）
+    const isNeck = sm[k] < sm[k - 1] && sm[k] <= sm[k + 1] && sm[k] < around * 0.93;
+    const drop   = isNeck ? 1 - sm[k] / (around || 1) : 0;
+    // ② 段（水平に近い面が集まっている）
+    const shelf  = flatMax > 0 && sf[k] >= sf[k - 1] && sf[k] >= sf[k + 1] ? sf[k] / flatMax : 0;
+    const score  = drop * 1.2 + shelf;
+    if (score > 0.15) cand.push({ pct:(k / (N - 1)) * 100, score, drop, shelf });
+  }
+  // 近いものはまとめて、強いほうを残す
+  cand.sort((a, b) => b.score - a.score);
+  const out = [];
+  for (const c of cand) {
+    if (out.some(o => Math.abs(o.pct - c.pct) < 4)) continue;
+    out.push(c);
+    if (out.length >= 4) break;
+  }
+  return out.sort((a, b) => a.pct - b.pct);
+}
+
+/* 読みこんだモデルの「断面に入る正方形の一辺」を測る（モデルの単位）。
+   ★外形（バウンディングボックス）では耳や尻尾まで入ってしまい、甘く出る。
+     実際に何か所か切って、その断面に入る正方形を二分探索で求める。 */
+function fitSquareIn(pos, minZ, maxZ) {
+  const H0 = maxZ - minZ || 1;
+  let best = 0;
+  for (const f of [0.3, 0.45, 0.6]) {
+    const r = clipAt(pos, minZ + H0 * f, true);
+    const L = buildLoops(r.segs);
+    if (!L.length) continue;
+    const os = nestLoops(L);
+    if (!os.length) continue;
+    const big = os.reduce((a, b) => (a.a > b.a ? a : b));
+    const ok = w => fitsInside(roundRectPts(w, w, Math.min(2, w * 0.12)), big.pts)
+                    && big.holes.every(h => disjoint(roundRectPts(w, w, Math.min(2, w * 0.12)), h));
+    let lo = H0 * 0.005, hi = H0;
+    if (!ok(lo)) continue;
+    for (let i = 0; i < 14; i++) { const mid = (lo + hi) / 2; if (ok(mid)) lo = mid; else hi = mid; }
+    best = Math.max(best, lo);
+  }
+  return best;
+}
+
+/* 切る高さより下の帯（＝シェルになるところ）で、いちばん細い断面に入る正方形。
+   fitSquareIn は「どこか1か所でも入れば良い」なので、上から下までスイッチを
+   通さないといけないシェルには使えない。こちらは帯の中のいちばん細いところを返す。 */
+function fitSquareBelow(pos, minZ, maxZ, cutPct, bandRaw) {
+  const H0 = maxZ - minZ || 1;
+  const zc = minZ + H0 * Math.min(cutPct, 99) / 100;
+  const z0 = Math.max(minZ + H0 * 0.02, zc - bandRaw);
+  let worst = Infinity;
+  for (const f of [0, 0.35, 0.7, 1]) {
+    /* ★その高さの断面がとれないことがある（三角形の面とちょうど重なるなど）。
+         そこであきらめると「この高さでは断面がとれない」と出てしまうので、
+         ほんの少しずらして粘る。0.2%ずらしても測る太さは変わらない。
+         （サイコロの band=0.375 のときに、1か所だけ輪ができずに出た） */
+    const zBase = z0 + (zc - z0) * f * 0.98;
+    let os = null;
+    for (const eps of [0, 0.002, -0.002, 0.006, -0.006]) {
+      const zz = safeZ(pos, zBase + eps * H0);
+      const l = buildLoops(clipAt(pos, zz, true).segs);
+      if (!l.length) continue;
+      const o = nestLoops(l);
+      if (o.length) { os = o; break; }
+    }
+    if (!os) return 0;
+    const big = os.reduce((a, b) => (a.a > b.a ? a : b));
+    /* ★四角は断面の重心に置く。原点に置いていたころは、まんなかがくぼんでいる形
+         （サイコロの面のへこみなど）で「入らない」と出て、大きさが決められなかった。 */
+    let cx = 0, cy = 0;
+    for (const p of big.pts) { cx += p[0]; cy += p[1]; }
+    cx /= big.pts.length; cy /= big.pts.length;
+    const ok = w => {
+      const sq = roundRectPts(w, w, Math.min(2, w * 0.12)).map(q => [q[0] + cx, q[1] + cy]);
+      return fitsInside(sq, big.pts) && big.holes.every(h => disjoint(sq, h));
+    };
+    let lo = H0 * 0.005, hi = H0;
+    if (!ok(lo)) return 0;
+    for (let i = 0; i < 14; i++) { const mid = (lo + hi) / 2; if (ok(mid)) lo = mid; else hi = mid; }
+    worst = Math.min(worst, lo);
+  }
+  return worst === Infinity ? 0 : worst;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   下ごしらえの表示（まだ切っていないとき）
+   ★読みこんだモデルと、切る平面だけを見せる。
+     ここで向きと切る高さを決めてから「この高さで切る」を押す。
+   ══════════════════════════════════════════════════════════════ */
+function buildPreview() {
+  if (!state.raw) return null;
+  const { pos, minZ, maxZ, span } = orientedPositions();
+  // くびれの候補は、向きや大きさを変えたときだけ測りなおす（毎回だと重い）
+  const key = [state.up, state.spin, state.tiltA, state.tiltB, state.flip,
+               state.fat, state.stretch, state.name].join('/');
+  if (neckCache.key !== key) neckCache = { key, list: findNecks(pos, minZ, maxZ) };
+  const H0 = maxZ - minZ || 1;
+  const s = state.size / span;                 // 「大きさ」に合わせた実寸で見せる
+  let cx = 0, cy = 0, n = 0;
+  for (let i = 0; i < pos.length; i += 3) { cx += pos[i]; cy += pos[i + 1]; n++; }
+  cx /= n; cy /= n;
+  const arr = new Float32Array(pos.length);
+  let wide = 0;
+  for (let i = 0; i < pos.length; i += 3) {
+    const x = (pos[i] - cx) * s, y = (pos[i + 1] - cy) * s;
+    arr[i] = x; arr[i + 1] = y; arr[i + 2] = (pos[i + 2] - minZ) * s;
+    wide = Math.max(wide, Math.abs(x), Math.abs(y));
+  }
+  const geom = geomFromPositions(arr);
+  const cutZ = state.cutMode === 'none' ? 0 : H0 * (state.cut / 100) * s;
+  return { geom, cutZ, span: Math.max(wide * 2.4, state.guide * 1.4), h: H0 * s };
+}
+
+// 符号つき四面体の和＝閉じたカラの体積（mm³）
+function geomVolume(g) {
+  const pos = g.attributes.position;
+  let v = 0;
+  for (let i = 0; i < pos.count; i += 3) {
+    const ax = pos.getX(i), ay = pos.getY(i), az = pos.getZ(i);
+    const bx = pos.getX(i+1), by = pos.getY(i+1), bz = pos.getZ(i+1);
+    const cx = pos.getX(i+2), cy = pos.getY(i+2), cz = pos.getZ(i+2);
+    v += (ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx)) / 6;
+  }
+  return Math.abs(v);
+}
+/* 2枚で共有されていない辺の数（0なら閉じている）。
+   ★数えかたは書き出し（meshXML）とそろえること。ちがうと、実際には
+     閉じているのに「壊れている」と出たり、その逆になったりする。
+     ・同じ格子（WELD）で頂点をまとめる
+     ・つぶれた三角形は書き出しでも捨てるので、ここでも数えない */
+function openEdges(g) {
+  const pos = g.attributes.position, q = WELD;
+  const key = i => `${Math.round(pos.getX(i)/q)},${Math.round(pos.getY(i)/q)},${Math.round(pos.getZ(i)/q)}`;
+  const cnt = new Map();
+  for (let i = 0; i < pos.count; i += 3) {
+    const k = [key(i), key(i+1), key(i+2)];
+    if (k[0] === k[1] || k[1] === k[2] || k[2] === k[0]) continue;
+    for (let e = 0; e < 3; e++) {
+      const a = k[e], b = k[(e+1)%3];
+      const id = a < b ? a + '|' + b : b + '|' + a;
+      cnt.set(id, (cnt.get(id) || 0) + 1);
+    }
+  }
+  /* ★数えるのは「奇数枚しか使われていない辺」だけ。
+       4枚の辺は、閉じたカラどうしが線で触れあっているところ（切り口が
+       ひょうたん形になると出る）。穴ではないので、スライサーは正しく刷れる。 */
+  let bad = 0;
+  for (const v of cnt.values()) if (v % 2 === 1) bad++;
+  return bad;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   書き出し（QRコード3Dアプリから移植）
+   ══════════════════════════════════════════════════════════════ */
+function crc32(bytes) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) {
+    let c = (crc ^ bytes[i]) & 0xFF;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (c >>> 1) ^ 0xEDB88320 : c >>> 1;
+    crc = (crc >>> 8) ^ c;
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+function zipStore(files) {
+  const u16 = n => [n & 255, (n >>> 8) & 255];
+  const u32 = n => [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255];
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0;
+  for (const f of files) {
+    const nameB = enc.encode(f.name), crc = crc32(f.data), size = f.data.length;
+    const local = new Uint8Array([].concat(u32(0x04034b50), u16(20), u16(0), u16(0),
+      u16(0), u16(0), u32(crc), u32(size), u32(size), u16(nameB.length), u16(0)));
+    parts.push(local, nameB, f.data);
+    central.push(new Uint8Array([].concat(u32(0x02014b50), u16(20), u16(20), u16(0), u16(0),
+      u16(0), u16(0), u32(crc), u32(size), u32(size), u16(nameB.length),
+      u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset))), nameB);
+    offset += local.length + nameB.length + size;
+  }
+  let clen = 0; for (const c of central) clen += c.length;
+  const end = new Uint8Array([].concat(u32(0x06054b50), u16(0), u16(0),
+    u16(files.length), u16(files.length), u32(clen), u32(offset), u16(0)));
+  const all = [...parts, ...central, end];
+  let total = 0; for (const c of all) total += c.length;
+  const out = new Uint8Array(total); let p = 0;
+  for (const c of all) { out.set(c, p); p += c.length; }
+  return out;
+}
+/* ★3MFは頂点を必ず溶接する。Three.jsのジオメトリは index を持たないので、
+   そのまま書くと三角形ごとに頂点が独立し、スライサーからは「辺がひとつも
+   共有されていない壊れたモデル」に見えて毎回「修復」を求められる。
+   ★まとめるのはカラごと（userData.shell）。またぐと接する面で辺が4枚になる */
+function meshXML(geoms) {
+  const f = v => +(Math.round(v / WELD) * WELD).toFixed(6);   // 0.30000000000000004 を避ける
+  const vx = [], tx = [];
+  for (const g of geoms) {
+    const pos = g.attributes.position;
+    const map = new Map();
+    const id = j => {
+      const x = f(pos.getX(j)), y = f(pos.getY(j)), z = f(pos.getZ(j)), k = `${x},${y},${z}`;
+      let i = map.get(k);
+      if (i === undefined) { map.set(k, i = vx.length); vx.push(`<vertex x="${x}" y="${y}" z="${z}"/>`); }
+      return i;
+    };
+    const shell = g.userData && g.userData.shell;
+    for (let i = 0; i < pos.count; i += 3) {
+      if (shell && (i / 3) % shell === 0 && i > 0) map.clear();
+      const t = [id(i), id(i + 1), id(i + 2)];
+      if (t[0] === t[1] || t[1] === t[2] || t[2] === t[0]) continue;
+      tx.push(`<triangle v1="${t[0]}" v2="${t[1]}" v3="${t[2]}"/>`);
+    }
+  }
+  return `<mesh><vertices>${vx.join('')}</vertices><triangles>${tx.join('')}</triangles></mesh>`;
+}
+/* ★ぜんぶで「1つの実物」なので <components> で1オブジェクトに束ねる。
+   バラバラに渡すとスライサーが別々の物として扱う */
+function export3MF(parts) {
+  const mats = parts.map(p =>
+    `<base name="${p.name}" displaycolor="#${p.color.toString(16).padStart(6,'0').toUpperCase()}FF"/>`).join('');
+  const objs = parts.map((p, i) =>
+    `<object id="${i+1}" type="model" pid="10" pindex="${i}" name="${p.name}">${meshXML(p.geoms)}</object>`);
+  const wrapId = parts.length + 1;
+  objs.push(`<object id="${wrapId}" type="model" name="keycap"><components>` +
+    parts.map((p, i) => `<component objectid="${i+1}"/>`).join('') + `</components></object>`);
+  const model = `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+ <resources>
+  <basematerials id="10">${mats}</basematerials>
+  ${objs.join('')}
+ </resources>
+ <build><item objectid="${wrapId}"/></build>
+</model>`;
+  const ct = `<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>`;
+  const rels = `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>`;
+  const enc = new TextEncoder();
+  return zipStore([
+    { name:'[Content_Types].xml', data:enc.encode(ct) },
+    { name:'_rels/.rels',         data:enc.encode(rels) },
+    { name:'3D/3dmodel.model',    data:enc.encode(model) },
+  ]);
+}
+function exportSTL(parts) {
+  let n = 0;
+  for (const p of parts) for (const g of p.geoms) n += g.attributes.position.count / 3;
+  const buf = new ArrayBuffer(84 + n * 50);
+  const dv = new DataView(buf);
+  dv.setUint32(80, n, true);
+  let o = 84;
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  const ab = new THREE.Vector3(), ac = new THREE.Vector3(), nm = new THREE.Vector3();
+  for (const p of parts) for (const g of p.geoms) {
+    const pos = g.attributes.position;
+    for (let i = 0; i < pos.count; i += 3) {
+      a.fromBufferAttribute(pos, i); b.fromBufferAttribute(pos, i+1); c.fromBufferAttribute(pos, i+2);
+      ab.subVectors(b, a); ac.subVectors(c, a); nm.crossVectors(ab, ac).normalize();
+      for (const v of [nm.x, nm.y, nm.z, a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z]) {
+        dv.setFloat32(o, v, true); o += 4;
+      }
+      dv.setUint16(o, 0, true); o += 2;
+    }
+  }
+  return new Uint8Array(buf);
+}
+/* ★blobのURLを早く捨てないこと。Chromeが「保存場所を確認する」設定だと、
+   ダイアログを開いているあいだはまだ読みに来ていない（消すと「ファイルが見つかりません」） */
+function save(data, name, type) {
+  const url = URL.createObjectURL(new Blob([data], { type }));
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 300000);
+}
+// ★ダウンロードのファイル名は半角英数だけ（日本語は端末によって化けて失敗する）
+function safeName(s) {
+  return String(s).replace(/[^\x20-\x7e]/g, '').replace(/[\\\/:*?"<>|]/g, '_')
+    .replace(/\s+/g, '_').replace(/_{2,}/g, '_').replace(/^[._]+|[._]+$/g, '')
+    .slice(0, 40) || 'figure';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   3Dビュー
+   ══════════════════════════════════════════════════════════════ */
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+view.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0f1e);   // 3アプリ共通の背景色
+const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 4000);
+camera.up.set(0, 0, 1);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x9aa6b2, 2.1));
+const key = new THREE.DirectionalLight(0xffffff, 1.7);
+key.position.set(40, -60, 90);
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xffffff, 0.7);
+fill.position.set(-60, 40, 30);
+scene.add(fill);
+const root = new THREE.Group();
+scene.add(root);
+const grid = new THREE.GridHelper(90, 9, 0x3c454f, 0x232a31);   // 黒地に合わせて暗く
+grid.rotation.x = Math.PI / 2;
+scene.add(grid);
+
+/* 読みこむ前から床の格子が見えるように、カメラをはじめから置いておく。
+   置かないとカメラは原点にいて、格子を真横から見る形になり何も映らない。
+   モデルが入ったら frame() がその大きさに合わせて置きなおす（1マス10mm） */
+camera.position.set(72, -95, 52);   // 90mmの格子がひと目に収まるところ
+controls.target.set(0, 0, 0);
+controls.update();
+
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / Math.max(h, 1);
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(view);
+/* カメラをするすると動かす。
+   ★手でドラッグしたら途中でも止める（そうしないと操作を奪われる） */
+let neckCache = { key:'', list:[] };
+let camTween = null;
+let upperMats = [];      // 下パーツを決めるあいだ、薄くする上パーツの材質
+let upperMeshes = [];    // 押したときに沈む側（上パーツ・凸・台座）
+let press = null;        // 押す動きの進み具合
+/* 分解して見る … クリックで、パーツを高さ方向に離す／もどす。
+   下パーツは動かさず、スイッチを EX_SW、上パーツを EX_UP だけ持ちあげる。
+   ★スイッチのステムはスイッチと一緒に動く（上パーツについていくと、
+     どこに刺さるのかが分からなくなる） */
+let swGroup = null, swBaseZ = 0;
+const EX_SW = 7, EX_UP = 18;
+let ex = { on:false, k:0, from:0, start:0 };
+const ease = x => (x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+function moveCamera(toPos, toTarget, ms = 700) {
+  camTween = { p0: camera.position.clone(), p1: toPos.clone(),
+               t0: controls.target.clone(), t1: toTarget.clone(),
+               start: performance.now(), dur: ms };
+}
+controls.addEventListener('start', () => { camTween = null; });
+// ドラッグ（回転）と区別して、動かさずに離したときだけ「押す」
+let downAt = null;
+renderer.domElement.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!downAt) return;
+  const moved = Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]);
+  downAt = null;
+  if (moved >= 4) return;
+  if (ex.on) toggleExplode();      // 分解しているときは、まず組みなおす
+  else startPress();               // ★クリック＝押す（クリッカーそのものの動き）
+});
+
+(function loop() {
+  requestAnimationFrame(loop);
+  if (camTween) {
+    const k = Math.min(1, (performance.now() - camTween.start) / camTween.dur);
+    const e = ease(k);
+    camera.position.lerpVectors(camTween.p0, camTween.p1, e);
+    controls.target.lerpVectors(camTween.t0, camTween.t1, e);
+    if (k >= 1) camTween = null;
+  }
+  updateUpperFade();
+  updatePress();
+  controls.update();
+  renderer.render(scene, camera);
+})();
+
+/* クリックすると、実際と同じだけ沈んで戻る。
+   ★カタッと押した感じにしたいので、下りは速く（90ms）、
+     底で少し止まって（60ms）、戻りはゆっくり（150ms）。 */
+function startPress() {
+  if (!built || !built.info || !(built.info.stroke > 0.01)) return;
+  press = { start: performance.now(), depth: built.info.stroke };
+}
+/* 分解して見る／組みなおす。右がわのボタンから呼ぶ */
+function toggleExplode() {
+  if (!built || built.error) return;
+  ex = { on:!ex.on, k:ex.k, from:ex.k, start:performance.now() };
+  paintHint();
+  /* ★離すと背が高くなるので、そのぶんカメラを引いて、真ん中も上げる。
+       これをしないと上パーツが画面の外へ出ていく（実際そうなった） */
+  const c = controls.target.clone();
+  c.z += (ex.on ? 1 : -1) * EX_UP * 0.4;
+  const d = new THREE.Vector3().subVectors(camera.position, controls.target)
+              .multiplyScalar(ex.on ? 1.45 : 1 / 1.45);
+  moveCamera(c.clone().add(d), c, 420);
+}
+function paintHint() {
+  const el = $('hint'); if (!el) return;
+  const btn = $('btnExplode');
+  if (btn) btn.textContent = ex.on ? '組みなおす' : '分解して見る';
+  el.textContent = 'ドラッグでまわす／ホイールで寄る'
+    + (!built || built.error ? ''
+       : ex.on ? '／クリックで組みなおす' : '／クリックで押す');
+}
+function updateExplode() {
+  if (!ex.start) return;
+  const t = (performance.now() - ex.start) / 420;
+  const to = ex.on ? 1 : 0;
+  if (t >= 1) { ex.k = to; ex.start = 0; }
+  else ex.k = ex.from + (to - ex.from) * ease(t);
+}
+function updatePress() {
+  updateExplode();
+  if (swGroup) swGroup.position.z = swBaseZ + ex.k * EX_SW;
+  if (!upperMeshes.length) return;
+  let z = 0;
+  if (press) {
+    const t = performance.now() - press.start;
+    const DOWN = 90, HOLD = 60, UP = 150;
+    if (t < DOWN)                z = press.depth * (t / DOWN);
+    else if (t < DOWN + HOLD)    z = press.depth;
+    else if (t < DOWN + HOLD + UP) {
+      const k = (t - DOWN - HOLD) / UP;
+      z = press.depth * (1 - (k < .5 ? 2*k*k : 1 - Math.pow(-2*k + 2, 2) / 2));
+    } else { z = 0; press = null; }
+  }
+  // ★ステムはスイッチの子なので、分解ぶんは親から受けとる（ここでは足さない）
+  for (const m of upperMeshes) m.position.z = -z + (m.userData.stem ? 0 : ex.k * EX_UP);
+}
+
+/* 見下ろす角度で、上パーツの見え方を決める。
+     40°より上から … 消す（下パーツが完全に隠れるので）
+     10°〜40°　　 … だんだん薄く
+     10°より下・下から … 薄いまま残す（かぶらないので位置関係が見える） */
+function updateUpperFade() {
+  if (!upperMats.length) return;
+  const v = new THREE.Vector3().subVectors(camera.position, controls.target);
+  const elev = Math.atan2(v.z, Math.hypot(v.x, v.y)) * 180 / Math.PI;
+  const k = Math.min(1, Math.max(0, (40 - elev) / 30));    // 0=真上から 1=横から
+  /* ★「下パーツを決める」画面と「押してみる」画面で、濃さを入れかえる。
+       下パーツ … 上から見たら消す（じゃまなので）／横からは薄く
+       押してみる … 横からは濃く（動きを見たいので）／上からは薄く（中が見えるように） */
+  const a = state.stage === 'press' ? 0.35 + 0.65 * k : 0.30 * k;
+  for (const m of upperMats) {
+    m.opacity = a;
+    m.visible = a > 0.02;
+    const solid = a > 0.985;
+    if (m.transparent === solid) { m.transparent = !solid; m.depthWrite = solid; m.needsUpdate = true; }
+  }
+}
+
+/* 実寸のキースイッチ（MX互換）。表示だけで、書き出しには入れない。
+   プレートの上面を z=0 として組み立て、あとで置く高さを合わせる。
+     つば（上ハウジングの根もと）15.6角 → 上へすぼまって 11.5角、高さ abovePlate
+     首（プレートを通るところ）14.0角 × 1.5
+     胴（プレート下）13.9角 × 5.0
+     足 3本（中央のガイド＋金属ピン2本）
+     ステム 十字 4.1 × 1.17、上ハウジングから out だけ出る */
+function switchMock() {
+  const g = new THREE.Group();
+  const dark  = new THREE.MeshStandardMaterial({ color:COL.sw, roughness:.75 });
+  const gold  = new THREE.MeshStandardMaterial({ color:0xd8b23a, roughness:.5 });
+  const blue  = new THREE.MeshStandardMaterial({ color:0x2b6fd6, roughness:.45 });
+  const white = new THREE.MeshStandardMaterial({ color:0xbfc6cd, roughness:.6 });
+  const above = state.abovePlate, out = state.out;
+  const add = (geo, mat) => { const m = new THREE.Mesh(geo, mat); g.add(m); return m; };
+
+  /* 上ハウジング。実物は「プレートに乗るつば」＋「ほぼ垂直の箱」で、
+     すぼまるのは上のほんの少しだけ。すぼめすぎると屋根に見える */
+  /* ★見本の部品どうしは「ぴったり接する」と面が重なってチカチカする（Zファイティング）。
+       0.3mmずつ食いこませて、同じ高さに面が来ないようにする。 */
+  const lipH = Math.min(1.2, above * 0.2);
+  add(new THREE.BoxGeometry(15.6, 15.6, lipH).translate(0, 0, lipH / 2), dark);
+  const bodyH = above - lipH + 0.3;
+  const body = new THREE.CylinderGeometry(14.0 / 2 * Math.SQRT2, 12.6 / 2 * Math.SQRT2,
+                                          bodyH, 4, 1);
+  body.rotateX(Math.PI / 2); body.rotateZ(Math.PI / 4);
+  body.translate(0, 0, lipH - 0.3 + bodyH / 2);
+  add(body, dark);
+  // 上面のまんなかの開口（ステムが出ているところ）。上面より 0.15mm 沈める
+  add(new THREE.BoxGeometry(7.0, 7.0, 0.9).translate(0, 0, above - 0.15 - 0.45), white);
+  // 首（プレートにくわえられるところ）と胴
+  add(new THREE.BoxGeometry(14.0, 14.0, 1.8).translate(0, 0, -0.75 + 0.15), dark);
+  add(new THREE.BoxGeometry(13.9, 13.9, 5.3).translate(0, 0, -1.5 - 2.5 + 0.15), white);
+  /* 足。
+     ★金属ピンは「折り曲げて使う」（実物パーツ\実測.md）。まっすぐ下に描くと
+       底板をつらぬいて、下から見えてしまう。実際どおり、ハウジングの底で
+       曲げて空洞の床に寝かせる（だから空洞は 5.6mm で足りる）。 */
+  add(new THREE.CylinderGeometry(K.poleD / 2 - 0.25, K.poleD / 2 - 0.25, K.poleL, 12)
+        .rotateX(Math.PI / 2).translate(0, 0, -6.5 - K.poleL / 2), white);
+  // ★金属ピンは折り曲げて使うので描かない（まっすぐ描くと底板をつきぬける）
+  // ステム（十字）
+  // ★ステムはキャップと一緒に沈む（動かないのはハウジングのほう）
+  add(prism(crossPts(4.1, 1.17), [], above - 1.2, above + out), blue).userData.stem = true;
+
+  /* 置く高さ。プレートの上面がどこに来るかは、上パーツの穴の天井から逆に決まる：
+       ステムの先（above + out）が、穴の天井に当たる。 */
+  const isC    = state.cover && state.cutMode !== 'joint';
+  const dep    = Math.min(state.depth, Math.max(1.5, out - SW[state.stem].travel));
+  const bossH2 = state.cutMode === 'joint' ? state.jointH : 0;
+  /* ★組んだときの高さは buildAll が決めている。ここで同じ式を書きなおすと、
+       「くぼみが掘れなかった（relH=0）」ときにずれて、見本のステムが
+       上パーツの頭から突き出て見える（実際に出た）。作った値をそのまま使う。 */
+  const bi     = built && built.info ? built.info : null;
+  const relH2  = bi ? bi.relH
+               : ((state.cutMode === 'joint' || isC) ? 0 : state.abovePlate);
+  const skH    = bi ? bi.skirtH
+               : (isC ? Math.max(1.0, state.coverOver + above + out - dep - state.groove) : 0);
+  g.position.z = (bossH2 + relH2 + skH + dep) - (above + out);
+  return g;
+}
+
+
+let disposables = [];
+/* まだ切っていないとき：読みこんだモデルと、切る平面だけを描く */
+function renderPreview(pv) {
+  swGroup = null;
+  root.position.z = 0;
+  for (const d of disposables) { d.geometry && d.geometry.dispose(); d.material && d.material.dispose(); }
+  disposables = [];
+  root.clear();
+  if (!pv) return;
+  const mesh = new THREE.Mesh(pv.geom, new THREE.MeshStandardMaterial({
+    color: COL.body, roughness: .62, metalness: .02, side: THREE.DoubleSide }));
+  root.add(mesh); disposables.push(mesh);
+  if (state.cutMode !== 'none') {
+    // 切る平面（うすい青の板）
+    const pg = new THREE.PlaneGeometry(pv.span, pv.span);
+    const pm = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({
+      color: 0x2ea7e0, transparent: true, opacity: .18, side: THREE.DoubleSide, depthWrite: false }));
+    pm.position.z = pv.cutZ;
+    root.add(pm); disposables.push(pm);
+  }
+  // 目安の四角（スイッチが収まるか見るため、切る高さに置く）
+  const gg = new THREE.PlaneGeometry(state.guide, state.guide);
+  const gm = new THREE.Mesh(gg, new THREE.MeshBasicMaterial({
+    color: 0x2ea7e0, transparent: true, opacity: .38, side: THREE.DoubleSide, depthWrite: false }));
+  gm.position.z = pv.cutZ + 0.02;
+  root.add(gm); disposables.push(gm);
+  const ge = new THREE.LineSegments(new THREE.EdgesGeometry(gg),
+    new THREE.LineBasicMaterial({ color: 0x1c8ec4 }));
+  ge.position.z = pv.cutZ + 0.03;
+  root.add(ge); disposables.push(ge);
+  frame();
+}
+
+function render3D(res) {
+  for (const d of disposables) { d.geometry && d.geometry.dispose(); d.material && d.material.dispose(); }
+  disposables = [];
+  root.clear();
+  if (!res || res.error) return;
+  /* ★組んだものを格子の面（z=0）の上に載せる。
+       中の座標は「上パーツの底＝0」で組んであるので、下パーツはマイナス側にいる。
+       そのままだと床にめりこんで見えるので、下パーツの底ぶん持ちあげる。 */
+  root.position.z = res.info.baseZ || 0;
+  const ghost = state.view === 'ghost';
+  /* ★下パーツを決めているあいだは、上パーツを「じゃまにならない見え方」にする。
+       上から見下ろしたときは完全に消し、横から見たときは薄く残す（位置関係が分かるように）。
+       ふだんの見かた（中を透かす／スイッチと重ねる）を選んでいるときはしない。 */
+  /* 上パーツを薄くするのは、手動で「下パーツ」を決めているあいだだけ。
+     ★自動モードのできあがりは、外観をそのまま見たいので薄くしない */
+  const fadeUpper = !state.auto && (state.stage === 'done' || state.stage === 'press')
+                    && state.view === 'solid';
+  upperMats = [];
+  upperMeshes = [];
+  for (const p of res.parts) {
+    const isUpper = p.name !== '下パーツ';
+    const soft = fadeUpper && isUpper;
+    const mat = new THREE.MeshStandardMaterial({
+      color:p.color, roughness:.62, metalness:.02,
+      transparent:ghost || soft, opacity:ghost ? .38 : 1, side:THREE.DoubleSide,
+      depthWrite:!(ghost || soft),
+    });
+    if (soft) upperMats.push(mat);
+    for (const g of p.geoms) {
+      const m = new THREE.Mesh(g, mat);
+      if (soft) m.renderOrder = 2;
+      if (isUpper) upperMeshes.push(m);
+      root.add(m); disposables.push(m);
+    }
+  }
+  // ★目安の四角と切る平面は「切る前」だけの案内。切ったあとは出さない（書き出しにも入らない）
+  // 下パーツを決めるあいだは、実寸のスイッチをいつも見せる（くぼみに入るか確かめる）
+  if (state.view === 'switch' || ((state.stage === 'done' || state.stage === 'press') && state.lower)) {
+    const s = switchMock();
+    swGroup = s; swBaseZ = s.position.z;      // 分解して見せるときに動かす
+    root.add(s);
+    s.traverse(o => {
+      if (!o.isMesh) return;
+      disposables.push(o);
+      if (o.userData.stem) upperMeshes.push(o);   // ステムは上パーツと一緒に沈む
+    });
+  }
+  frame(res);
+}
+let framed = false;
+let wantView = null;                     // 'under'（下から）／'iso'（ふつう）
+function frame(res) {
+  const bb = new THREE.Box3().setFromObject(root);
+  if (bb.isEmpty()) return;
+  const c = bb.getCenter(new THREE.Vector3()), sz = bb.getSize(new THREE.Vector3());
+  if (!camTween) controls.target.copy(c);
+  if (!framed || wantView) {
+    const r = Math.max(sz.x, sz.y, sz.z) * 1.9 + 12;
+    // ★穴の位置を決めるときは、底（穴のあいている面）が見えるよう下から
+    if (wantView === 'zoom') {                 // いまの向きのまま、少しだけ寄る
+      const d = new THREE.Vector3().subVectors(camera.position, c);
+      moveCamera(c.clone().add(d.multiplyScalar(0.68)), c, 700);
+      wantView = null; framed = true;
+      controls.update();
+      return;
+    }
+    const to = wantView === 'under'
+      ? new THREE.Vector3(c.x + r * .30, c.y - r * .55, c.z - r * .85)
+      : wantView === 'side'                       // 下パーツを決めるときは、くぼみの中が見える斜め上から
+      ? new THREE.Vector3(c.x + r * .45, c.y - r * .62, c.z + r * .75)
+      : wantView === 'front'
+      ? new THREE.Vector3(c.x, c.y - r, c.z + r * .12)
+      : new THREE.Vector3(c.x + r * .75, c.y - r,       c.z + r * .55);
+    if (!framed) { camera.position.copy(to); controls.target.copy(c); }  // 最初だけ即
+    else moveCamera(to, c, wantView ? 800 : 500);                        // 手順が変わったら動かす
+    framed = true; wantView = null;
+  }
+  if (!camTween) controls.update();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UI
+   ══════════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const busy = $('busy');
+const segPaints = [];        // 「元に戻す」で押し直すための、セグメント表示の更新関数
+
+function segment(id, key, after) {
+  const box = $(id);
+  const val = b => (b.dataset.v === '1' ? true : b.dataset.v === '0' ? false : b.dataset.v);
+  const paint = () => [...box.children].forEach(b => b.classList.toggle('on', val(b) === state[key]));
+  box.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b || val(b) === state[key]) return;
+    commit();
+    state[key] = val(b);
+    paint();
+    after && after();
+    requestRebuild();
+  });
+  paint();
+  segPaints.push(paint);
+  return paint;
+}
+function slider(id, key, fmt, after) {
+  const el = $(id), out = $('v' + id[0].toUpperCase() + id.slice(1));
+  const paint = () => { el.value = state[key]; if (out) out.textContent = fmt(state[key]); };
+  el.addEventListener('change', commit);        // つまみを離したときに1回だけ控える
+  el.addEventListener('input', () => {
+    state[key] = +el.value;
+    if (out) out.textContent = fmt(state[key]);
+    after && after();
+    requestRebuild();
+  });
+  paint();
+  return paint;
+}
+
+const paintUp = segment('segUp', 'up');
+segment('segView', 'view');
+segment('segJoint', 'jointShape');
+segment('segLowerMode', 'lowerMode');
+segment('segDigUp', 'digUp', () => { $('vDigUp').textContent = state.digUp ? 'する' : 'しない'; });
+segment('segCover', 'cover', () => {
+  $('vCover').textContent = state.cover ? 'する' : 'しない';
+  $('coverRows').style.display = state.cover ? '' : 'none';
+});
+const FIT_NOTE = {
+  shell: 'シェル … 下パーツのふちが上パーツの外がわへ立ちあがって、スイッチとすき間を隠す。'
+       + 'フィギュアが細くてもよい。',
+  skirt: 'かぶせる … 上パーツのスカートが下パーツの外がわへおりる。外からは'
+       + 'フィギュアだけが見えるが、フィギュアの底が下パーツより太い必要がある。',
+  none : 'なし … 上下をそのまま重ねる。指を離しているとすき間からスイッチが見える。',
+};
+segment('segFit', 'fit', () => {
+  state.cover = state.fit === 'skirt';
+  state.shell = state.fit === 'shell';
+  paintFit();
+});
+const SHELL_TYPE_NOTE = {
+  flush: 'タイプ1 … ふちを切り口の内がわに立てる。外観は読みこんだモデルのまま。'
+       + '上パーツの底 7mm はまっすぐに細くなる。',
+  case : 'タイプ2 … 下パーツを一回り大きいケースにして、上パーツがその中へ沈む。'
+       + '市販のクリッカーに多い作り。フィギュアの形はそのままだが、切り口より下の形は使わない。',
+};
+function paintShellType() {
+  const t = SHELL_TYPE_NOTE[state.shellType] || '';
+  for (const id of ['shellTypeNote', 'shellTypeNote2', 'shellTypeNote3']) $(id).textContent = t;
+}
+/* 同じ「作り」を3か所（手動の下パーツ／自動の切る高さ／できあがり）から選べる。
+   どれで選んでも、ほかのボタンの見た目をそろえる */
+/* ★人が「作り」を選んだかどうか。自動は、選ばれていなければ毎回タイプ1から試す。
+     これがないと、いちど自動でタイプ2に切りかわったあと、次のモデルもタイプ2のままになる。 */
+let userPickedType = false;
+const afterShellType = () => { userPickedType = true; paintShellType(); for (const f of segPaints) f(); };
+for (const id of ['segShellType', 'segShellType2', 'segShellType3'])
+  segment(id, 'shellType', afterShellType);
+paintShellType();
+function paintFit() {
+  $('fitNote').textContent      = FIT_NOTE[state.fit] || '';
+  $('shellRows').style.display  = state.fit === 'shell' ? '' : 'none';
+  $('coverRows').style.display  = state.fit === 'none'  ? 'none' : '';
+}
+segment('segLower', 'lower', () => { $('lowerRows').style.display = state.lower ? '' : 'none'; });
+
+/* つくりかた（自動／手動）。自動に入れたら、モデルがあるならその場で作りなおす */
+const AUTO_NOTE = {
+  on : 'モデルを入れると、切る高さから下パーツまで自動で決めて、クリッカーに仕上げる。',
+  off: '8つの手順を自分で決めていく。切る高さも下パーツの寸法も自由に触れる。',
+};
+segment('segAuto', 'auto', () => {
+  $('autoNote').textContent = state.auto ? AUTO_NOTE.on : AUTO_NOTE.off;
+  if (!state.raw) { step = 0; paintNav(); return; }
+  if (state.auto) { backToAim(); autoStart(); }
+  else { step = 1; paintNav(); }        // 手動に移ったら「向きと大きさ」から触ってもらう
+});
+$('autoNote').textContent = state.auto ? AUTO_NOTE.on : AUTO_NOTE.off;
+$('toManual').addEventListener('click', () => {
+  commit();
+  state.auto = false;
+  for (const f of segPaints) f();
+  $('autoNote').textContent = AUTO_NOTE.off;
+  step = 1;
+  paintNav();
+});
+
+const CUT_NOTE = {
+  plane: '①ふつうに1つの平面で切る。上が上パーツ、残りが下パーツになる。',
+  joint: '②凹凸で2つに分ける。上パーツの凸が下パーツの凹をすべって上下する。',
+  none : '③切らない。読みこんだデータをまるごと上パーツにして、下パーツは柱で作る。',
+};
+const backToAim = () => {                 // 狙いを変えたら、また下ごしらえの表示にもどす
+  state.stage = 'aim';
+  paintNav();
+  if (document.getElementById('back')) document.getElementById('back').disabled = true;
+  wantView = 'iso';
+  for (const id of ['secStem', 'secLower', 'secView', 'secPress', 'secOut']) $(id).classList.add('off');
+};
+segment('segKeep', 'keep', backToAim);
+const paintCutMode = segment('segCutMode', 'cutMode', () => {
+  backToAim();
+  const m = state.cutMode;
+  $('cutModeNote').textContent = CUT_NOTE[m];
+  $('cutRows').style.display   = m === 'none' ? 'none' : '';
+  $('jointRows').style.display = m === 'joint' ? '' : 'none';
+  $('lowerShapeRows').style.display = m === 'none' ? '' : 'none';
+  $('lowerScaleRow').style.display  = m === 'joint' ? '' : 'none';
+  $('coverBlock').style.display     = m === 'joint' ? 'none' : '';   // ②は凸ではめるので使わない
+});
+// 読みこみ前の初期表示（segment の after は押したときにしか動かないので、ここで一度そろえる）
+$('cutModeNote').textContent   = CUT_NOTE[state.cutMode];
+$('cutRows').style.display     = state.cutMode === 'none' ? 'none' : '';
+$('jointRows').style.display   = state.cutMode === 'joint' ? '' : 'none';
+$('lowerShapeRows').style.display = state.cutMode === 'none' ? '' : 'none';
+$('lowerScaleRow').style.display  = state.cutMode === 'joint' ? '' : 'none';
+$('lowerRows').style.display   = state.lower ? '' : 'none';
+$('vDigUp').textContent        = state.digUp ? 'する' : 'しない';
+$('coverBlock').style.display  = state.cutMode === 'joint' ? 'none' : '';
+$('vCover').textContent        = state.cover ? 'する' : 'しない';
+paintFit();
+
+$('doCut').addEventListener('click', () => {
+  commit();
+  state.stage = 'hole';                    // 上パーツだけを、下から見て穴の位置を決める
+  paintStage();
+  $('secStem').classList.remove('off');
+  for (const id of ['secLower', 'secView', 'secPress', 'secOut']) $(id).classList.add('off');
+  wantView = 'under';
+  requestRebuild();
+});
+$('pressNow').addEventListener('click', startPress);
+$('doPress').addEventListener('click', () => {
+  commit();
+  state.stage = 'press';
+  paintStage();
+  wantView = 'zoom';                       // いまの向きのまま少し寄る
+  requestRebuild();
+  setTimeout(startPress, 750);             // 寄り終わったら一度押してみせる
+});
+$('doHole').addEventListener('click', () => {
+  commit();
+  state.stage = 'done';
+  paintStage();
+  for (const id of ['secLower', 'secView', 'secPress', 'secOut']) $(id).classList.remove('off');
+  wantView = 'side';                       // 下パーツを決めるので、ほぼ真横から見る
+  requestRebuild();
+});
+segment('segStem', 'stem', () => {
+  const sw = SW[state.stem];
+  state.depth = sw.depth;
+  state.out = sw.out;
+  $('mxRows').style.display = state.stem === 'mx' ? '' : 'none';
+  paintAll();
+});
+
+const paints = [
+  slider('spin', 'spin', v => v + '°'),
+  slider('tiltA', 'tiltA', v => v + '°'),
+  slider('tiltB', 'tiltB', v => v + '°'),
+  slider('size', 'size', v => v.toFixed(1) + ' mm', backToAim),
+  slider('fat', 'fat', v => v.toFixed(2) + ' 倍'),
+  slider('stretch', 'stretch', v => v.toFixed(2) + ' 倍'),
+  slider('cut', 'cut', v => v.toFixed(1) + ' %', () => { syncCut(); backToAim(); }),
+  slider('autoCut', 'cut', v => v.toFixed(1) + ' %', () => { syncCut(); backToAim(); }),
+  slider('guide', 'guide', v => v.toFixed(1) + ' mm'),
+  slider('round', 'round', v => v.toFixed(1) + ' mm', backToAim),
+  slider('jointW', 'jointW', v => v.toFixed(1) + ' mm'),
+  slider('jointH', 'jointH', v => v.toFixed(1) + ' mm'),
+  slider('jointClr', 'jointClr', v => v.toFixed(2) + ' mm'),
+  slider('lowerW', 'lowerW', v => v.toFixed(1) + ' mm'),
+  slider('lowerH', 'lowerH', v => v.toFixed(1) + ' mm'),
+  slider('lowerScale', 'lowerScale', v => v.toFixed(2) + ' 倍'),
+  slider('arm', 'arm', v => v.toFixed(2) + ' mm'),
+  slider('th', 'th', v => v.toFixed(2) + ' mm'),
+  slider('depth', 'depth', v => v.toFixed(1) + ' mm'),
+  slider('offX', 'offX', v => v.toFixed(1) + ' mm'),
+  slider('offY', 'offY', v => v.toFixed(1) + ' mm'),
+  slider('out', 'out', v => v.toFixed(1) + ' mm'),
+  slider('cutout', 'cutout', v => v.toFixed(2) + ' mm'),
+  slider('plateT', 'plateT', v => v.toFixed(1) + ' mm'),
+  slider('cavDeep', 'cavDeep', v => v.toFixed(1) + ' mm'),
+  slider('abovePlate', 'abovePlate', v => v.toFixed(1) + ' mm'),
+  slider('groove', 'groove', v => v.toFixed(1) + ' mm'),
+  slider('coverOver', 'coverOver', v => v.toFixed(1) + ' mm'),
+  slider('coverClr', 'coverClr', v => v.toFixed(2) + ' mm'),
+  slider('coverWall', 'coverWall', v => v.toFixed(1) + ' mm'),
+];
+const paintAll = () => paints.forEach(f => f());
+
+$('flipZ').addEventListener('click', () => { commit(); state.flip = !state.flip; backToAim(); requestRebuild(); });
+$('resetRot').addEventListener('click', () => {
+  commit();
+  Object.assign(state, { spin:0, tiltA:0, tiltB:0, flip:false });
+  paintAll(); backToAim(); requestRebuild();
+});
+
+/* ══════════════════════════════════════════════════════════════
+   元に戻す
+   ★state のうち raw（読みこんだ座標）以外を控えておいて、押されたら書きもどす。
+     スライダーは動かしている途中ではなく「離したとき(change)」に1回だけ控える。
+   ══════════════════════════════════════════════════════════════ */
+const HISTORY = [];
+const snap = () => { const o = {}; for (const k in state) if (k !== 'raw') o[k] = state[k]; return o; };
+const FIRST = snap();
+let held = snap();                       // 直前に確定していた状態
+function commit() {
+  HISTORY.push(held);
+  if (HISTORY.length > 60) HISTORY.shift();
+  held = snap();
+  $('undo').disabled = false;
+}
+function applyState(o) {
+  for (const k in o) state[k] = o[k];
+  paintAll();
+  for (const f of segPaints) f();
+  $('cutModeNote').textContent      = CUT_NOTE[state.cutMode];
+  $('cutRows').style.display        = state.cutMode === 'none' ? 'none' : '';
+  $('jointRows').style.display      = state.cutMode === 'joint' ? '' : 'none';
+  $('lowerShapeRows').style.display = state.cutMode === 'none' ? '' : 'none';
+  $('lowerScaleRow').style.display  = state.cutMode === 'joint' ? '' : 'none';
+  $('lowerRows').style.display      = state.lower ? '' : 'none';
+  $('vDigUp').textContent           = state.digUp ? 'する' : 'しない';
+  $('coverBlock').style.display     = state.cutMode === 'joint' ? 'none' : '';
+  $('vCover').textContent           = state.cover ? 'する' : 'しない';
+  paintFit();
+  $('secStem').classList.toggle('off', state.stage === 'aim');
+  for (const id of ['secLower', 'secView', 'secPress', 'secOut'])
+    $(id).classList.toggle('off', state.stage === 'aim' || state.stage === 'hole');
+  paintStage();
+  requestRebuild();
+}
+function paintStage() {
+  $('back').disabled = state.stage === 'aim';
+  paintNav();
+}
+$('back').addEventListener('click', () => {
+  commit();
+  if (state.stage === 'press') {
+    state.stage = 'done';                  // 押してみる → 下パーツ
+    wantView = 'side';
+  } else if (state.stage === 'done') {
+    state.stage = 'hole';                  // 下パーツ → 穴の位置決め（上パーツだけ・下から）
+    for (const id of ['secLower', 'secView', 'secPress', 'secOut']) $(id).classList.add('off');
+    wantView = 'under';
+  } else if (state.stage === 'hole') {
+    backToAim();                           // 穴の位置決め → 切る前
+  }
+  paintStage();
+  requestRebuild();
+});
+$('undo').addEventListener('click', () => {
+  if (!HISTORY.length) return;
+  applyState(HISTORY.pop());
+  held = snap();
+  $('undo').disabled = !HISTORY.length;
+});
+$('resetAll').addEventListener('click', () => {
+  commit();
+  userPickedType = false;
+  applyState(FIRST);
+});
+
+/* くびれ・段の候補に、切る高さを吸い付ける。
+   ★2%以内に候補があれば、そこへ寄せる。離れているときは邪魔しない */
+/* 切る高さの入れ物は2つある（パネルの横スライダと、3D右がわの縦バー）。
+   どちらを動かしても、もう片方と数字をそろえる */
+function syncCut() {
+  snapCut();
+  for (const id of ['cut', 'autoCut']) { const el = $(id); if (el) el.value = state.cut; }
+  $('vCut').textContent = $('vAutoCut').textContent = state.cut.toFixed(1) + ' %';
+}
+function snapCut() {
+  const list = neckCache.list;
+  if (!list || !list.length) return;
+  let best = null, bd = 2.0;
+  for (const c of list) {
+    const d = Math.abs(c.pct - state.cut);
+    if (d < bd) { bd = d; best = c; }
+  }
+  if (best) {
+    state.cut = Math.round(best.pct * 2) / 2;
+    for (const id of ['cut', 'autoCut']) {
+      const el = $(id);
+      if (el) { el.value = state.cut; }
+    }
+    $('vCut').textContent = $('vAutoCut').textContent = state.cut.toFixed(1) + ' %';
+  }
+}
+// 候補をボタンで出す（押すとそこへ飛ぶ）
+function paintNecks() {
+  const box = $('neckChips');
+  if (!box) return;
+  const list = neckCache.list || [];
+  const html = list.length
+    ? '<span style="font-size:11.5px;color:var(--sub);align-self:center">分かれそうなところ：</span>'
+      + list.map(c => `<button data-pct="${c.pct.toFixed(1)}">`
+          + `${c.pct.toFixed(0)}%<span style="opacity:.6">${c.drop > c.shelf ? ' くびれ' : ' 段'}</span></button>`).join('')
+    : '';
+  box.innerHTML = html;
+  $('autoNeckChips').innerHTML = html;      // 自動モードの画面にも同じものを
+}
+for (const id of ['neckChips', 'autoNeckChips']) $(id).addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  commit();
+  state.cut = Math.round(+b.dataset.pct * 2) / 2;
+  $('cut').value = $('autoCut').value = state.cut;
+  $('vCut').textContent = $('vAutoCut').textContent = state.cut.toFixed(1) + ' %';
+  backToAim();
+  requestRebuild();
+});
+
+let pending = false;
+function requestRebuild() {
+  if (pending) return;
+  pending = true;
+  requestAnimationFrame(() => { pending = false; rebuild(); });
+}
+/* スイッチのくぼみ（16.4mm角＋肉1.6）が切り口に収まる、いちばん小さい「大きさ」。
+   読みこんだときの自動ふとらせと、自動モードの寸法決めで同じものを使う */
+function minSize() {
+  const om = orientedPositions();
+  const fitSq = fitSquareIn(om.pos, om.minZ, om.maxZ);
+  return fitSq > 0 ? om.span * (K.relief + 1.6) / fitSq : state.size;
+}
+function rebuild() {
+  if (!state.raw) return;
+  busy.classList.add('on');
+  try {
+    // ★「この高さで切る」を押すまでは、モデルと切る平面だけ見せる
+    if (state.stage === 'aim') {
+      const pv = buildPreview();
+      built = null;
+      renderPreview(pv);
+      paintNecks();
+      if (state.auto) {
+        /* ★この高さで切ると大きさがいくつになるかを、選ぶ前に見せる。
+             下がすぼまっている形だと、スイッチを入れるために何倍にも太らせる
+             ことになる（猫を30%で切ると60mm）。決めるのは人なので、
+             決める材料をここで出しておく。 */
+        const w = wantSizeFor(state.cut);
+        $('autoCutInfo').innerHTML =
+          (pv ? `モデルの高さ <b>${pv.h.toFixed(1)} mm</b>／切る高さ <b>${pv.cutZ.toFixed(1)} mm</b>（下から）<br>` : '')
+          + (!w.ok
+              ? '<span style="color:var(--warn)">この高さでは断面がとれない。少し上下にずらして</span>'
+              : w.over
+              ? `<span style="color:var(--warn)">この高さだと、スイッチを入れるのに`
+                + ` <b>${w.raw.toFixed(0)}mm</b> まで太らせることになる（上限60mm）。`
+                + `もっと上で切ると小さくできる</span>`
+              : `この高さで切ると、大きさは <b>${w.size.toFixed(1)} mm</b> になる`
+                + `（いまは ${state.size.toFixed(1)} mm）`);
+      }
+      $('cutInfo').innerHTML = state.cutMode === 'none'
+        ? '切らずに、まるごと上パーツにする。「この高さで切る」で先へ'
+        : `モデルの高さ <b>${pv ? pv.h.toFixed(1) : 0} mm</b>／`
+          + `切る高さ <b>${(pv ? pv.cutZ : 0).toFixed(1)} mm</b>（下から）。`
+          + '青い四角にスイッチ（15.6mm角）が収まるか見て、「この高さで切る」を押す';
+      $('outInfo').innerHTML = '';
+      $('checkMsg').innerHTML = '';
+      ex = { on:false, k:0, from:0, start:0 };   // 切り直すときは組んだ状態にもどす
+      paintHint();
+      return;
+    }
+    const res = buildAll();
+    built = res;
+    if (!res || res.error) {
+      $('outInfo').innerHTML = '';
+      $('checkMsg').innerHTML = `<div class="msg">${res ? res.error : ''}</div>`;
+      render3D(null);
+      return;
+    }
+    render3D(res);
+    showInfo(res);
+    paintHint();
+  } catch (e) {
+    console.error(e);
+    $('checkMsg').innerHTML = `<div class="msg">${e.message || e}</div>`;
+  } finally {
+    busy.classList.remove('on');
+  }
+}
+const MODE_NAME = { plane:'①平面で切る', joint:'②凹凸で分ける', none:'③切らない' };
+const SHAPE_NAME = { square:'四角柱', round:'円柱', heart:'ハート', star:'星' };
+function showInfo(res) {
+  const i = res.info;
+  $('cutInfo').innerHTML = `切り口 <b>${i.w.toFixed(1)} × ${i.d.toFixed(1)} mm</b>`;
+  $('lowerInfo').innerHTML = !i.lower
+    ? '下パーツを作っていません'
+    : (i.lower.dug
+        ? `<span style="color:var(--ok)">くぼみを掘った</span>：`
+          + `<b>${SHAPE_NAME[i.shape]} ${i.pocketW.toFixed(1)}mm角</b>／`
+          + `プレート開口 ${state.cutout.toFixed(2)}mm／下の逃げ ${K.cav}mm角`
+        : `<span style="color:var(--warn)">くぼみが掘れていない</span>：下の注意書きのとおりに`
+          + `「大きさ」か「横に太らせる」を上げて`);
+  const kv = `
+    <div class="kv"><span>上パーツの高さ</span><b>${i.total.toFixed(1)} mm</b></div>
+    <div class="kv"><span>上パーツの底</span><b>${i.w.toFixed(1)} × ${i.d.toFixed(1)} mm</b></div>
+    <div class="kv"><span>沈む深さ</span><b>${i.stroke.toFixed(1)} / ${i.travel.toFixed(1)} mm</b></div>`
+    + (i.lower ? `<div class="kv"><span>下パーツの高さ</span><b>${i.lower.h.toFixed(1)} mm</b></div>` : '')
+    + `<div class="kv"><span>材料のめやす</span><b>${i.gram.toFixed(1)} g</b></div>`;
+  const msgs = [...i.warn];
+  const msgHtml = msgs.length
+    ? `<div class="msg">${msgs.join('\n')}</div>`
+    : `<div class="msg ok">ここまでの検査で問題は出ていません</div>`;
+  $('outInfo').innerHTML  = kv;
+  $('checkMsg').innerHTML = msgHtml;
+  // 自動でつくったときの「できあがり」画面にも、同じものを出す
+  $('autoInfo').innerHTML = kv;
+  $('autoMsg').innerHTML  = msgHtml;
+}
+
+/* ── ファイルを読む ─────────────────────────────── */
+const drop = $('drop'), fileEl = $('file');
+drop.addEventListener('click', () => fileEl.click());
+fileEl.addEventListener('change', () => fileEl.files[0] && loadFile(fileEl.files[0]));
+for (const ev of ['dragenter', 'dragover']) drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add('hot');
+});
+for (const ev of ['dragleave', 'drop']) drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.remove('hot');
+});
+drop.addEventListener('drop', e => e.dataTransfer.files[0] && loadFile(e.dataTransfer.files[0]));
+
+function makeCatGeom() {
+  const head = new THREE.SphereGeometry(12, 24, 24).toNonIndexed();
+  const earL = new THREE.ConeGeometry(5, 8, 12).toNonIndexed();
+  earL.rotateZ(-0.2); earL.translate(-6, 9, 8);
+  const earR = new THREE.ConeGeometry(5, 8, 12).toNonIndexed();
+  earR.rotateZ(0.2); earR.translate(6, 9, 8);
+  const nose = new THREE.SphereGeometry(2, 12, 12).toNonIndexed();
+  nose.translate(0, -11, 1);
+  return [head, earL, earR, nose];
+}
+/* 肉球。
+   ★大きい肉球は「押し出し」で作る（つぶした球にすると、下がすぼまって
+     タイプ1では 60mm まで太らせないとスイッチが入らなくなる）。
+     押し出しなら切り口より下がまっすぐなので、どちらのタイプでも作れる。
+   ★指の肉球は上に半分うずめて乗せる。浮かせると切り口が5つに分かれてしまう。 */
+function makePawGeom() {
+  /* ★足あとの輪郭（本体＋指4つ）を「ひとつの輪」にしてから押し出す。
+       指を別の球で上に乗せると、切り口より外へはみ出して
+       「ケースの穴に入らない（沈まない）」になる。輪郭に入れておけば、
+       切り口＝足あとの形そのものなので、まっすぐ沈む。 */
+  /* 指のふくらみ：[角度, 高さ, 太さ]。
+     ★とがらせすぎると、切り口のふたを張る三角形分割（earcut）が失敗する。
+       ゆるやかにして、輪郭の点数も 96 におさえてある。 */
+  const TOE = [[2.42, 3.0, 0.32], [1.86, 3.3, 0.30], [1.28, 3.3, 0.30], [0.72, 3.0, 0.32]];
+  const rAt = t => {
+    let r = 8.2 + 1.3 * Math.cos(2 * t) - 1.5 * Math.max(0, Math.sin(t));   // 本体（上はすぼめる）
+    for (const [a, amp, w] of TOE) {
+      let d = t - a;
+      while (d >  Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      r += amp * Math.exp(-(d * d) / (2 * w * w));                          // 指のふくらみ
+    }
+    return r;
+  };
+  const N = 96;
+  const pad = new THREE.Shape();
+  for (let i = 0; i <= N; i++) {
+    const t = 2 * Math.PI * i / N, r = rAt(t);
+    const x = r * Math.cos(t), y = r * Math.sin(t);
+    i ? pad.lineTo(x, y) : pad.moveTo(x, y);
+  }
+  pad.closePath();
+  /* ★厚みは 16mm。薄いと、タイプ1（下側にスイッチを入れる作り）のときに
+       切り口より下が足りず、上パーツが小さなつまみだけになる。 */
+  /* ★面取り（bevel）はしない。面取りすると下のほうが細くなり、
+       切り口より上でフィギュアが太る＝穴に入らない、になってしまう。
+       上の丸みは、指と本体のふくらみ（下の球）で出す。 */
+  const geom = new THREE.ExtrudeGeometry(pad, { depth: 16, bevelEnabled: false }).toNonIndexed();
+  const out = [geom];
+  // 上の面に、指と本体のふくらみを乗せる（輪郭の内がわに収める）
+  /* ★指のふくらみは輪郭より小さめに。輪郭ぎりぎりに置くと、指の付け根の
+       細いところで横にはみ出して「ケースの穴に入らない」と言われる。 */
+  for (const [a] of TOE) {
+    const t = new THREE.SphereGeometry(2.3, 20, 20).toNonIndexed();
+    t.scale(1.0, 1.0, 0.62);
+    t.translate(Math.cos(a) * (rAt(a) - 3.1), Math.sin(a) * (rAt(a) - 3.1), 17.0);
+    out.push(t);
+  }
+  const bump = new THREE.SphereGeometry(5.4, 24, 24).toNonIndexed();
+  bump.scale(1.15, 0.9, 0.42);
+  bump.translate(0, -2.0, 17.0);
+  out.push(bump);
+  return out;
+}
+function makeDiceGeom() {
+  return [new THREE.BoxGeometry(18, 18, 18).toNonIndexed()];
+}
+function makeStarGeom() {
+  const pts = starPts(22, 5, 0.48);
+  const shape = new THREE.Shape();
+  pts.forEach((p, i) => i ? shape.lineTo(p[0], p[1]) : shape.moveTo(p[0], p[1]));
+  shape.closePath();
+  const geom = new THREE.ExtrudeGeometry(shape, { depth: 16, bevelEnabled: true, bevelThickness: 2, bevelSize: 1 }).toNonIndexed();
+  geom.center();
+  return [geom];
+}
+function makeBearGeom() {
+  const head = new THREE.SphereGeometry(12, 24, 24).toNonIndexed();
+  const earL = new THREE.SphereGeometry(4.5, 16, 16).toNonIndexed();
+  earL.translate(-9, 8, 5);
+  const earR = new THREE.SphereGeometry(4.5, 16, 16).toNonIndexed();
+  earR.translate(9, 8, 5);
+  const snout = new THREE.SphereGeometry(4, 16, 16).toNonIndexed();
+  snout.scale(1.2, 0.8, 0.9);
+  snout.translate(0, -10, -1);
+  return [head, earL, earR, snout];
+}
+
+function loadGeoms(geoms, name, upAxis = 'z') {
+  busy.classList.add('on');
+  $('modelInfo').className = 'note';
+  $('modelInfo').textContent = '読みこみ中…';
+  try {
+    const pos = mergePositions(geoms);
+    let cx = 0, cy = 0, cz = 0;
+    const n = pos.length / 3;
+    for (let i = 0; i < pos.length; i += 3) { cx += pos[i]; cy += pos[i+1]; cz += pos[i+2]; }
+    cx /= n; cy /= n; cz /= n;
+    for (let i = 0; i < pos.length; i += 3) { pos[i] -= cx; pos[i+1] -= cy; pos[i+2] -= cz; }
+    state.raw = pos;
+    state.name = name;
+    state.up = upAxis;
+    paintUp();
+    const want = minSize();
+    let sized = '';
+    if (state.size < want) {
+      const before = state.size;
+      state.size = Math.min(60, Math.ceil(want));
+      sized = `／スイッチ（${K.housing}mm角）が入るよう、大きさを ${before}→<b>${state.size}mm</b> にしました`;
+      paintAll();
+    }
+    state.stage = 'aim';
+    for (const id of ['secStem','secLower','secView','secPress','secOut']) $(id).classList.add('off');
+    for (const id of ['secOrient','secCut']) $(id).classList.remove('off');
+    $('modelInfo').className = 'note ok';
+    $('modelInfo').innerHTML = `<b>${name}</b> ／ 三角形 ${(n/3).toLocaleString()} 枚${sized}`;
+    framed = false;
+    rebuild();
+    paintNav();                            // 読みこめたので［次へ］が押せるようになる
+    if (state.auto) autoStart();           // 自動 … 「切る高さ」の画面へ
+  } catch (e) {
+    console.error(e);
+    $('modelInfo').className = 'note warn';
+    $('modelInfo').textContent = e.message || String(e);
+  } finally {
+    busy.classList.remove('on');
+  }
+}
+
+/* 作りの見本 … 読みこむ前に、タイプ1とタイプ2のちがいを見せる。
+   形と作りと切る高さを決めうちで入れて、そのまま組み上げた画面へ飛ばす。 */
+const DEMO = {
+  /* 切る高さは、注意書きがいちばん少なくなるところを見て決めうちにした */
+  'star|flush': { geom:makeStarGeom, name:'見本：星（タイプ1）',   cut:60, type:'flush' },
+  'star|case' : { geom:makeStarGeom, name:'見本：星（タイプ2）',   cut:60, type:'case'  },
+  /* 肉球は切り口が入り組んでいるので、切り口の丸みは0にする
+     （丸みは輪郭を内がわへ寄せて作るので、指のあいだで輪が交差してふたを張れない） */
+  'paw|flush' : { geom:makePawGeom,  name:'見本：肉球（タイプ1）', cut:48, type:'flush', round:0 },
+  'paw|case'  : { geom:makePawGeom,  name:'見本：肉球（タイプ2）', cut:42, type:'case',  round:0 },
+};
+$('demoChips').addEventListener('click', e => {
+  const b = e.target.closest('button[data-demo]'); if (!b) return;
+  const d = DEMO[b.dataset.demo]; if (!d) return;
+  state.auto = true;
+  state.shellType = d.type;
+  userPickedType = true;                 // 見本は作りを決めうちで見せるもの
+  state.round = d.round != null ? d.round : 0.8;
+  state.fit = 'shell'; state.cover = false; state.shell = true;
+  for (const f of segPaints) f();
+  paintShellType();
+  loadGeoms(d.geom(), d.name, 'z');     // ここで「切る高さ」の画面まで進む
+  state.cut = d.cut;
+  syncCut();
+  autoRun();                             // 大きさを合わせて組み上げ、できあがりへ
+});
+
+$('presetModels').addEventListener('click', e => {
+  const b = e.target.closest('button[data-p]'); if (!b) return;
+  const p = b.dataset.p;
+  if (p === 'cat') loadGeoms(makeCatGeom(), 'サンプル猫', 'z');
+  if (p === 'dice') loadGeoms(makeDiceGeom(), 'サイコロ', 'z');
+  if (p === 'star') loadGeoms(makeStarGeom(), '星', 'z');
+  if (p === 'bear') loadGeoms(makeBearGeom(), 'くま', 'z');
+});
+
+$('camChips').addEventListener('click', e => {
+  const b = e.target.closest('button[data-c]'); if (!b) return;
+  wantView = b.dataset.c;
+  requestRebuild();
+});
+
+async function loadFile(file) {
+  busy.classList.add('on');
+  $('modelInfo').className = 'note';
+  $('modelInfo').textContent = '読みこみ中…';
+  try {
+    const geoms = await parseModel(file);
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    const upAxis = (ext === 'glb' || ext === 'gltf' || ext === 'obj') ? 'y' : 'z';
+    loadGeoms(geoms, file.name.replace(/\.[^.]+$/, ''), upAxis);
+  } catch (e) {
+    console.error(e);
+    $('modelInfo').className = 'note warn';
+    $('modelInfo').textContent = e.message || String(e);
+    busy.classList.remove('on');
+  }
+}
+
+/* 書き出す前に「2枚で共有されていない辺」を数える。
+   台座と柱は必ず0になる。フィギュアは、もとのモデルに穴があいていたり、
+   切り口の輪がつながらなかったところで0にならない（スライサーの修復が要る） */
+function runCheck(parts) {
+  const rows = [];
+  let bad = 0;
+  for (const p of parts) {
+    let e = 0;
+    for (const g of p.geoms) e += openEdges(g);
+    bad += e;
+    rows.push(`${p.name}：開いた辺 ${e}`);
+  }
+  return { bad, rows };
+}
+function exportNow(kind) {
+  if (!built || built.error) return;
+  const chk = runCheck(built.parts);
+  const base = safeName('keycap_' + state.name);
+  if (kind === 'stl') save(exportSTL(built.parts), base + '.stl', 'model/stl');
+  else                save(export3MF(built.parts), base + '.3mf', 'model/3mf');
+  const box = state.auto ? $('autoMsg') : $('checkMsg');   // いま見ている画面のほうへ
+  box.innerHTML = chk.bad === 0
+    ? `<div class="msg ok">閉じた立体として書き出せた（${chk.rows.join('／')}）</div>`
+    : `<div class="msg">${chk.rows.join('／')}
+柱が0でないときは、切り口が入り組みすぎてふたを張りきれていない。
+フィギュア（と「残りを使う」の台座）が0でないときは、もとのモデルに穴があいている。
+どちらも切る高さを 1〜2% ずらすと直ることが多い（だめならスライサーの「修復」を通す）</div>`;
+}
+$('dlStl').addEventListener('click', () => exportNow('stl'));
+$('dl3mf').addEventListener('click', () => exportNow('3mf'));
+$('btnExplode').addEventListener('click', toggleExplode);
+$('autoStl').addEventListener('click', () => exportNow('stl'));
+$('auto3mf').addEventListener('click', () => exportNow('3mf'));
+
+/* ══════════════════════════════════════════════════════════════
+   自動でつくる（手順は 自動モード.md のとおり）
+   　1 上向きは拡張子から　2 傾きは触らない
+   　3 切る高さは人が決める（secAutoCut の画面）
+   　4 その高さで下側にスイッチのくぼみが入るよう「大きさ」を合わせる
+   　5 シェル方式で組む　6-7 穴と下パーツは実測値の決め打ち
+   ══════════════════════════════════════════════════════════════ */
+/* シェルになる帯の高さ（mm）。底板＋逃げ＋プレート＋スイッチの箱 */
+const shellBand = () => K.floor + state.cavDeep + state.plateT + state.abovePlate;
+
+/* 手順4 … 切る高さより下の帯にスイッチのくぼみが収まる「大きさ」に入れなおす。
+   大きすぎたら小さくもする（読みこみのときの自動ふとらせは大きくするだけ）。
+   帯の高さ（mm）と大きさが互いに効くので、2〜3回まわして落ちつかせる。 */
+function wantSizeFor(cutPct) {
+  const { pos, minZ, maxZ, span } = orientedPositions();
+  /* ★ねらいは作りで変わる。
+       タイプ1 … 切り口より下がシェルになるので、その帯ぜんぶにスイッチが入る太さ
+                （16.4 ＋ ふち1.6 ＋ すきま0.2 を片がわずつ ＝ 20.0mm）
+       タイプ2 … ケースを外に足すので、切り口の穴をスイッチが通ればよい
+                （16.4 ＋ すきま0.2 を片がわずつ ＝ 16.8mm）。下側の形は使わない */
+  const isCase = state.shellType === 'case';
+  const want   = K.relief + (isCase ? state.coverClr : state.coverWall + state.coverClr) * 2;
+  const band   = isCase ? 0.5 : shellBand();
+  let size = state.size, raw = 0;
+  for (let i = 0; i < 3; i++) {
+    const bandRaw = band * span / Math.max(size, 1);
+    const fit = fitSquareBelow(pos, minZ, maxZ, cutPct, bandRaw);
+    if (!(fit > 0)) return { ok:false };
+    /* ★ねらいの太さ … スイッチの逃げ(16.4) ＋ シェルのふち(1.6)とすきま(0.2)を
+         片がわずつ。ここを 18mm にしていたころは、ふちを立てると
+         スイッチの通る穴が 14.8mm になって入らなかった。 */
+    raw = span * want / fit;
+    const next = Math.max(8, Math.round(raw * 10) / 10);
+    if (Math.abs(next - size) < 0.05) { size = next; break; }
+    size = next;
+  }
+  return { ok:true, size:Math.min(60, size), raw, over:raw > 60.05 };
+}
+function autoFitSize() {
+  const before = state.size;
+  const w = wantSizeFor(state.cut);
+  if (!w.ok) return { before, ok:false };
+  state.size = w.size;
+  return { before, ok:true, over:w.over, raw:w.raw };
+}
+
+/* 手順5 … 組み方の決め打ち。切って、上を残して、下パーツを作る */
+let autoFitInfo = null;
+function autoBuild() {
+  if (!userPickedType) state.shellType = 'flush';   // 人が選んでいなければタイプ1から
+  state.cutMode = 'plane'; state.keep = 'up';
+  state.lower = true; state.fit = 'shell';
+  state.cover = false; state.shell = true; state.digUp = true;
+  /* ★外観はいつも読みこんだモデルのまま。箱などを足さない。
+       スイッチが入らないなら、モデルごと大きくする（自動モード.md 手順4）。
+       大きくしすぎになるなら、それは「切る高さがよくない」ということなので、
+       切る高さの画面で先に見せて選びなおしてもらう。 */
+  // 作りのタイプ（flush/case）は、選ばれているものをそのまま使う
+  const w = wantSizeFor(state.cut);
+  autoFitInfo = { before:state.size, ok:w.ok, need:w.ok ? w.raw : 0, over:!!w.over };
+  if (w.ok) state.size = w.size;
+  state.stage = 'done';
+  /* ★タイプ1で「細すぎて残せない出っぱり」が出るなら、タイプ2にする。
+       残せないと そこだけ上下でずれて見える（しっぽのある猫で報告された）。
+       できあがりの画面でタイプ1に戻せる。 */
+  if (state.shellType === 'flush') {
+    let probe = null;
+    try { probe = buildAll(); } catch (e) {}
+    if (probe && !probe.error && probe.info.lostLoops > 0) {
+      state.shellType = 'case';
+      autoFitInfo.switched = probe.info.lostLoops;
+      const w2 = wantSizeFor(state.cut);
+      if (w2.ok) state.size = w2.size;
+    }
+  }
+  paintAll();
+  for (const f of segPaints) f();
+}
+function autoRun() {                       // 「切る高さ」画面から［次へ］で呼ばれる
+  if (!state.raw) return;
+  busy.classList.add('on');
+  setTimeout(() => {
+    try { autoBuild(); } catch (e) { console.error(e); }
+    finally { busy.classList.remove('on'); }
+    const f = autoFitInfo;
+    $('autoPick').innerHTML =
+      `<b>${state.cut.toFixed(1)}%</b> の高さで切った`
+      + (!f || !f.ok ? '／その高さでは断面が測れなかった'
+         : `／大きさ ${f.before.toFixed(1)} → <b>${state.size.toFixed(1)}mm</b>`
+           + (f.over
+               ? `<br><span style="color:var(--warn)">スイッチを入れるには`
+                 + ` ${f.need.toFixed(0)}mm 要るが、上限の60mmで止めた。`
+                 + `もっと上で切ると小さくできる</span>`
+               : (state.shellType === 'case'
+                   ? '（スイッチがケースの穴を通る、いちばん小さい寸法）'
+                   : '（スイッチが下側に入る、いちばん小さい寸法）')))
+      + (f && f.switched
+          ? `<br>切り口に細い出っぱりが ${f.switched}か所あってタイプ1では切り落とすことになるので、`
+            + `<b>タイプ2</b>で組んだ（上のボタンでタイプ1にも戻せる）`
+          : '');
+    step = 2;
+    paintNav();
+    wantView = 'iso';
+    requestRebuild();
+    // カメラが落ちついたころに、一度ひとりでに押してみせる（動きが分かるように）
+    setTimeout(() => { if (state.auto && step === 2 && !ex.on) startPress(); }, 900);
+  }, 0);
+}
+/* 読みこんだ直後 … 自動は「切る高さ」の画面へ。まだ切らない */
+function autoStart() {
+  if (!state.raw) return;
+  state.stage = 'aim';
+  step = 1;
+  paintNav();
+  wantView = 'iso';
+  requestRebuild();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   手順の画面（1画面＝1手順）
+   ・見出しの #番号 をそのまま1シーンにして、いちどに1つだけ見せる。
+   ・「この高さで切る」「この位置でいい」「押してみる画面へ」は
+     ［次へ］に畳んだ（同じ意味のボタンが2つ並ぶのを避けるため）。
+     ボタン自体は hidden で残してあり、［次へ］が中で押している。
+   ══════════════════════════════════════════════════════════════ */
+const STEPS_MANUAL = [
+  { id:'secModel',  name:'3Dモデルを読みこむ', short:'モデル' },
+  { id:'secOrient', name:'向きと大きさ',       short:'むき' },
+  { id:'secCut',    name:'切る',               short:'切る',   go:() => $('doCut').click()  },
+  { id:'secStem',   name:'上パーツの穴',       short:'あな',   go:() => $('doHole').click() },
+  { id:'secLower',  name:'下パーツ',           short:'下' },
+  { id:'secView',   name:'見かた',             short:'見かた' },
+  { id:'secPress',  name:'押してみる',         short:'押す',
+    enter:() => { if (state.stage !== 'press') $('doPress').click(); } },
+  { id:'secOut',    name:'書き出す',           short:'ほぞん' },
+];
+/* 自動は2画面だけ。読みこんだらそのまま「できあがり」へ */
+const STEPS_AUTO = [
+  { id:'secModel',   name:'3Dモデルを読みこむ', short:'モデル' },
+  { id:'secAutoCut', name:'切る高さをえらぶ',   short:'切る高さ', go:() => autoRun() },
+  { id:'secAuto',    name:'できあがり',         short:'できあがり' },
+];
+const STEPS = () => (state.auto ? STEPS_AUTO : STEPS_MANUAL);
+const ALL_SECS = ['secModel','secOrient','secCut','secStem','secLower',
+                  'secView','secPress','secOut','secAutoCut','secAuto'];
+var step = 0;                                    // ★var … 先に paintNav が呼ばれても落ちないように
+
+/* いま行ける終点。stage（＝どこまで決まっているか）だけで決まる。
+   もどると自動で手前へ引きもどされるので、まだ触れないシーンには立てない */
+function lastStep() {
+  if (!state.raw) return 0;
+  if (state.auto) return state.stage === 'aim' ? 1 : 2;
+  if (state.stage === 'aim')  return 2;
+  if (state.stage === 'hole') return 3;
+  return STEPS_MANUAL.length - 1;
+}
+/* 上の丸いステップ表示。いま行ける所までは押して飛べる（3アプリ共通の見た目） */
+function paintSteps(list) {
+  const bar = $('steps');
+  const last = lastStep();
+  if (bar.childElementCount !== list.length) {
+    bar.innerHTML = '';
+    list.forEach((s, i) => {
+      const b = document.createElement('button');
+      b.className = 'step-dot';
+      b.innerHTML = `<span class="num">${i + 1}</span><span class="cap"></span>`;
+      b.onclick = () => { if (i <= lastStep()) { step = i; if (list[i].enter) list[i].enter(); paintNav(); } };
+      bar.appendChild(b);
+    });
+  }
+  [...bar.children].forEach((b, i) => {
+    b.querySelector('.cap').textContent = list[i].short || list[i].name;
+    b.classList.toggle('active', i === step);
+    b.classList.toggle('done',   i <  step);
+    b.disabled = i > last;
+  });
+}
+
+function paintNav() {
+  if (typeof step !== 'number') return;         // 読みこみ途中に呼ばれても落ちないように
+  const list = STEPS();
+  step = Math.max(0, Math.min(step, lastStep()));
+  for (const id of ALL_SECS) $(id).classList.remove('now');
+  $(list[step].id).classList.add('now');
+  $('stepLabel').innerHTML = `${step + 1} / ${list.length}　<b>${list[step].name}</b>`;
+  paintSteps(list);
+  // 縦バーは「切る高さ」を決める画面でだけ出す（自動の2、手動の3）
+  $('cutBar').classList.toggle('on',
+    list[step].id === 'secAutoCut' || list[step].id === 'secCut');
+  // 押してみるボタンは「できあがり」と手動の「押してみる」で出す
+  $('viewBtns').classList.toggle('on',
+    list[step].id === 'secAuto' || list[step].id === 'secPress');
+  $('navBack').disabled = step === 0;
+  $('navNext').disabled = step >= list.length - 1
+                       || (step >= lastStep() && !list[step].go);
+}
+$('navNext').addEventListener('click', () => {
+  const list = STEPS();
+  const s = list[step];
+  if (s.go && step >= lastStep()) s.go();       // 切る・穴を決める … 先へ行けるようにする
+  if (step + 1 < list.length && step + 1 <= lastStep()) {
+    step++;
+    if (list[step].enter) list[step].enter();
+  }
+  paintNav();
+});
+$('navBack').addEventListener('click', () => {
+  if (step === 0) return;
+  const to = step - 1;                          // 行き先を先に決めておく
+  const id = STEPS()[step].id;
+  // ここは stage の境目。ひとつ前の決まりごとに戻してから画面を下げる
+  if (id === 'secStem' || id === 'secLower' || id === 'secPress') $('back').click();
+  if (id === 'secAuto') backToAim();            // 切る前の表示にもどして選びなおせるように
+  step = to;      // ★ back の中で paintNav が走って step が引きもどされるので、あとから入れ直す
+  paintNav();
+});
+paintNav();
+
+resize();
+// 総当たりの検算をページのなかから回せるようにしておく
+window.__cap = { state, buildAll, rebuild, openEdges, geomVolume, prism, fitsInside, root, startPress,
+                 orientedPositions, fitSquareBelow, wantSizeFor, roundRectPts,
+                 disjoint, crossPts, circlePts, buildLoops, nestLoops, clipAt,
+                 polyArea, SW, K, THREE };
+</script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>かんたん3D CAD</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f172a'/%3E%3Cg fill='none' stroke='%233b82f6' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M16 5l9 5v12l-9 5-9-5V10z'/%3E%3Cpath d='M7 10l9 5 9-5M16 15v12'/%3E%3C/g%3E%3C/svg%3E">
+
+<link rel="stylesheet" href="css/common.css">
+<style>
+  /* トップページだけ、スクロールできる1枚もの */
+  body { overflow: auto; height: auto; min-height: 100dvh; display: block; }
+
+  .hero {
+    text-align: center;
+    padding: 40px 20px 28px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #17325e 0%, var(--bg) 100%);
+  }
+  .hero h1 { font-size: clamp(24px, 6vw, 38px); font-weight: 900; letter-spacing: .02em; }
+  .hero .lead { color: var(--muted); font-size: clamp(13px, 3vw, 15px); margin-top: 10px; line-height: 1.8; }
+  .hero .badge {
+    display: inline-block; margin-bottom: 12px; padding: 5px 14px; border-radius: 999px;
+    background: rgba(59,130,246,.15); border: 1px solid var(--accent2);
+    color: #93c5fd; font-size: 12px; font-weight: bold;
+  }
+
+  .wrap { max-width: 980px; margin: 0 auto; padding: 26px 16px 50px; }
+
+  .menu { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 760px) { .menu { grid-template-columns: repeat(3, 1fr); } }
+
+  .card {
+    display: flex; flex-direction: column; gap: 10px;
+    background: var(--panel); border: 2px solid var(--line); border-radius: 16px;
+    padding: 22px 20px 20px; text-decoration: none; color: var(--text);
+    transition: border-color .15s, transform .15s, background .15s;
+  }
+  .card:hover { border-color: var(--accent2); background: #17325e; transform: translateY(-3px); }
+  .card .ico { font-size: 42px; line-height: 1; }
+  .card .nm  { font-size: 19px; font-weight: bold; }
+  .card .de  { font-size: 13px; color: var(--muted); line-height: 1.75; flex: 1; }
+  .card .go  {
+    align-self: flex-start; margin-top: 4px; padding: 8px 16px; border-radius: 10px;
+    background: var(--accent); color: #fff; font-size: 13px; font-weight: bold;
+  }
+  .card .tag {
+    align-self: flex-start; font-size: 11px; font-weight: bold; color: var(--ok2);
+    background: #052e22; border: 1px solid var(--ok); border-radius: 999px; padding: 3px 10px;
+  }
+
+  .how { margin-top: 40px; }
+  .how h2 { font-size: 17px; font-weight: bold; margin-bottom: 14px; }
+  .flow { display: grid; gap: 10px; grid-template-columns: 1fr; }
+  @media (min-width: 700px) { .flow { grid-template-columns: repeat(4, 1fr); } }
+  .flow div {
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px; font-size: 13px; line-height: 1.7;
+  }
+  .flow b { display: block; color: var(--accent2); font-size: 12px; margin-bottom: 4px; }
+
+  footer {
+    margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 12px; line-height: 1.9;
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="badge">3Dプリンター用・だれでもかんたんCAD</div>
+  <h1>🔑 かんたん3D CAD</h1>
+  <div class="lead">
+    キーホルダーの3Dデータを、ブラウザだけでつくれるアプリ。<br>
+    アプリのインストールも、CADの知識もいりません。
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="menu">
+
+    <a class="card" href="nameplate.html">
+      <span class="ico">🪪</span>
+      <span class="nm">なまえプレート</span>
+      <span class="de">すきな かたちの どだいに なまえをのせる。フォント・いろ・あなの ばしょも えらべる。</span>
+      <span class="tag">2色プリント対応</span>
+      <span class="go">つくる ▶</span>
+    </a>
+
+    <a class="card" href="qr.html">
+      <span class="ico">🔳</span>
+      <span class="nm">QRキーホルダー</span>
+      <span class="de">URLを入れると QRコードの キーホルダーになる。スマホで読みとれるか その場で ためせる。</span>
+      <span class="tag">読み取りチェック付き</span>
+      <span class="go">つくる ▶</span>
+    </a>
+
+    <a class="card" href="clicker.html">
+      <span class="ico">🔘</span>
+      <span class="nm">カチカチ クリッカー</span>
+      <span class="de">3Dモデル（GLB）を入れると、上下2つのパーツに切りわけて 押せるクリッカーにする。</span>
+      <span class="tag">分解プレビュー付き</span>
+      <span class="go">つくる ▶</span>
+    </a>
+
+  </div>
+
+  <div class="how">
+    <h2>つかいかた</h2>
+    <div class="flow">
+      <div><b>① えらぶ</b>つくりたい ものを 上から えらぶ</div>
+      <div><b>② つくる</b>ステップに そって すすめるだけ。3Dで すぐ 見える</div>
+      <div><b>③ ほぞん</b>STL または 3MF で ダウンロード</div>
+      <div><b>④ 印刷</b>スライサー（Bambu Studio など）に入れて 3Dプリント</div>
+    </div>
+  </div>
+
+  <footer>
+    ※ つくったデータは この端末の中だけで つくられます。どこにも送信されません。<br>
+    ※ Three.js を ES Module で使うため、<b>server.py 経由</b>（起動.bat）で開いてください。
+  </footer>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,1801 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>なまえプレート ｜ かんたん3D CAD</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f172a'/%3E%3Crect x='6' y='9' width='20' height='14' rx='3' fill='none' stroke='%233b82f6' stroke-width='2.5'/%3E%3Cpath d='M10 19h12' stroke='%233b82f6' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <!-- opentype.js: フォント解析 -->
+  <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+  <!-- qrcodejs: スマホアクセス用 QR コード生成 -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+  <!-- Three.js ES Module (importmap) ※HTTPサーバー経由で使用（file:// 不可） -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <link rel="stylesheet" href="css/common.css">
+  <style>
+    /* このページだけの調整 */
+    .qr-wrap #qrCode { display: inline-block; background:#fff; padding:6px; border-radius:8px; line-height:0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="title">🪪 なまえプレートをつくろう</span>
+  <span class="spacer"></span>
+  <a class="home-link" href="index.html">◀ メニュー</a>
+</header>
+
+<div class="main">
+
+<div class="stage">
+  <canvas id="canvas"></canvas>
+  <div class="stage-hint">ゆび1本：まわす ／ 2本：ズーム</div>
+  <div class="stage-warn" id="floatWarn" style="display:none;"></div>
+  <div id="celebrate"></div>
+</div>
+
+<div class="side">
+
+<!-- ステップ表示 -->
+<div class="steps" id="steps"></div>
+
+<!-- 操作パネル -->
+<div class="panel" id="panel">
+
+  <!-- ① 土台 -->
+  <div class="step-page" data-page="0">
+    <div class="panel-title">① どだいを えらぼう</div>
+    <div class="shape-grid" id="shapeGrid"></div>
+
+    <div class="slider-row">
+      <div class="lab"><span>よこの ながさ</span><b id="baseWVal">– mm</b></div>
+      <input type="range" id="sliderBaseW" min="70" max="140" step="2" value="100">
+    </div>
+    <div class="slider-row">
+      <div class="lab"><span>たての ながさ</span><b id="baseHVal">– mm</b></div>
+      <input type="range" id="sliderBaseH" min="70" max="140" step="2" value="100">
+    </div>
+    <div class="hint-line" id="baseSizeHint">できあがりは 50mm × 40mm までに おさまるよ</div>
+    <div style="text-align:center;"><button class="mini-btn" id="btnBaseReset">おおきさを もとに もどす</button></div>
+
+    <button class="mini-btn" id="btnSubToggle" style="width:100%;margin-top:12px;">▸ もうひとつ かさねる</button>
+    <div id="subWrap" style="display:none;margin-top:8px;">
+      <div class="hint-line">かさねる かたちを えらんでね</div>
+      <div class="shape-grid" id="subGrid"></div>
+      <div class="slider-row">
+        <div class="lab"><span>かさねる おおきさ</span><b id="subSVal">55%</b></div>
+        <input type="range" id="sliderSubS" min="25" max="110" step="1" value="55">
+      </div>
+      <div class="slider-row">
+        <div class="lab"><span>よこ ⬅➡</span></div>
+        <input type="range" id="sliderSubX" min="-140" max="140" step="1" value="0">
+      </div>
+      <div class="slider-row">
+        <div class="lab"><span>たて ⬆⬇</span></div>
+        <input type="range" id="sliderSubY" min="-140" max="140" step="1" value="0">
+      </div>
+      <div class="slider-row">
+        <div class="lab"><span>かさねる かたむき</span><b id="subRVal">0°</b></div>
+        <input type="range" id="sliderSubR" min="-180" max="180" step="1" value="0">
+      </div>
+      <div id="joinMsg" class="hint-line" style="display:none;"></div>
+    </div>
+
+    <div class="qr-wrap">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">📱 スマホで ひらく（QRを よみとってね）</div>
+      <div id="qrCode"></div>
+      <div id="qrUrl" class="qr-url"></div>
+    </div>
+  </div>
+
+  <!-- ② 文字 -->
+  <div class="step-page" data-page="1">
+    <div class="panel-title">② なまえを いれよう <small>12もじまで</small></div>
+    <input type="text" id="charsInput" class="chars-input" maxlength="12" placeholder="なまえ">
+    <div class="hint-line" id="charsHint">ひらがな・カタカナ・えいご・すうじ・きごう（ ( ) _ - ! ? & @ など）が つかえるよ</div>
+    <div class="hint-line" id="fontStatus" style="color:#64748b;">フォント よみこみ中…</div>
+  </div>
+
+  <!-- ③ フォント -->
+  <div class="step-page" data-page="2">
+    <div class="panel-title">③ フォントを えらぼう</div>
+    <div class="font-list" id="fontList"></div>
+  </div>
+
+  <!-- ④ 大きさ -->
+  <div class="step-page" data-page="3">
+    <div class="panel-title">④ おおきさを えらぼう <small>ぜんぶ おなじ 大きさ</small></div>
+    <div class="slider-row">
+      <div class="lab"><span>もじの おおきさ</span><b id="sizeVal">8.5 mm</b></div>
+      <input type="range" id="sliderSize" min="10" max="56" step="1" value="26">
+      <div id="sizeHint" style="font-size:12px;color:#fbbf24;margin-top:6px;"></div>
+    </div>
+  </div>
+
+  <!-- ⑤ 移動 -->
+  <div class="step-page" data-page="4">
+    <div class="panel-title">⑤ もじを うごかそう</div>
+    <div class="char-chips" data-chips="move"></div>
+    <div class="slider-row">
+      <div class="lab"><span>よこ ⬅➡</span></div>
+      <input type="range" id="sliderX" min="-70" max="70" step="0.5" value="0">
+    </div>
+    <div class="slider-row">
+      <div class="lab"><span>たて ⬆⬇</span></div>
+      <input type="range" id="sliderY" min="-45" max="45" step="0.5" value="0">
+    </div>
+    <div style="text-align:center;"><button class="mini-btn" id="btnCenter">はじめの ばしょに もどす</button></div>
+  </div>
+
+  <!-- ⑥ 回転 -->
+  <div class="step-page" data-page="5">
+    <div class="panel-title">⑥ もじを まわそう</div>
+    <div class="char-chips" data-chips="rot"></div>
+    <div class="slider-row">
+      <div class="lab"><span>かたむき</span><b id="rotVal">0°</b></div>
+      <input type="range" id="sliderRot" min="-180" max="180" step="1" value="0">
+    </div>
+    <div style="text-align:center;"><button class="mini-btn" id="btnRotReset">まっすぐに もどす</button></div>
+  </div>
+
+  <!-- ⑦ 高さ -->
+  <div class="step-page" data-page="6">
+    <div class="panel-title">⑦ たかさを えらぼう <small>もじの あつさ</small></div>
+    <div class="char-chips" data-chips="depth"></div>
+    <div class="opt-grid" id="depthOpts"></div>
+  </div>
+
+  <!-- ⑧ 色 -->
+  <div class="step-page" data-page="7">
+    <div class="panel-title">⑧ いろを えらぼう</div>
+    <div class="seg" id="colorModeSeg">
+      <button data-mode="1" class="active">🎨 1いろ</button>
+      <button data-mode="2">🎨🎨 2いろ</button>
+    </div>
+
+    <!-- 土台の色 -->
+    <div class="color-card" data-card="base">
+      <div class="color-card-head">
+        <span class="cc-icon">🟦</span>
+        <span class="cc-title" id="baseColorTitle">ぜんたいの いろ</span>
+        <span class="cc-current"><span class="cc-swatch" id="baseSwatch"></span><span class="cc-name" id="baseColorName"></span></span>
+      </div>
+      <div class="color-list" data-colors="base"></div>
+    </div>
+
+    <!-- なまえ（文字）の色：2いろのときだけ表示 -->
+    <div class="color-card for-text" id="textColorBlock" style="display:none;">
+      <div class="color-card-head">
+        <span class="cc-icon">🔤</span>
+        <span class="cc-title">なまえ（もじ）の いろ</span>
+        <span class="cc-current"><span class="cc-swatch" id="textSwatch"></span><span class="cc-name" id="textColorName"></span></span>
+      </div>
+      <div class="color-list" data-colors="text"></div>
+    </div>
+
+  </div>
+
+  <!-- ⑨ 穴 -->
+  <div class="step-page" data-page="8">
+    <div class="panel-title">⑨ あなを つける <small>ボールチェーン用</small></div>
+
+    <!-- 編集：穴の位置えらび＋かんせいボタン -->
+    <div id="holeEdit">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">ひもを とおす あなの ばしょを えらぼう</div>
+      <div class="opt-grid" id="holeOpts">
+        <button class="opt-btn" data-hole="none">なし</button>
+        <button class="opt-btn" data-hole="top">うえ</button>
+        <button class="opt-btn" data-hole="left">ひだり</button>
+        <button class="opt-btn" data-hole="right">みぎ</button>
+      </div>
+      <button class="action-btn purple" id="btnComplete"
+              style="margin-top:16px;padding:16px;font-size:20px;">🎉 かんせい！</button>
+    </div>
+
+    <!-- 完成：アニメーションのあとに表示 -->
+    <div id="resultPanel" style="display:none;">
+      <div style="text-align:center;font-size:20px;font-weight:bold;margin-bottom:4px;">🎉 できあがり！</div>
+      <div class="hint-line" style="margin-bottom:12px;">3Dプリンターで つかえる データを ほぞんしよう</div>
+
+      <button class="action-btn" id="btnSave3MF">📥 3MFで ほぞん <small style="display:block;font-weight:normal;font-size:11px;opacity:.85;">いろ付き・2色プリントできる</small></button>
+      <button class="action-btn green" id="btnSaveSTL">📥 STLで ほぞん <small style="display:block;font-weight:normal;font-size:11px;opacity:.85;">どの3Dプリンターでも つかえる</small></button>
+
+      <div class="status-msg" id="statusMsg"></div>
+      <button class="action-btn grey" id="btnBackEdit" style="margin-top:10px;padding:12px;">◀ もどって なおす</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ナビ -->
+<div class="nav">
+  <button class="back" id="btnBack">◀ もどる</button>
+  <button class="next" id="btnNext">つぎへ ▶</button>
+</div>
+
+</div><!-- /.side -->
+</div><!-- /.main -->
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLExporter }   from 'three/addons/exporters/STLExporter.js';
+
+// ── 定数 (1 unit = 1 mm) ─────────────────────────────────────────
+const MAX_CHARS = 12;
+const CHAR_MIN  = 10;   // mm(前スケール): 文字の大きさの最小（表示 約3.3mm）
+const CHAR_MAX  = 56;   // mm: 文字の大きさの最大
+const CHAR_DEFAULT = 26;// mm: 文字の大きさの初期値（全文字共通）
+const BASE_D    = 3;    // mm: 土台の厚さ（全ての土台で共通）
+const CURVE_SEGS = 16;
+// 非均一スケール：平面(X/Y)は縮小、厚み(Z)は元のまま
+const MODEL_SCALE_XY = 0.325; // 平面（footprint・文字の大きさ）。元50%→65%
+const MODEL_SCALE_Z  = 0.5;   // 厚み・高さ（元のまま）
+
+// ── 印刷で消えない線の太さ ──────────────────────────────────────
+// 0.4mmノズルは これより細い線を出力しない ＝ 文字の一部（とくに明朝の横線）が消える。
+// 対策は2つ: ①足りないぶん輪郭を太らせる ②書体ごとに大きさの下限を上げる
+const MIN_STROKE_MM    = 0.45;  // 実寸mm: 印刷で残したい いちばん細い線の太さ
+const MAX_DILATE_RATIO = 0.03;  // em比: 太らせの上限（片側）。これ以上は字が つぶれる
+// 土台のふちの面取り（ベベル）：角を丸めて危なくないようにする
+const BASE_BEVEL_T = 0.7;   // mm: 上下方向の面取りの厚み
+const BASE_BEVEL_S = 0.9;   // mm: 外側への面取りの大きさ
+// ボールチェーン用のドーナツ型リング（辺にくっつけて飛び出させる）。形・サイズは統一、位置だけ選択。
+// 全体スケールを下げてもドーナツは「元の90%」の大きさを保つよう、前スケール寸法を補正
+// （13.85×0.325 ≒ 4.5mm＝旧 10×0.5=5mm の90%）
+// 完成品（あなのリング・かさねた形すべてを含む）の最大サイズ。
+// これを超えそうなときは土台を自動で縮めて必ず収める（リングはチェーンが通るよう縮めない）。
+const PLATE_MAX_W_MM = 50;
+const PLATE_MAX_H_MM = 40;
+// かさねた形の つなぎ目が これより細いと折れやすいので警告する
+const JOIN_MIN_MM = 3;
+
+const HOLE_ROUT = 13.85; // mm(前スケール): リングの外側の半径
+const HOLE_RIN  = 6.23;  // mm(前スケール): 中央の穴の半径（ボールチェーンを通す）
+
+// 高さ（文字の押し出し）3段階
+const DEPTH_LEVELS = [
+  { depth: 1, name: 'ひくい', mm: '1mm' },
+  { depth: 3, name: 'ふつう', mm: '3mm' },
+  { depth: 5, name: 'たかい', mm: '5mm' },
+];
+
+// フィラメントの色（Bambu Lab 純正 PLA Basic・公式hex）
+// 使用プリンター: Bambu Lab P1S / 純正フィラメント
+const FILAMENTS = [
+  { name: 'くろ',    short: '黒', hex: 0x000000 },  // Black
+  { name: 'しろ',    short: '白', hex: 0xffffff },  // Jade White
+  { name: 'はいいろ', short: '灰', hex: 0x8e9089 },  // Gray
+  { name: 'みずいろ', short: '水', hex: 0x00b1b7 },  // Turquoise
+  { name: 'ぴんく',  short: '桃', hex: 0xf5547c },  // Hot Pink
+  { name: 'おれんじ', short: '橙', hex: 0xff6a13 },  // Orange
+  { name: 'みどり',  short: '緑', hex: 0x00ae42 },  // Bambu Green
+];
+
+// ── 土台の形の定義 ───────────────────────────────────────────────
+// half: 文字を動かせる範囲（土台の内側のおよその半分の大きさ mm）
+const SHAPES = [
+  { id: 'roundrect', name: 'しかく',   half: { x: 72, y: 34 } },
+  { id: 'square',    name: 'ましかく', half: { x: 40, y: 40 } },
+  { id: 'longrect',  name: 'ながしかく', half: { x: 75, y: 19 } },
+  { id: 'circle',    name: 'まる',     half: { x: 42, y: 42 } },
+  { id: 'ellipse',   name: 'たまご',   half: { x: 62, y: 38 } },
+  { id: 'hexagon',   name: 'ろっかく', half: { x: 46, y: 40 } },
+  { id: 'heart',     name: 'ハート',   half: { x: 40, y: 26 } },
+  { id: 'star',      name: 'ほし',     half: { x: 36, y: 30 } },
+  { id: 'cloud',     name: 'くも',     half: { x: 58, y: 22 } },
+  { id: 'fish',      name: 'さかな',   half: { x: 44, y: 24 } },
+  { id: 'cat',       name: 'ねこ',     half: { x: 40, y: 26 } },
+  { id: 'car',       name: 'くるま',   half: { x: 60, y: 15 } },
+  { id: 'bubble',    name: 'ふきだし', half: { x: 64, y: 32 } },
+  { id: 'onigiri',   name: 'おにぎり', half: { x: 34, y: 22 } },
+  { id: 'flower',    name: 'はな',     half: { x: 34, y: 30 } },
+  { id: 'clover',    name: 'クローバー', half: { x: 46, y: 18 } },
+  { id: 'ribbon',    name: 'リボン',   half: { x: 52, y: 16 } },
+  { id: 'train',     name: 'でんしゃ', half: { x: 62, y: 22 } },
+  { id: 'web',       name: 'くものす', half: { x: 36, y: 26 } },
+];
+
+// かさねる（合体）で使える形は、つなぎ目が読みやすい単純な図形だけにする
+const SUB_SHAPES = [
+  { id: 'none',     name: 'かさねない' },
+  { id: 'circle',   name: 'まる' },
+  { id: 'triangle', name: 'さんかく' },
+  { id: 'square',   name: 'しかく' },
+  { id: 'hexagon',  name: 'ろっかく' },
+  { id: 'diamond',  name: 'ダイヤ' },
+];
+
+// 選択ボタンのシルエットは、実際の土台データ（makeBaseShapes）から毎回つくる。
+// 手描きSVGだと形を直したときにずれるので、常に本物と一致させる。
+const ICON_NONE = '<svg viewBox="0 0 46 40"><path class="fill" d="M13 12L20 20L13 28L15 30L23 22L31 30L33 28L26 20L33 12L31 10L23 18L15 10Z"/></svg>';
+function shapeIconSVG(id) {
+  if (id === 'none') return ICON_NONE;
+  const VW = 46, VH = 40, PAD = 2.5;
+  const polys = makeBaseShapes(id).map(s => s.getPoints(8));
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const p of polys) for (const q of p) {
+    x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x);
+    y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y);
+  }
+  const k = Math.min((VW - 2 * PAD) / (x1 - x0), (VH - 2 * PAD) / (y1 - y0));
+  const ox = (VW - (x1 - x0) * k) / 2, oy = (VH - (y1 - y0) * k) / 2;
+  const paths = polys.map(p => {
+    let d = '', last = '';
+    for (const q of p) {
+      const X = +((q.x - x0) * k + ox).toFixed(1);
+      const Y = +(VH - ((q.y - y0) * k + oy)).toFixed(1);   // SVGは y が下向き
+      const cur = X + ' ' + Y;
+      if (cur === last) continue;
+      d += (d ? 'L' : 'M') + cur;
+      last = cur;
+    }
+    return `<path class="fill" d="${d}Z"/>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${VW} ${VH}">${paths}</svg>`;
+}
+
+// ── 状態 ─────────────────────────────────────────────────────────
+const state = {
+  step: 0,
+  shape: 'roundrect',
+  baseSX: 1,            // 土台の よこ倍率（①のスライダー）
+  baseSY: 1,            // 土台の たて倍率
+  sub: 'none',          // かさねる2つ目の形（'none' = かさねない）
+  subX: 0, subY: 0,     // 2つ目の形の位置
+  subScale: 0.55,       // 2つ目の形の大きさ（倍率）
+  subRot: 0,            // 2つ目の形の かたむき（ラジアン）
+  hole: 'top',          // ボールチェーン穴の位置：'none' | 'top' | 'left' | 'right'
+  fontId: 'gothic',     // フォント：'gothic' | 'maru' | 'pop'
+  charSize: CHAR_DEFAULT,       // mm: 実際に使う文字の大きさ（土台に収まるよう自動で抑える）
+  charSizeWanted: CHAR_DEFAULT, // mm: ④で本人が選んだ大きさ。土台が広がればここまで戻す
+  chars: [],            // { char, depth, x, y, rot, moved }
+  active: 0,            // 編集中の文字の番号
+  colorMode: '2',       // '1' | '2'（初期は見やすいよう2色）
+  baseColor: FILAMENTS[2].hex,   // はいいろ（土台）
+  textColor: FILAMENTS[1].hex,   // しろ（文字）
+};
+// フォント（サブセット済み・軽量）
+// stroke = その書体の「いちばん細い線」の太さ（em比）。かな・カナを em=1000px で
+// ラスタライズして縦ランの5%点を測った実測値。太らせ量と大きさの下限を決めるのに使う。
+const FONTS = [
+  { id: 'gothic', name: 'ゴシック',     file: './fonts/gothic.ttf', css: 'f-gothic', stroke: 0.053 },
+  { id: 'mincho', name: 'みんちょう',   file: './fonts/mincho.ttf', css: 'f-mincho', stroke: 0.025 },
+  { id: 'maru',   name: 'まる',         file: './fonts/maru.ttf',   css: 'f-maru',   stroke: 0.083 },
+  { id: 'pop',    name: 'ふとポップ',   file: './fonts/pop.ttf',    css: 'f-pop',    stroke: 0.082 },
+  { id: 'robo',   name: 'ドット',       file: './fonts/robo.ttf',   css: 'f-robo',   stroke: 0.072 },
+];
+function fontDef(id) { return FONTS.find(f => f.id === id) || FONTS[0]; }
+
+// この書体・この大きさで、輪郭を片側どれだけ太らせるか（内部単位）。
+// 目標の太さに足りないぶんだけ膨らませ、字が つぶれない上限で止める。
+function dilateFor(size) {
+  const want = MIN_STROKE_MM / MODEL_SCALE_XY;          // 内部単位に直した目標の太さ
+  const now  = fontDef(state.fontId).stroke * size;     // いまの いちばん細い線
+  return Math.min(Math.max(0, (want - now) / 2), size * MAX_DILATE_RATIO);
+}
+
+// この書体で「太らせても線が消えない」最小の大きさ（内部単位）
+function minSizeForFont(id) {
+  const eff = fontDef(id).stroke + 2 * MAX_DILATE_RATIO;   // 太らせ上限まで使ったときの太さ
+  return Math.max(CHAR_MIN, Math.ceil(MIN_STROKE_MM / (eff * MODEL_SCALE_XY)));
+}
+const fontCache = {};    // id -> opentype font
+let font = null;         // 現在のフォント（= fontCache[state.fontId]）
+
+// ── Three.js 初期化 ──────────────────────────────────────────────
+const canvas   = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x0a0f1e);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 3000);
+camera.position.set(0, -55, 65);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+// 視点回転の感度（1.0が既定＝子どもの指だと敏感すぎるので下げる）
+controls.rotateSpeed = 0.4;
+controls.target.set(0, 0, 3);
+controls.update();
+
+// カメラの視点プリセット
+// ①②：ななめ／③④⑤（大きさ・移動・回転）：真上（配置しやすい）
+// ⑥たかさ：横から（真横ではなく約70°）＝文字の高さが分かる
+const VIEW_PERSPECTIVE = { pos: new THREE.Vector3(0, -55, 65),   tgt: new THREE.Vector3(0, 0, 3) };
+const VIEW_TOP         = { pos: new THREE.Vector3(0, -1, 86),    tgt: new THREE.Vector3(0, 0, 0) };
+const VIEW_SIDE        = { pos: new THREE.Vector3(0, -68, 26),   tgt: new THREE.Vector3(0, 0, 3) };
+const HERO_VIEW        = { pos: new THREE.Vector3(0, -31, 39),   tgt: new THREE.Vector3(0, 0, 3) }; // 完成時のズーム
+let camView  = VIEW_PERSPECTIVE;   // 現在めざしている視点
+let camTween = null;   // { fromPos, toPos, fromTgt, toTgt, start, dur }
+let completeAnim = null;   // 完成アニメーション { start, dur, onDone }
+
+// ステップごとの視点を決める
+function viewForStep(step) {
+  if (step <= 2) return VIEW_PERSPECTIVE;  // どだい・なまえ・フォント
+  if (step === 6) return VIEW_SIDE;        // たかさ
+  if (step === 7) return VIEW_PERSPECTIVE; // いろ（最初と同じななめ視点）
+  return VIEW_TOP;                         // おおきさ・うごかす・まわす・あな
+}
+
+// カメラをアニメーションで移動する
+function moveCameraTo(view, dur = 700) {
+  camTween = {
+    fromPos: camera.position.clone(), toPos: view.pos.clone(),
+    fromTgt: controls.target.clone(), toTgt: view.tgt.clone(),
+    start: performance.now(), dur,
+  };
+  controls.enabled = false;   // アニメ中はユーザー操作を止める
+}
+const easeInOut = t => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+
+// 完成アニメーション（ライトアップ＋1回転＋ズーム）を再生する
+function playCompletion(onDone) {
+  completeAnim = { start: performance.now(), dur: 1900, onDone };
+  moveCameraTo(HERO_VIEW, 1900);   // ズーム
+}
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+sun.position.set(60, 90, 180);
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0x88aaff, 0.25);
+fill.position.set(-80, -60, 50);
+scene.add(fill);
+
+// 完成演出用のスポット的ライト（ふだんは消灯、かんせい時に光らせる）
+const heroLight = new THREE.PointLight(0xfff2cc, 0, 300);   // あたたかい金色
+heroLight.position.set(0, -13, 55);
+scene.add(heroLight);
+
+const grid = new THREE.GridHelper(400, 40, 0x1e293b, 0x1e293b);
+grid.rotation.x = Math.PI / 2;
+grid.position.z = -0.5;
+scene.add(grid);
+
+function onResize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h || 1;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(onResize).observe(canvas);
+onResize();
+
+(function loop() {
+  requestAnimationFrame(loop);
+  if (camTween) {
+    const t = Math.min(1, (performance.now() - camTween.start) / camTween.dur);
+    const e = easeInOut(t);
+    camera.position.lerpVectors(camTween.fromPos, camTween.toPos, e);
+    controls.target.lerpVectors(camTween.fromTgt, camTween.toTgt, e);
+    if (t >= 1) { camTween = null; controls.enabled = true; }
+  }
+  if (completeAnim && modelGroup) {
+    const t = Math.min(1, (performance.now() - completeAnim.start) / completeAnim.dur);
+    modelGroup.rotation.z = easeInOut(t) * Math.PI * 2;                 // 1回転
+    { const s = 1 + Math.sin(t * Math.PI) * 0.16; modelGroup.scale.set(MODEL_SCALE_XY * s, MODEL_SCALE_XY * s, MODEL_SCALE_Z * s); } // ぷるんと拡大
+    heroLight.intensity   = Math.sin(t * Math.PI) * 3.2 + t * 0.9;      // パッと光る
+    if (t >= 1) {
+      modelGroup.rotation.z = 0;
+      modelGroup.scale.set(MODEL_SCALE_XY, MODEL_SCALE_XY, MODEL_SCALE_Z);
+      heroLight.intensity   = 1.3;   // 完成後は少し明るいまま
+      const cb = completeAnim.onDone; completeAnim = null;
+      if (cb) cb();
+    }
+  }
+  controls.update();
+  renderer.render(scene, camera);
+})();
+
+// ── モデル（土台＋文字）────────────────────────────────────────────
+let modelGroup = null;   // THREE.Group
+let baseObj    = null;   // 土台（Mesh または Group）
+let charMeshes = [];     // 文字メッシュ（state.chars と同じ順）
+let baseTopZ   = BASE_D; // 土台の上面のZ（ベベルにより実測値を使う）
+let baseFootprint = { w: 0, h: 0 };  // 完成サイズ（リング込み・①のmm表示用）
+let baseFit = 1;                     // 50×40mmに収めるための自動縮小倍率（1＝縮めていない）
+let baseJoin = { touching: true, widthMM: Infinity };  // かさねた形との つなぎ目の状態
+let baseSolid = () => true;          // (x,y) に土台があるか
+let floatingChars = [];              // 土台からはみ出している文字の番号
+
+// 文字が土台の上に ちゃんと乗っているか調べる（はみ出すと宙に浮いて印刷できない）
+function checkFloatingChars() {
+  floatingChars = [];
+  charMeshes.forEach((m, i) => {
+    if (!m || !m.userData.outline) return;
+    const sel = state.chars[i];
+    const c = Math.cos(sel.rot), s = Math.sin(sel.rot);
+    for (const p of m.userData.outline) {
+      const x = sel.x + p.x * c - p.y * s;
+      const y = sel.y + p.x * s + p.y * c;
+      if (!baseSolid(x, y)) { floatingChars.push(i); return; }
+    }
+  });
+  return floatingChars;
+}
+
+let safeHalf = { x: 40, y: 20 };     // 文字を横一列に並べられる範囲（自動配置・自動サイズ用）
+let baseBox = { minX: -40, maxX: 40, minY: -20, maxY: 20 };  // 土台の外形。⑤で動かせる範囲
+
+// 文字を置ける範囲。SHAPES の half は「たてよこの比」の目安として使い、
+// 実際にその長方形が土台に乗りきるところまで縮めて確定させる。
+// （手打ちの half は ほし・おにぎり のような へこんだ形で広すぎた）
+function measureSafeHalf() {
+  const base = SHAPES.find(s => s.id === state.shape).half;
+  const bx = base.x * state.baseSX * baseFit, by = base.y * state.baseSY * baseFit;
+  const fits = k => {
+    const hx = bx * k, hy = by * k;
+    for (let i = 0; i <= 8; i++) for (let j = 0; j <= 4; j++) {
+      if (!baseSolid(-hx + 2 * hx * i / 8, -hy + 2 * hy * j / 4)) return false;
+    }
+    return true;
+  };
+  if (fits(1)) return { x: bx, y: by };
+  let lo = 0.08, hi = 1;
+  for (let i = 0; i < 12; i++) { const m = (lo + hi) / 2; if (fits(m)) lo = m; else hi = m; }
+  return { x: bx * lo, y: by * lo };
+}
+function activeHalf() { return safeHalf; }
+
+// 頂点の配列から「角を丸めた」シェイプを作る（星・ハートの尖り対策）
+// radiusFn(i) で頂点ごとの丸め半径を指定できる。半径は隣の辺の長さで自動クランプ。
+function roundedPolyShape(verts, radiusFn) {
+  const n = verts.length;
+  const s = new THREE.Shape();
+  for (let i = 0; i < n; i++) {
+    const prev = verts[(i - 1 + n) % n];
+    const cur  = verts[i];
+    const next = verts[(i + 1) % n];
+    const r    = typeof radiusFn === 'function' ? radiusFn(i) : radiusFn;
+    const toPrev = prev.clone().sub(cur);
+    const toNext = next.clone().sub(cur);
+    const rr = Math.min(r, toPrev.length() * 0.5, toNext.length() * 0.5);
+    const a = cur.clone().add(toPrev.setLength(rr));  // 手前の辺の上の点
+    const b = cur.clone().add(toNext.setLength(rr));  // 次の辺の上の点
+    if (i === 0) s.moveTo(a.x, a.y); else s.lineTo(a.x, a.y);
+    s.quadraticCurveTo(cur.x, cur.y, b.x, b.y);       // 頂点を通る丸み
+  }
+  s.closePath();
+  return s;
+}
+
+// 点(x,y)が多角形 pts の内側かどうか（even-odd）
+function pointInPoly(x, y, pts) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+
+// ドーナツ型リング（外円＋中央の穴）のシェイプ。土台の辺にくっつけて使う。
+function donutShape(cx, cy) {
+  const outer = new THREE.Shape();
+  outer.absarc(cx, cy, HOLE_ROUT, 0, Math.PI * 2, false);
+  const inner = new THREE.Path();
+  inner.absarc(cx, cy, HOLE_RIN, 0, Math.PI * 2, true);   // 中央の穴
+  outer.holes.push(inner);
+  return outer;
+}
+
+// 土台の変形：よこ倍率 sx・たて倍率 sy・回転 rot・位置ずらし ox,oy
+// ①の大きさスライダーと、かさねる2つ目の形の両方で使う。
+const XF_NONE = { sx: 1, sy: 1, rot: 0, ox: 0, oy: 0 };
+
+// 土台のシェイプ（THREE.Shape[]）を作る
+// 複数のシェイプを返す形（くも・さかな等）は、重なりをスライサーが処理してひとつの部品になる。
+function makeBaseShapes(id, t = XF_NONE) {
+  const rot = t.rot || 0, cr = Math.cos(rot), sr = Math.sin(rot);
+  // 拡大 → 回転 → 位置ずらし の順にかける
+  const P = (x, y) => {
+    const px = x * t.sx, py = y * t.sy;
+    return [px * cr - py * sr + t.ox, px * sr + py * cr + t.oy];
+  };
+  const R = r => r * Math.min(t.sx, t.sy);          // 角丸は つぶれない側に合わせる
+  const V = (x, y) => new THREE.Vector2(...P(x, y));
+  // 角丸四角（中心 cx,cy）＝ 角を丸めた四角形。poly 経由なので回転にも対応する。
+  const rect = (w, h, r, cx = 0, cy = 0) => poly([
+    [cx - w / 2, cy - h / 2], [cx + w / 2, cy - h / 2],
+    [cx + w / 2, cy + h / 2], [cx - w / 2, cy + h / 2],
+  ], r);
+  // 円／だ円（中心 cx,cy・半径 rx,ry）
+  const ell = (cx, cy, rx, ry) => {
+    const s = new THREE.Shape();
+    s.absellipse(...P(cx, cy), rx * t.sx, ry * t.sy, 0, Math.PI * 2, false, rot);
+    return s;
+  };
+  // 角を丸めた多角形（[[x,y],…]）
+  const poly = (pts, r) =>
+    roundedPolyShape(pts.map(p => V(p[0], p[1])), typeof r === 'function' ? r : () => R(r));
+
+  if (id === 'roundrect') return [rect(158, 90, 16)];
+  if (id === 'square')    return [rect(112, 112, 18)];
+  if (id === 'longrect')  return [rect(170, 52, 16)];
+  if (id === 'circle')    return [ell(0, 0, 56, 56)];
+  if (id === 'ellipse')   return [ell(0, 0, 84, 58)];
+  if (id === 'hexagon') {
+    // 角を丸めた六角形（上下が水平な辺＝文字を乗せやすい向き）
+    const Rr = 62, verts = [];
+    for (let i = 0; i < 6; i++) {
+      const a = i * Math.PI / 3;   // 0°スタート＝左右が頂点、上下が水平辺
+      verts.push([Math.cos(a) * Rr, Math.sin(a) * Rr]);
+    }
+    return [poly(verts, 12)];
+  }
+  if (id === 'heart') {
+    // ベジェ曲線で描く素直なハート（上下中央そろえ）。
+    // 元データは y 下向き → P() で y 反転＋中央寄せ（+2）してから sc 倍。
+    const s = new THREE.Shape(), sc = 4;
+    const H = (x, y) => P(x * sc, (-y + 2) * sc);
+    s.moveTo(...H(-1, 17.2));                                  // 左の付け根（先端の少し手前）
+    s.bezierCurveTo(...H(-6, 10), ...H(-16, 8), ...H(-16, -2)); // 左下→左外
+    s.bezierCurveTo(...H(-16, -10), ...H(-8, -14), ...H(0, -6)); // 左のふくらみ→上の谷
+    s.bezierCurveTo(...H(8, -14), ...H(16, -10), ...H(16, -2));  // 右のふくらみ
+    s.bezierCurveTo(...H(16, 8), ...H(6, 10), ...H(1, 17.2));    // 右外→右の付け根
+    s.quadraticCurveTo(...H(0, 18), ...H(-1, 17.2));           // 下の先っぽを軽く丸める
+    return [s];
+  }
+  if (id === 'star') {
+    // 丸みのある星：外側のとがりを大きめ、内側のくぼみを小さめに丸める
+    const outR = 74, inR = 34, n = 5, verts = [];
+    for (let i = 0; i < n * 2; i++) {
+      const r = i % 2 === 0 ? outR : inR;
+      const a = Math.PI / 2 + i * Math.PI / n;
+      verts.push([Math.cos(a) * r, Math.sin(a) * r]);
+    }
+    return [poly(verts, i => R(i % 2 === 0 ? 16 : 11))];
+  }
+  if (id === 'cloud') {
+    // 複数の円＋横長の角丸で「雲」を表現
+    const shapes = [rect(118, 44, 22)];
+    for (const [cx, cy, br] of [[-60, -2, 18], [-34, 12, 24], [2, 18, 28], [38, 12, 25], [62, -2, 18]])
+      shapes.push(ell(cx, cy, br, br));
+    return shapes;
+  }
+  if (id === 'fish') {
+    // からだ（だ円）＋しっぽ（丸めた三角）。しっぽは太めにして折れないように。
+    return [ell(8, 0, 62, 40), poly([[-28, 0], [-80, 36], [-80, -36]], 10)];
+  }
+  if (id === 'cat') {
+    // かお（だ円）＋みみ2つ。みみの先は丸めて厚みを確保する。
+    return [ell(0, -4, 56, 48),
+            poly([[-50, 8], [-34, 56], [-6, 24]], 7),
+            poly([[50, 8], [34, 56], [6, 24]], 7)];
+  }
+  if (id === 'car') {
+    // ボディ＋うわぶぶん＋タイヤ2つ
+    return [rect(152, 46, 14, 0, 2), rect(84, 42, 14, -8, 32),
+            ell(-46, -26, 21, 21), ell(46, -26, 21, 21)];
+  }
+  if (id === 'bubble') {
+    // ふきだし：角丸四角＋左下のしっぽ
+    return [rect(154, 86, 26, 0, 8), poly([[-46, -26], [-58, -74], [-6, -30]], 6)];
+  }
+  if (id === 'onigiri') {
+    return [poly([[0, 60], [-64, -44], [64, -44]], 22)];
+  }
+  if (id === 'train') {
+    // 電車の よこがお：しゃたい＋車輪を2つずつ2組。
+    // 車輪を等間隔に並べると ただの波形に見えるので、2組に分けて間をあける。
+    return [rect(160, 76, 14, 0, 6),
+            ell(-60, -30, 17, 17), ell(-30, -30, 17, 17),
+            ell(30, -30, 17, 17), ell(60, -30, 17, 17)];
+  }
+  if (id === 'web') {
+    // くもの巣：外に8つの とがり、あいだを内側へ へこませた シルエット。
+    // 本物のような細い糸は印刷できないので、面（板）として表現する。
+    const s = new THREE.Shape();
+    const n = 8, R = 66, DIP = 0.7;
+    const tip = i => { const a = Math.PI / 2 + i * Math.PI * 2 / n; return P(Math.cos(a) * R, Math.sin(a) * R); };
+    const dip = i => { const a = Math.PI / 2 + (i + 0.5) * Math.PI * 2 / n; return P(Math.cos(a) * R * DIP, Math.sin(a) * R * DIP); };
+    s.moveTo(...tip(0));
+    for (let i = 0; i < n; i++) s.quadraticCurveTo(...dip(i), ...tip(i + 1));
+    return [s];
+  }
+  // ── かさねる用の単純な形（土台の一覧には出さない）──
+  if (id === 'triangle') return [poly([[0, 62], [-58, -40], [58, -40]], 16)];
+  if (id === 'diamond')  return [poly([[0, 66], [56, 0], [0, -66], [-56, 0]], 14)];
+  if (id === 'flower') {
+    // まんなかの円＋はなびら5まい
+    const shapes = [ell(0, 0, 30, 30)];
+    for (let i = 0; i < 5; i++) {
+      const a = Math.PI / 2 + i * Math.PI * 2 / 5;
+      shapes.push(ell(Math.cos(a) * 38, Math.sin(a) * 38, 27, 27));
+    }
+    return shapes;
+  }
+  if (id === 'clover') {
+    // 4つの円＋まんなかを埋める角丸四角。
+    // 葉は上下左右に置く：上が2つに割れているとリングが葉に埋もれて見えなくなるため。
+    const shapes = [rect(48, 48, 12)];
+    for (const [cx, cy] of [[0, 36], [0, -36], [-36, 0], [36, 0]]) shapes.push(ell(cx, cy, 30, 30));
+    return shapes;
+  }
+  if (id === 'ribbon') {
+    // まんなかのむすびめ＋左右のわ
+    // わの内側は とがらせず、太いまま むすびめの中まで差し込む。
+    // （三角の頂点で接すると つなぎ目がごく細くなり、印刷後に折れやすい）
+    return [rect(44, 44, 10),
+            poly([[-10, -17], [-78, -40], [-78, 40], [-10, 17]], 10),
+            poly([[10, 17], [78, 40], [78, -40], [10, -17]], 10)];
+  }
+  // フォールバック
+  return [ell(0, 0, 50, 50)];
+}
+
+// シェイプ群の外形（単位はモデル座標）
+function bboxOf(shapes) {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const s of shapes) for (const p of s.getPoints(48)) {
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+  }
+  return { minX, maxX, minY, maxY, w: maxX - minX, h: maxY - minY };
+}
+
+// シェイプ群の「そこに土台があるか」を判定する関数を作る
+function solidTesterOf(shapes) {
+  const outlines = shapes.map(s => ({
+    outer: s.getPoints(64),
+    holes: (s.holes || []).map(h => h.getPoints(24)),
+  }));
+  return (x, y) => outlines.some(o =>
+    pointInPoly(x, y, o.outer) && !o.holes.some(h => pointInPoly(x, y, h)));
+}
+
+// リングを付ける向き（星だけ左右をへこみ方向にする）
+function holeDir() {
+  if (state.shape === 'star' && state.hole === 'right') { const a = 342 * Math.PI / 180; return [Math.cos(a), Math.sin(a)]; }
+  if (state.shape === 'star' && state.hole === 'left')  { const a = 198 * Math.PI / 180; return [Math.cos(a), Math.sin(a)]; }
+  return state.hole === 'top' ? [0, 1] : state.hole === 'right' ? [1, 0] : [-1, 0];
+}
+
+// 中心から dir 方向へ進んで、いちばん外の「土台がある」位置＝縁を探す
+function edgeAlong(shapes, dir) {
+  const isSolid = solidTesterOf(shapes);
+  let edge = 0;
+  for (let r = 0; r <= 400; r += 0.5) if (isSolid(dir[0] * r, dir[1] * r)) edge = r;
+  return edge;
+}
+
+// 完成品が PLATE_MAX に収まる最大の倍率を返す（リングはチェーンが通るよう縮めない）。
+// 土台は倍率に比例して大きくなるので、二分探索でぴったり入る値を求める。
+function fitScale(box, edge, dir) {
+  const LW = PLATE_MAX_W_MM / MODEL_SCALE_XY, LH = PLATE_MAX_H_MM / MODEL_SCALE_XY;
+  const sizeAt = k => {
+    let x0 = box.minX * k, x1 = box.maxX * k, y0 = box.minY * k, y1 = box.maxY * k;
+    if (state.hole !== 'none') {
+      const c = edge * k + HOLE_RIN + 1;
+      x0 = Math.min(x0, c * dir[0] - HOLE_ROUT); x1 = Math.max(x1, c * dir[0] + HOLE_ROUT);
+      y0 = Math.min(y0, c * dir[1] - HOLE_ROUT); y1 = Math.max(y1, c * dir[1] + HOLE_ROUT);
+    }
+    // 面取りは輪郭より外へふくらむ。倍率では変わらないので、そのぶん常に足す。
+    return { w: x1 - x0 + 2 * BASE_BEVEL_S, h: y1 - y0 + 2 * BASE_BEVEL_S };
+  };
+  const fits = k => { const s = sizeAt(k); return s.w <= LW && s.h <= LH; };
+  if (fits(1)) return 1;
+  let lo = 0.05, hi = 1;
+  for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
+  return lo;
+}
+
+// 主の形と かさねた形が どれくらい重なっているか（つなぎ目の太さを見る）
+// 重なった領域をます目で拾い、その大きさを mm で返す。
+function joinInfo(mainShapes, subShapes) {
+  const isMain = solidTesterOf(mainShapes), isSub = solidTesterOf(subShapes);
+  const b = bboxOf(subShapes);
+  const N = 28;
+  const dx = b.w / N, dy = b.h / N;
+  let count = 0, minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
+    const x = b.minX + dx * i, y = b.minY + dy * j;
+    if (!isSub(x, y) || !isMain(x, y)) continue;
+    count++;
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+  }
+  if (!count) return { touching: false, widthMM: 0 };
+  // つなぎ目の太さ＝重なった領域の長いほうの差し渡し（ここが折れる断面になる）
+  const w = (maxX - minX) + dx, h = (maxY - minY) + dy;
+  return { touching: true, widthMM: Math.max(w, h) * MODEL_SCALE_XY };
+}
+
+function makeBaseObject() {
+  // k 倍で 土台一式（リングは別）を組み立てる
+  const mainXF = k => ({ sx: state.baseSX * k, sy: state.baseSY * k, rot: 0, ox: 0, oy: 0 });
+  const subXF  = k => ({ sx: state.subScale * k, sy: state.subScale * k, rot: state.subRot,
+                         ox: state.subX * k, oy: state.subY * k });
+  const build = k => {
+    const shapes = makeBaseShapes(state.shape, mainXF(k));
+    if (state.sub !== 'none') shapes.push(...makeBaseShapes(state.sub, subXF(k)));
+    return shapes;
+  };
+  // ① 等倍で測る → ② 50×40mm に収まる倍率を求める → ③ その倍率で作り直す
+  const shapes1 = build(1);
+  const dir = holeDir();
+  const edge1 = state.hole === 'none' ? 0 : edgeAlong(shapes1, dir);
+  baseFit = fitScale(bboxOf(shapes1), edge1, dir);
+  const shapes = baseFit === 1 ? shapes1 : build(baseFit);
+
+  // かさねた形が ちゃんとくっついているかを調べる（①の警告に使う）
+  if (state.sub === 'none') baseJoin = { touching: true, widthMM: Infinity };
+  else baseJoin = joinInfo(makeBaseShapes(state.shape, mainXF(baseFit)),
+                           makeBaseShapes(state.sub, subXF(baseFit)));
+
+  // ボールチェーン用のドーナツ型リングを、選んだ辺の外側にくっつける
+  if (state.hole !== 'none') {
+    const c = edge1 * baseFit + HOLE_RIN + 1;   // リング下側が土台と重なって融合する量
+    shapes.push(donutShape(dir[0] * c, dir[1] * c));
+  }
+  // ラベル表示用の完成サイズ（リング込み）。面取りのぶん外へふくらむので足しておく。
+  const bb = bboxOf(shapes);
+  baseFootprint = { w: bb.w + 2 * BASE_BEVEL_S, h: bb.h + 2 * BASE_BEVEL_S };
+  baseBox = bb;    // ⑤で文字を動かせる範囲（土台のあるところ全部）
+  // 文字が土台の上に乗っているかを調べるための判定関数（面取りぶんは安全側で見ない）
+  baseSolid = solidTesterOf(shapes);
+  const geo = new THREE.ExtrudeGeometry(shapes, {
+    depth: BASE_D,
+    bevelEnabled: true,
+    bevelThickness: BASE_BEVEL_T,
+    bevelSize: BASE_BEVEL_S,
+    bevelOffset: 0,
+    bevelSegments: 3,
+    curveSegments: CURVE_SEGS,
+  });
+  const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: state.baseColor }));
+  mesh.userData.isBase = true;
+  return mesh;
+}
+
+// 1文字のメッシュ（opentype path → Shape → Extrude）
+function pathToShapes(opPath) {
+  const sp = new THREE.ShapePath();
+  for (const cmd of opPath.commands) {
+    switch (cmd.type) {
+      case 'M': sp.moveTo(cmd.x, -cmd.y); break;
+      case 'L': sp.lineTo(cmd.x, -cmd.y); break;
+      case 'C': sp.bezierCurveTo(cmd.x1, -cmd.y1, cmd.x2, -cmd.y2, cmd.x, -cmd.y); break;
+      case 'Q': sp.quadraticCurveTo(cmd.x1, -cmd.y1, cmd.x, -cmd.y); break;
+      case 'Z': if (sp.currentPath) sp.currentPath.autoClose = true; break;
+    }
+  }
+  return sp.toShapes(false);
+}
+
+// 太らせると同じ数だけ「面積0の三角形」ができる（bevelの厚み・幅が0のため）。
+// そのままだと3MFが倍になりスライサーの修復警告も出るので取り除く。
+function stripDegenerate(geo) {
+  const pos = geo.attributes.position, nor = geo.attributes.normal;
+  const p = [], n = [];
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i += 3) {
+    a.fromBufferAttribute(pos, i); b.fromBufferAttribute(pos, i + 1); c.fromBufferAttribute(pos, i + 2);
+    if (b.sub(a).cross(c.sub(a)).lengthSq() < 1e-12) continue;
+    for (let k = 0; k < 3; k++) {
+      p.push(pos.getX(i + k), pos.getY(i + k), pos.getZ(i + k));
+      if (nor) n.push(nor.getX(i + k), nor.getY(i + k), nor.getZ(i + k));
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+  if (n.length) g.setAttribute('normal', new THREE.Float32BufferAttribute(n, 3));
+  geo.dispose();
+  return g;
+}
+
+function makeCharMesh(ch, depth) {
+  const opPath = font.getPath(ch, 0, 0, state.charSize);
+  const shapes = pathToShapes(opPath);
+  if (!shapes.length) return null;
+  // bevelThickness/Size を0にした bevelOffset は「輪郭だけを外へ膨らませる」。
+  // 外側は広がり、穴は同じだけ縮むので、細い線を太らせるのにそのまま使える。
+  const d = dilateFor(state.charSize);
+  const opt = { depth, bevelEnabled: false, curveSegments: CURVE_SEGS };
+  if (d > 1e-3) Object.assign(opt, {
+    bevelEnabled: true, bevelThickness: 0, bevelSize: 0, bevelOffset: d, bevelSegments: 1,
+  });
+  let geo = new THREE.ExtrudeGeometry(shapes, opt);
+  if (d > 1e-3) geo = stripDegenerate(geo);
+  geo.computeBoundingBox();
+  const { min, max } = geo.boundingBox;
+  const dx = -(min.x + max.x) / 2, dy = -(min.y + max.y) / 2;
+  geo.translate(dx, dy, 0);   // 中心そろえ
+  const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: state.textColor }));
+  // 「文字が土台からはみ出していないか」を調べるための輪郭点（中心そろえ済み・回転前）
+  const pts = [];
+  for (const sh of shapes) for (const p of sh.getPoints(6)) pts.push({ x: p.x + dx, y: p.y + dy });
+  mesh.userData.outline = thinOutline(pts);
+  return mesh;
+}
+
+// 輪郭点を間引く。四隅までの張り出しは残したいので、いちばん外の点は必ず入れる。
+function thinOutline(pts, keep = 64) {
+  if (!pts.length) return pts;
+  const ext = ['x', 'y'].flatMap(k => {
+    let lo = pts[0], hi = pts[0];
+    for (const p of pts) { if (p[k] < lo[k]) lo = p; if (p[k] > hi[k]) hi = p; }
+    return [lo, hi];
+  });
+  if (pts.length <= keep) return pts;
+  const step = pts.length / keep, out = [];
+  for (let i = 0; i < keep; i++) out.push(pts[Math.floor(i * step)]);
+  return out.concat(ext);
+}
+
+function disposeObj(o) {
+  o.traverse(obj => {
+    if (!obj.isMesh) return;
+    obj.geometry.dispose();
+    (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach(m => m.dispose());
+  });
+}
+
+// 土台だけ作り直す
+function rebuildBase() {
+  if (baseObj) { modelGroup.remove(baseObj); disposeObj(baseObj); }
+  baseObj = makeBaseObject();
+  baseObj.geometry.computeBoundingBox();
+  baseTopZ = baseObj.geometry.boundingBox.max.z;   // 文字はこの高さに乗せる
+  modelGroup.add(baseObj);
+  safeHalf = measureSafeHalf();   // 土台が変わったら文字の置ける範囲も測り直す
+}
+
+// 土台に収まる大きさに文字をそろえる。
+// 基準は「本人が選んだ大きさ」なので、土台を広げれば元の大きさまで戻る。
+function clampCharSize() {
+  const n = state.chars.length;
+  if (!n) return false;
+  const h = activeHalf();
+  const limit = Math.floor(Math.min((h.x * 2) / (n * 1.05), h.y * 1.8));
+  // 線が消えない下限まで上げる。ただし土台に入りきらないときは はみ出させない方を優先する
+  // （その場合は「はみ出し」警告のほうが先に出る）
+  const floor = Math.min(minSizeForFont(state.fontId), Math.max(CHAR_MIN, limit));
+  const s = Math.max(floor, Math.min(state.charSizeWanted, limit));
+  if (s === state.charSize) return false;
+  state.charSize = s;
+  sliderSize.value = s;
+  sizeVal.textContent = (s * MODEL_SCALE_XY).toFixed(1) + ' mm';
+  return true;
+}
+
+// 文字メッシュを全部作り直す
+function rebuildChars() {
+  // 字形が無い文字は mesh が null になり配列に穴があくので、それを飛ばす
+  for (const m of charMeshes) { if (!m) continue; modelGroup.remove(m); disposeObj(m); }
+  charMeshes = [];
+  state.chars.forEach((sel, i) => {
+    const mesh = makeCharMesh(sel.char, sel.depth);
+    if (!mesh) return;
+    mesh.position.set(sel.x, sel.y, baseTopZ);
+    mesh.rotation.z = sel.rot;
+    mesh.userData.charIndex = i;
+    charMeshes[i] = mesh;
+    modelGroup.add(mesh);
+  });
+  applyActiveHighlight();
+  updateFloatWarn();
+}
+
+// 1文字だけ高さ（深さ）を作り直す
+function rebuildOneCharDepth(i) {
+  const sel = state.chars[i];
+  const old = charMeshes[i];
+  if (!old) return;
+  modelGroup.remove(old); disposeObj(old);
+  const mesh = makeCharMesh(sel.char, sel.depth);
+  mesh.position.set(sel.x, sel.y, BASE_D);
+  mesh.rotation.z = sel.rot;
+  mesh.userData.charIndex = i;
+  charMeshes[i] = mesh;
+  modelGroup.add(mesh);
+  applyActiveHighlight();
+}
+
+function updateColors() {
+  if (baseObj) baseObj.material.color.setHex(state.baseColor);
+  const tc = state.colorMode === '2' ? state.textColor : state.baseColor;
+  charMeshes.forEach(m => m && m.material.color.setHex(tc));
+}
+
+function applyActiveHighlight() {
+  charMeshes.forEach((m, i) => {
+    if (!m) return;
+    m.material.emissive.setHex(i === state.active && state.step >= 4 && state.step <= 6 ? 0x2a3a55 : 0x000000);
+  });
+}
+
+// i 番目の文字の「最初の位置」（横一列に並べたときの場所）を返す
+function autoPos(i) {
+  const n = state.chars.length;
+  const halfX = activeHalf().x;
+  const step = Math.min(state.charSize * 1.05, (halfX * 2) / n);
+  const x0 = -step * (n - 1) / 2;
+  return { x: x0 + i * step, y: 0 };
+}
+
+// 自動配置（手動で動かしていない文字を横一列に並べる）
+function autoLayout() {
+  if (!state.chars.length) return;
+  state.chars.forEach((sel, i) => {
+    if (sel.moved) return;
+    const p = autoPos(i);
+    sel.x = p.x; sel.y = p.y; sel.rot = 0;
+  });
+}
+
+// ── 文字入力の反映 ────────────────────────────────────────────────
+// 使える文字：ひらがな・カタカナ（長音符・中黒ふくむ）・英字・数字・半角記号
+// （スペースは字のかたちが無く3Dパーツが作れないので除外）
+const ALLOWED_CHAR = /^[ぁ-ゖァ-ヶ・ー!-~]$/;
+
+// 日本語キーボードで打った全角の記号・英数字を半角になおす
+// （フォントは半角の字形しか同梱していないため）
+const WIDE_EXTRA = {
+  '「': '[', '」': ']', '『': '[', '』': ']', '【': '[', '】': ']',
+  '。': '.', '、': ',', '〜': '~', '　': '',
+};
+function normalizeChar(ch) {
+  if (ch in WIDE_EXTRA) return WIDE_EXTRA[ch];
+  const c = ch.codePointAt(0);
+  // 全角 ！〜～（U+FF01–FF5E）は半角（U+21–7E）と 0xFEE0 ずれているだけ
+  if (c >= 0xFF01 && c <= 0xFF5E) return String.fromCodePoint(c - 0xFEE0);
+  return ch;
+}
+
+function onCharsInput(value) {
+  const chars = Array.from(value).map(normalizeChar)
+    .filter(ch => ALLOWED_CHAR.test(ch)).slice(0, MAX_CHARS);
+  state.chars = chars.map((ch, i) => {
+    const prev = state.chars[i];
+    return (prev && prev.char === ch) ? prev
+      : { char: ch, depth: 3, x: 0, y: 0, rot: 0, moved: false };
+  });
+  if (state.active >= state.chars.length) state.active = Math.max(0, state.chars.length - 1);
+  const filtered = chars.join('');
+  if (charsInput.value !== filtered) charsInput.value = filtered;
+  clampCharSize();     // 文字数が増えたら 収まる大きさまで自動で小さくする
+  autoLayout();
+  rebuildChars();
+  updateColors();
+  refreshChips();
+  refreshSaveButtons();
+}
+
+// ── タップで文字を選ぶ ────────────────────────────────────────────
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let downPos = null;
+canvas.addEventListener('pointerdown', e => { downPos = { x: e.clientX, y: e.clientY }; });
+canvas.addEventListener('pointerup', e => {
+  const st = downPos; downPos = null;
+  if (!st || Math.hypot(e.clientX - st.x, e.clientY - st.y) > 6) return;
+  if (state.step < 4 || state.step > 6) return;
+  const rect = canvas.getBoundingClientRect();
+  ndc.x =  ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+  const hit = raycaster.intersectObjects(charMeshes.filter(Boolean), false)[0];
+  if (hit) { state.active = hit.object.userData.charIndex; refreshChips(); syncSlidersToActive(); applyActiveHighlight(); }
+});
+
+// ══════════════════════════════════════════════════════════════════
+//  UI 構築
+// ══════════════════════════════════════════════════════════════════
+const STEP_CAPS = ['どだい', 'なまえ', 'フォント', 'おおきさ', 'うごかす', 'まわす', 'たかさ', 'いろ', 'あな'];
+
+// ステップ丸
+const stepsEl = document.getElementById('steps');
+STEP_CAPS.forEach((cap, i) => {
+  const b = document.createElement('button');
+  b.className = 'step-dot';
+  b.innerHTML = `<span class="num">${i + 1}</span><span class="cap">${cap}</span>`;
+  b.onclick = () => goStep(i);
+  stepsEl.appendChild(b);
+});
+
+// 土台グリッド
+const shapeGrid = document.getElementById('shapeGrid');
+SHAPES.forEach(sh => {
+  const b = document.createElement('button');
+  b.className = 'shape-btn' + (state.shape === sh.id ? ' active' : '');
+  b.dataset.shape = sh.id;
+  b.innerHTML = shapeIconSVG(sh.id) + `<span class="nm">${sh.name}</span>`;
+  b.onclick = () => {
+    state.shape = sh.id;
+    [...shapeGrid.children].forEach(c => c.classList.toggle('active', c.dataset.shape === sh.id));
+    applyBaseChange();
+  };
+  shapeGrid.appendChild(b);
+});
+
+// 土台が変わったときの共通処理。
+// 文字のジオメトリは変わらないので作り直さず、位置だけ土台に合わせ直す。
+function applyBaseChange() {
+  rebuildBase();
+  const resized = clampCharSize();       // 新しい土台に対して文字が大きすぎたら縮める
+  for (const s of state.chars) {          // 土台の外まで飛び出さないように（手で動かした位置は残す）
+    s.x = Math.max(baseBox.minX, Math.min(baseBox.maxX, s.x));
+    s.y = Math.max(baseBox.minY, Math.min(baseBox.maxY, s.y));
+  }
+  autoLayout();
+  if (resized) rebuildChars();            // 文字の大きさが変わったのでジオメトリを作り直す
+  else state.chars.forEach((s, i) => { if (charMeshes[i]) charMeshes[i].position.set(s.x, s.y, baseTopZ); });
+  updateColors();
+  updateSliderRanges();
+  updateBaseSizeLabel();
+  updateFloatWarn();
+}
+
+// 文字を動かしている最中は 1フレームに1回だけ調べる
+let floatCheckQueued = false;
+function queueFloatCheck() {
+  if (floatCheckQueued) return;
+  floatCheckQueued = true;
+  requestAnimationFrame(() => { floatCheckQueued = false; updateFloatWarn(); });
+}
+
+// ① 土台の大きさ（よこ・たて）
+const sliderBaseW = document.getElementById('sliderBaseW');
+const sliderBaseH = document.getElementById('sliderBaseH');
+const baseWVal    = document.getElementById('baseWVal');
+const baseHVal    = document.getElementById('baseHVal');
+const baseSizeHint = document.getElementById('baseSizeHint');
+const joinMsg      = document.getElementById('joinMsg');
+function updateBaseSizeLabel() {
+  baseWVal.textContent = (baseFootprint.w * MODEL_SCALE_XY).toFixed(0) + ' mm';
+  baseHVal.textContent = (baseFootprint.h * MODEL_SCALE_XY).toFixed(0) + ' mm';
+  // 上限にぶつかって自動で縮めたときは、そう伝える（スライダーが効かない理由になるので）
+  const clamped = baseFit < 0.999;
+  baseSizeHint.textContent = clamped
+    ? `⚠ ${PLATE_MAX_W_MM}mm × ${PLATE_MAX_H_MM}mm に おさまるよう じどうで ちいさくしたよ`
+    : `できあがりは ${PLATE_MAX_W_MM}mm × ${PLATE_MAX_H_MM}mm までに おさまるよ`;
+  baseSizeHint.style.color = clamped ? '#fbbf24' : '';
+  updateJoinMsg();
+}
+
+// 文字が土台からはみ出していないか調べて、3D画面の上に警告を出す
+const floatWarn = document.getElementById('floatWarn');
+function updateFloatWarn() {
+  checkFloatingChars();
+  const bad = floatingChars.length > 0;
+  floatWarn.style.display = bad ? '' : 'none';
+  if (bad) {
+    const names = floatingChars.map(i => state.chars[i].char).join('');
+    floatWarn.textContent = `⚠「${names}」が どだいから はみ出してるよ！ 「うごかす」か「おおきさ」で なおしてね`;
+  }
+  refreshSaveButtons();
+}
+
+// かさねた形の つなぎ目の状態を表示し、だめなときは先へ進めなくする
+function updateJoinMsg() {
+  const bad = state.sub !== 'none' && (!baseJoin.touching || baseJoin.widthMM < JOIN_MIN_MM);
+  joinMsg.style.display = state.sub === 'none' ? 'none' : '';
+  if (state.sub !== 'none') {
+    if (!baseJoin.touching) {
+      joinMsg.textContent = '⚠ かたちが はなれているよ！ かさなるように うごかしてね';
+      joinMsg.style.color = '#f87171';
+    } else if (baseJoin.widthMM < JOIN_MIN_MM) {
+      joinMsg.textContent = `⚠ くっつきかたが よわいよ（${baseJoin.widthMM.toFixed(1)}mm）。もっと ふかく かさねてね`;
+      joinMsg.style.color = '#f87171';
+    } else {
+      joinMsg.textContent = `✓ しっかり くっついてるよ（${baseJoin.widthMM.toFixed(1)}mm）`;
+      joinMsg.style.color = '#4ade80';
+    }
+  }
+  // つなぎ目がだめなら「つぎへ」も保存も止める（折れたプレートを作らせない）
+  const next = document.getElementById('btnNext');
+  next.disabled = bad;
+  next.style.opacity = bad ? 0.45 : '';
+  refreshSaveButtons();
+}
+let baseRebuildQueued = false;
+function queueBaseChange() {            // スライダー連打でも1フレームに1回だけ作り直す
+  if (baseRebuildQueued) return;
+  baseRebuildQueued = true;
+  requestAnimationFrame(() => { baseRebuildQueued = false; applyBaseChange(); });
+}
+sliderBaseW.addEventListener('input', () => { state.baseSX = +sliderBaseW.value / 100; queueBaseChange(); });
+sliderBaseH.addEventListener('input', () => { state.baseSY = +sliderBaseH.value / 100; queueBaseChange(); });
+document.getElementById('btnBaseReset').onclick = () => {
+  state.baseSX = state.baseSY = 1;
+  sliderBaseW.value = 100; sliderBaseH.value = 100;
+  applyBaseChange();
+};
+
+// ① もうひとつ かさねる（合体）
+const subGrid    = document.getElementById('subGrid');
+const subWrap    = document.getElementById('subWrap');
+const btnSubToggle = document.getElementById('btnSubToggle');
+SUB_SHAPES.forEach(sh => {
+  const b = document.createElement('button');
+  b.className = 'shape-btn' + (state.sub === sh.id ? ' active' : '');
+  b.dataset.sub = sh.id;
+  b.innerHTML = shapeIconSVG(sh.id) + `<span class="nm">${sh.name}</span>`;
+  b.onclick = () => {
+    state.sub = sh.id;
+    [...subGrid.children].forEach(c => c.classList.toggle('active', c.dataset.sub === sh.id));
+    applyBaseChange();
+  };
+  subGrid.appendChild(b);
+});
+btnSubToggle.onclick = () => {
+  const open = subWrap.style.display === 'none';
+  subWrap.style.display = open ? '' : 'none';
+  btnSubToggle.textContent = (open ? '▾' : '▸') + ' もうひとつ かさねる';
+};
+const sliderSubS = document.getElementById('sliderSubS');
+const sliderSubX = document.getElementById('sliderSubX');
+const sliderSubY = document.getElementById('sliderSubY');
+sliderSubS.addEventListener('input', () => {
+  state.subScale = +sliderSubS.value / 100;
+  document.getElementById('subSVal').textContent = sliderSubS.value + '%';
+  queueBaseChange();
+});
+sliderSubX.addEventListener('input', () => { state.subX = +sliderSubX.value; queueBaseChange(); });
+sliderSubY.addEventListener('input', () => { state.subY = +sliderSubY.value; queueBaseChange(); });
+const sliderSubR = document.getElementById('sliderSubR');
+sliderSubR.addEventListener('input', () => {
+  state.subRot = +sliderSubR.value * Math.PI / 180;
+  document.getElementById('subRVal').textContent = sliderSubR.value + '°';
+  queueBaseChange();
+});
+
+// 文字入力
+const charsInput = document.getElementById('charsInput');
+charsInput.addEventListener('input', e => { if (!e.isComposing) onCharsInput(e.target.value); });
+charsInput.addEventListener('compositionend', e => onCharsInput(e.target.value));
+
+// ③ フォント選択
+function renderFontPanel() {
+  const list = document.getElementById('fontList');
+  list.innerHTML = '';
+  FONTS.forEach(f => {
+    const b = document.createElement('button');
+    b.className = 'font-btn' + (state.fontId === f.id ? ' active' : '');
+    b.disabled = !fontCache[f.id];
+    b.innerHTML = `<span class="sample" style="font-family:'${f.css}'">あいうA</span><span class="nm">${f.name}</span>`;
+    b.onclick = () => {
+      if (!fontCache[f.id]) return;
+      state.fontId = f.id;
+      font = fontCache[f.id];
+      renderFontPanel();
+      updateSizeRange();  // 書体で「線が消えない下限」が変わる
+      clampCharSize();
+      autoLayout();
+      rebuildChars();     // 選んだフォントで文字を作り直す
+      updateColors();
+    };
+    list.appendChild(b);
+  });
+}
+
+// 文字チップ（③④⑤で共通に使う）
+function refreshChips() {
+  document.querySelectorAll('[data-chips]').forEach(box => {
+    box.innerHTML = '';
+    if (!state.chars.length) {
+      box.innerHTML = '<span style="color:var(--muted);font-size:13px;">さきに ②で なまえを いれてね</span>';
+      return;
+    }
+    state.chars.forEach((sel, i) => {
+      const c = document.createElement('button');
+      c.className = 'char-chip' + (i === state.active ? ' active' : '');
+      c.textContent = sel.char;
+      c.onclick = () => { state.active = i; refreshChips(); syncSlidersToActive(); syncDepthOpts(); applyActiveHighlight(); };
+      box.appendChild(c);
+    });
+  });
+}
+
+// ③ 移動スライダー
+const sliderX = document.getElementById('sliderX');
+const sliderY = document.getElementById('sliderY');
+function updateSliderRanges() {
+  // 1文字だけ動かすぶんには土台の上ならどこでもいいので、外形いっぱいまで許す。
+  // （はみ出したら「浮きチェック」が警告するので、範囲で縛る必要はない）
+  sliderX.min = Math.floor(baseBox.minX); sliderX.max = Math.ceil(baseBox.maxX);
+  sliderY.min = Math.floor(baseBox.minY); sliderY.max = Math.ceil(baseBox.maxY);
+  syncSlidersToActive();
+}
+function syncSlidersToActive() {
+  const sel = state.chars[state.active];
+  if (!sel) return;
+  sliderX.value = sel.x; sliderY.value = sel.y;
+  sliderRot.value = Math.round(sel.rot * 180 / Math.PI);
+  document.getElementById('rotVal').textContent = `${Math.round(sel.rot * 180 / Math.PI)}°`;
+}
+sliderX.addEventListener('input', () => {
+  const sel = state.chars[state.active]; if (!sel) return;
+  sel.x = parseFloat(sliderX.value); sel.moved = true;
+  if (charMeshes[state.active]) charMeshes[state.active].position.x = sel.x;
+  queueFloatCheck();
+});
+sliderY.addEventListener('input', () => {
+  const sel = state.chars[state.active]; if (!sel) return;
+  sel.y = parseFloat(sliderY.value); sel.moved = true;
+  if (charMeshes[state.active]) charMeshes[state.active].position.y = sel.y;
+  queueFloatCheck();
+});
+document.getElementById('btnCenter').onclick = () => {
+  const i = state.active;
+  const sel = state.chars[i]; if (!sel) return;
+  const p = autoPos(i);               // この文字の最初の位置
+  sel.x = p.x; sel.y = p.y; sel.moved = false;
+  syncSlidersToActive();
+  if (charMeshes[i]) charMeshes[i].position.set(sel.x, sel.y, baseTopZ);
+};
+
+// ④ 回転スライダー
+const sliderRot = document.getElementById('sliderRot');
+sliderRot.addEventListener('input', () => {
+  const sel = state.chars[state.active]; if (!sel) return;
+  const deg = parseFloat(sliderRot.value);
+  sel.rot = deg * Math.PI / 180; sel.moved = true;
+  document.getElementById('rotVal').textContent = `${Math.round(deg)}°`;
+  if (charMeshes[state.active]) charMeshes[state.active].rotation.z = sel.rot;
+  queueFloatCheck();
+});
+document.getElementById('btnRotReset').onclick = () => {
+  const sel = state.chars[state.active]; if (!sel) return;
+  sel.rot = 0; sliderRot.value = 0; document.getElementById('rotVal').textContent = '0°';
+  if (charMeshes[state.active]) charMeshes[state.active].rotation.z = 0;
+};
+
+// ③ 大きさ（全文字 共通）
+const sliderSize = document.getElementById('sliderSize');
+const sizeVal    = document.getElementById('sizeVal');
+const sizeHint   = document.getElementById('sizeHint');
+let sizeRebuildQueued = false;
+sliderSize.max = CHAR_MAX;
+// 細い書体ほど下限を上げる（下げても線が消えて印刷できないため）
+function updateSizeRange() {
+  const lo = minSizeForFont(state.fontId);
+  sliderSize.min = lo;
+  if (state.charSizeWanted < lo) state.charSizeWanted = lo;
+  const f = fontDef(state.fontId);
+  sizeHint.textContent = lo > CHAR_MIN
+    ? `「${f.name}」は せんが ほそいので ${(lo * MODEL_SCALE_XY).toFixed(1)}mm より 大きくするよ`
+    : '';
+}
+updateSizeRange();
+sliderSize.value = state.charSize;
+sizeVal.textContent = (state.charSize * MODEL_SCALE_XY).toFixed(1) + ' mm';
+sliderSize.addEventListener('input', () => {
+  state.charSize = state.charSizeWanted = parseInt(sliderSize.value);
+  sizeVal.textContent = (state.charSize * MODEL_SCALE_XY).toFixed(1) + ' mm';
+  if (sizeRebuildQueued) return;   // 1フレームに1回だけ作り直す
+  sizeRebuildQueued = true;
+  requestAnimationFrame(() => {
+    sizeRebuildQueued = false;
+    autoLayout();       // 手で動かしていない文字は再整列
+    rebuildChars();     // 大きさが変わるのでジオメトリを作り直す
+    updateColors();
+  });
+});
+
+// ⑤ 高さ
+const depthOpts = document.getElementById('depthOpts');
+DEPTH_LEVELS.forEach(lv => {
+  const b = document.createElement('button');
+  b.className = 'opt-btn'; b.dataset.depth = lv.depth;
+  b.innerHTML = `${lv.name}<small>${(lv.depth * MODEL_SCALE_Z).toFixed(1)}mm</small>`;
+  b.onclick = () => {
+    const sel = state.chars[state.active]; if (!sel) return;
+    sel.depth = lv.depth;
+    syncDepthOpts();
+    rebuildOneCharDepth(state.active);
+    updateColors();
+  };
+  depthOpts.appendChild(b);
+});
+function syncDepthOpts() {
+  const sel = state.chars[state.active];
+  [...depthOpts.children].forEach(c => c.classList.toggle('active', sel && +c.dataset.depth === sel.depth));
+}
+
+// ⑥ 色
+const colorModeSeg = document.getElementById('colorModeSeg');
+function applyColorMode() {
+  colorModeSeg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.mode === state.colorMode));
+  document.getElementById('textColorBlock').style.display = state.colorMode === '2' ? 'block' : 'none';
+  document.getElementById('baseColorTitle').textContent = state.colorMode === '2' ? 'どだい（したの いた）の いろ' : 'ぜんたいの いろ';
+}
+colorModeSeg.querySelectorAll('button').forEach(btn => {
+  btn.onclick = () => {
+    state.colorMode = btn.dataset.mode;
+    applyColorMode();
+    updateColors();
+    updateColorLabels();
+  };
+});
+applyColorMode();
+const hexStr = hex => '#' + hex.toString(16).padStart(6, '0');
+const nameOf = hex => (FILAMENTS.find(f => f.hex === hex) || {}).name || '';
+const shortOf = hex => (FILAMENTS.find(f => f.hex === hex) || {}).short || '';
+// 各カードの「現在の色」見本と色名を更新
+function updateColorLabels() {
+  document.getElementById('baseSwatch').style.background = hexStr(state.baseColor);
+  document.getElementById('baseColorName').textContent = nameOf(state.baseColor);
+  document.getElementById('textSwatch').style.background = hexStr(state.textColor);
+  document.getElementById('textColorName').textContent = nameOf(state.textColor);
+}
+function buildColorList(which, getVal, setVal) {
+  const box = document.querySelector(`[data-colors="${which}"]`);
+  box.innerHTML = '';
+  FILAMENTS.forEach(f => {
+    const b = document.createElement('button');
+    b.className = 'color-btn' + (getVal() === f.hex ? ' active' : '');
+    b.style.background = hexStr(f.hex);
+    b.title = f.name;
+    b.onclick = () => {
+      setVal(f.hex);
+      [...box.children].forEach(c => c.classList.remove('active'));
+      b.classList.add('active');
+      updateColors();
+      updateColorLabels();
+    };
+    box.appendChild(b);
+  });
+}
+buildColorList('base', () => state.baseColor, v => state.baseColor = v);
+buildColorList('text', () => state.textColor, v => state.textColor = v);
+updateColorLabels();
+
+// ⑧ 穴（ボールチェーン）
+const holeOpts = document.getElementById('holeOpts');
+function syncHoleOpts() {
+  [...holeOpts.children].forEach(c => c.classList.toggle('active', c.dataset.hole === state.hole));
+}
+holeOpts.querySelectorAll('button').forEach(btn => {
+  btn.onclick = () => {
+    state.hole = btn.dataset.hole;
+    syncHoleOpts();
+    rebuildBase();     // リングを付け直す
+    updateColors();
+  };
+});
+syncHoleOpts();
+
+// 完成演出：編集画面と結果画面の切り替え
+const celEl = document.getElementById('celebrate');
+function resetCompletion() {
+  completeAnim = null;
+  if (modelGroup) { modelGroup.rotation.z = 0; modelGroup.scale.set(MODEL_SCALE_XY, MODEL_SCALE_XY, MODEL_SCALE_Z); }
+  heroLight.intensity = 0;
+  clearTimeout(celEl._t1); clearTimeout(celEl._t2);
+  celEl.className = ''; celEl.innerHTML = '';
+  document.getElementById('holeEdit').style.display = '';
+  document.getElementById('resultPanel').style.display = 'none';
+}
+
+// ポケポケGET風の演出（放射光・キラキラ・紙吹雪・できた！）
+function spawnCelebration() {
+  celEl.innerHTML = '';
+  celEl.className = 'on';
+  const rays  = document.createElement('div'); rays.className  = 'cel-rays';  celEl.appendChild(rays);
+  const flash = document.createElement('div'); flash.className = 'cel-flash'; celEl.appendChild(flash);
+  const text  = document.createElement('div'); text.className  = 'cel-text';  text.textContent = '✨ できた！ ✨'; celEl.appendChild(text);
+
+  const marks = ['✨', '⭐', '🌟', '💫'];
+  for (let i = 0; i < 18; i++) {
+    const s = document.createElement('div'); s.className = 'cel-spark';
+    const ang = Math.random() * Math.PI * 2, dist = 110 + Math.random() * 200;
+    s.style.setProperty('--dx', Math.round(Math.cos(ang) * dist) + 'px');
+    s.style.setProperty('--dy', Math.round(Math.sin(ang) * dist) + 'px');
+    s.style.animationDelay = Math.round(Math.random() * 180) + 'ms';
+    s.textContent = marks[i % marks.length];
+    celEl.appendChild(s);
+  }
+  const cols = ['#ffd166', '#ff8fab', '#06d6a0', '#4cc9f0', '#f7b267', '#b5179e'];
+  for (let i = 0; i < 30; i++) {
+    const c = document.createElement('div'); c.className = 'cel-confetti';
+    c.style.left = (Math.random() * 100) + '%';
+    c.style.background = cols[i % cols.length];
+    c.style.setProperty('--fall', (60 + Math.random() * 40) + 'vh');
+    c.style.setProperty('--spin', Math.round(Math.random() * 720 - 360) + 'deg');
+    c.style.animationDelay = Math.round(Math.random() * 260) + 'ms';
+    celEl.appendChild(c);
+  }
+  clearTimeout(celEl._t1); clearTimeout(celEl._t2);
+  celEl._t1 = setTimeout(() => celEl.classList.add('fade'), 1750);
+  celEl._t2 = setTimeout(() => { celEl.className = ''; celEl.innerHTML = ''; }, 2150);
+}
+
+document.getElementById('btnComplete').onclick = () => {
+  if (document.getElementById('btnComplete').disabled) return;
+  spawnCelebration();
+  playCompletion(() => {
+    document.getElementById('holeEdit').style.display = 'none';
+    document.getElementById('resultPanel').style.display = 'block';
+    panel.scrollTop = 0;
+  });
+};
+document.getElementById('btnBackEdit').onclick = () => {
+  resetCompletion();
+  camView = viewForStep(state.step);   // ⑧の通常視点（真上）へ戻す
+  moveCameraTo(camView);
+};
+
+// ── ステップ切り替え ──────────────────────────────────────────────
+function goStep(i) {
+  state.step = Math.max(0, Math.min(STEP_CAPS.length - 1, i));
+  document.querySelectorAll('.step-page').forEach(p => p.classList.toggle('active', +p.dataset.page === state.step));
+  [...stepsEl.children].forEach((dot, idx) => {
+    dot.classList.toggle('active', idx === state.step);
+    dot.classList.toggle('done', idx < state.step);
+  });
+  document.getElementById('btnBack').disabled = state.step === 0;
+  const nextBtn = document.getElementById('btnNext');
+  nextBtn.style.visibility = state.step === STEP_CAPS.length - 1 ? 'hidden' : 'visible';
+  // 各ステップに入ったときの同期（うごかす・まわす・たかさ = 3〜5）
+  if (state.step >= 4 && state.step <= 6) { refreshChips(); syncSlidersToActive(); syncDepthOpts(); }
+  if (state.step === 4) updateSliderRanges();
+  if (state.step === 8) { syncHoleOpts(); resetCompletion(); }
+  // カメラ視点：ステップに応じてアニメ移動（①②ななめ／③④⑤真上／⑥たかさ横）
+  const want = viewForStep(state.step);
+  if (want !== camView) { camView = want; moveCameraTo(want); }
+  applyActiveHighlight();
+  panel.scrollTop = 0;
+}
+const panel = document.getElementById('panel');
+document.getElementById('btnBack').onclick = () => goStep(state.step - 1);
+document.getElementById('btnNext').onclick = () => {
+  if (state.step === 1 && state.chars.length === 0) { charsInput.focus(); return; }
+  // ①でかさねた形がくっついていないうちは進ませない
+  if (state.sub !== 'none' && (!baseJoin.touching || baseJoin.widthMM < JOIN_MIN_MM)) {
+    joinMsg.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    return;
+  }
+  goStep(state.step + 1);
+};
+
+// ── STL 保存 ──────────────────────────────────────────────────────
+function refreshSaveButtons() {
+  // かさねた形が くっついていないプレートは注文させない（印刷すると必ず折れる／バラバラになる）
+  const joined = state.sub === 'none' || (baseJoin.touching && baseJoin.widthMM >= JOIN_MIN_MM);
+  // 宙に浮いた文字があるプレートも注文させない（印刷すると文字が落ちる）
+  const ready = font !== null && state.chars.length > 0 && joined && floatingChars.length === 0;
+  document.getElementById('btnComplete').disabled = !ready;
+}
+// ── 3MF 出力 ──────────────────────────────────────────────────────
+// 土台(＋リング)と文字を「別パーツ」にした 3MF を作る。
+// → Bambu Studio でパーツごとにフィラメントを個別指定できる（2色プリント）。
+
+// CRC32（ZIP用）
+function crc32(bytes) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) {
+    let c = (crc ^ bytes[i]) & 0xFF;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (c >>> 1) ^ 0xEDB88320 : c >>> 1;
+    crc = (crc >>> 8) ^ c;
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+// 無圧縮(store)ZIP を作る。files: [{name, data:Uint8Array}]
+function zipStore(files) {
+  const u16 = n => [n & 255, (n >>> 8) & 255];
+  const u32 = n => [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255];
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let offset = 0;
+  for (const f of files) {
+    const nameB = enc.encode(f.name), crc = crc32(f.data), size = f.data.length;
+    const local = new Uint8Array([].concat(
+      u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(crc), u32(size), u32(size), u16(nameB.length), u16(0)));
+    parts.push(local, nameB, f.data);
+    central.push(new Uint8Array([].concat(
+      u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(crc), u32(size), u32(size), u16(nameB.length), u16(0), u16(0), u16(0), u16(0),
+      u32(0), u32(offset))), nameB);
+    offset += local.length + nameB.length + size;
+  }
+  let clen = 0;
+  for (const c of central) clen += c.length;
+  const end = new Uint8Array([].concat(
+    u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length),
+    u32(clen), u32(offset), u16(0)));
+  const all = [...parts, ...central, end];
+  let total = 0; for (const c of all) total += c.length;
+  const out = new Uint8Array(total); let p = 0;
+  for (const c of all) { out.set(c, p); p += c.length; }
+  return out;
+}
+// メッシュ群 → 3MF の <vertices>/<triangles> 文字列（ワールド座標＝50%スケール込み）
+function meshesToMeshXML(meshes) {
+  const v = new THREE.Vector3();
+  const f = n => (Math.round(n * 1000) / 1000);
+  let vx = '', tx = '', vcount = 0;
+  for (const mesh of meshes) {
+    if (!mesh) continue;
+    mesh.updateWorldMatrix(true, false);
+    const pos = mesh.geometry.attributes.position, base = vcount;
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+      vx += `<vertex x="${f(v.x)}" y="${f(v.y)}" z="${f(v.z)}"/>`;
+    }
+    vcount += pos.count;
+    const idx = mesh.geometry.index;
+    if (idx) { const a = idx.array; for (let i = 0; i < a.length; i += 3) tx += `<triangle v1="${base + a[i]}" v2="${base + a[i + 1]}" v3="${base + a[i + 2]}"/>`; }
+    else { for (let i = 0; i < pos.count; i += 3) tx += `<triangle v1="${base + i}" v2="${base + i + 1}" v3="${base + i + 2}"/>`; }
+  }
+  return `<mesh><vertices>${vx}</vertices><triangles>${tx}</triangles></mesh>`;
+}
+const hex6 = n => n.toString(16).padStart(6, '0').toUpperCase();
+
+// 3MF（ZIP）を Uint8Array で返す
+function export3MF() {
+  modelGroup.updateMatrixWorld(true);
+  const baseMesh = meshesToMeshXML([baseObj]);
+  const textMesh = meshesToMeshXML(charMeshes);
+  const baseHex = hex6(state.baseColor);
+  const textHex = hex6(state.colorMode === '2' ? state.textColor : state.baseColor);
+  const model =
+`<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+ <resources>
+  <basematerials id="10">
+   <base name="どだい" displaycolor="#${baseHex}FF"/>
+   <base name="なまえ" displaycolor="#${textHex}FF"/>
+  </basematerials>
+  <object id="1" type="model" pid="10" pindex="0" name="どだい">${baseMesh}</object>
+  <object id="2" type="model" pid="10" pindex="1" name="なまえ">${textMesh}</object>
+ </resources>
+ <build><item objectid="1"/><item objectid="2"/></build>
+</model>`;
+  const contentTypes =
+`<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>`;
+  const rels =
+`<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>`;
+  const enc = new TextEncoder();
+  return zipStore([
+    { name: '[Content_Types].xml', data: enc.encode(contentTypes) },
+    { name: '_rels/.rels',         data: enc.encode(rels) },
+    { name: '3D/3dmodel.model',    data: enc.encode(model) },
+  ]);
+}
+// ファイル名に使えない記号（Windows / Google ドライブ）は全角の似た字に置きかえる
+const FILE_SAFE = { '\\': '￥', '/': '／', ':': '：', '*': '＊', '?': '？', '"': '”', '<': '＜', '>': '＞', '|': '｜' };
+const plateName = () =>
+  state.chars.map(s => FILE_SAFE[s.char] ?? s.char).join('') || 'nameplate';
+
+// 色つきのファイル名ベース：<なまえ>_名<文字色>_土<土台色>
+// （1色モードのときは文字も土台色と同じ色で印刷されるので、その色を使う）
+function plateFileBase() {
+  const baseCol = shortOf(state.baseColor);
+  const textCol = shortOf(state.colorMode === '2' ? state.textColor : state.baseColor);
+  return `${plateName()}_名${textCol}_土${baseCol}`;
+}
+
+// ローカル保存用のタイムスタンプ（yyyymmdd_HHMMSS）
+function nowStamp() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+// ── データの保存（3MF / STL）────────────────────────────────────
+// ブラウザにファイルを保存させる（外部サービスには一切送らない）
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// 3MF：土台と文字が別パーツ＝スライサーで2色に塗り分けられる
+function save3MF() {
+  try {
+    downloadBlob(new Blob([export3MF()], { type: 'model/3mf' }),
+                 `${plateFileBase()}_${nowStamp()}.3mf`);
+    setStatus('✓ 3MF を ほぞんしました');
+  } catch (e) {
+    console.error(e);
+    setStatus('⚠ ほぞんできませんでした');
+  }
+}
+
+// STL：色は持てないが、どのスライサーでも開ける
+function saveSTL() {
+  try {
+    modelGroup.updateMatrixWorld(true);
+    const data = new STLExporter().parse(modelGroup, { binary: true });
+    downloadBlob(new Blob([data], { type: 'model/stl' }),
+                 `${plateName()}_${nowStamp()}.stl`);
+    setStatus('✓ STL を ほぞんしました');
+  } catch (e) {
+    console.error(e);
+    setStatus('⚠ ほぞんできませんでした');
+  }
+}
+
+document.getElementById('btnSave3MF').onclick = save3MF;
+document.getElementById('btnSaveSTL').onclick = saveSTL;
+
+function setStatus(m) { document.getElementById('statusMsg').textContent = m; }
+
+// ── フォント読み込み（3書体まとめて・軽量サブセット）──────────────────
+const fontStatusEl = document.getElementById('fontStatus');
+(async function loadFonts() {
+  await Promise.all(FONTS.map(async f => {
+    try {
+      const res = await fetch(f.file);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      fontCache[f.id] = opentype.parse(await res.arrayBuffer());
+    } catch (e) { console.error('font load fail:', f.id, e); }
+  }));
+  font = fontCache[state.fontId] || Object.values(fontCache)[0] || null;
+  fontStatusEl.textContent = font ? '✓ フォント OK' : '⚠ フォントを よみこめません（サーバー経由で ひらいてください）';
+  renderFontPanel();
+  refreshSaveButtons();
+  if (state.chars.length) rebuildChars();
+})();
+
+// ── スマホアクセス用 QR コード ───────────────────────────────────
+function renderQR(url) {
+  document.getElementById('qrCode').innerHTML = '';
+  new QRCode(document.getElementById('qrCode'), {
+    text: url, width: 128, height: 128, colorDark: '#0f172a', colorLight: '#ffffff',
+  });
+  document.getElementById('qrUrl').textContent = url;
+}
+function urlWithHost(ip) { const u = new URL(location.href); u.hostname = ip; return u.href; }
+function detectLocalIP(cb) {
+  try {
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    let done = false;
+    const fin = ip => { if (done) return; done = true; pc.close(); cb(ip); };
+    pc.createDataChannel('');
+    pc.onicecandidate = e => {
+      if (!e.candidate) { fin(null); return; }
+      const m = /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/.exec(e.candidate.candidate);
+      if (m && !m[1].startsWith('0.')) fin(m[1]);
+    };
+    pc.createOffer().then(o => pc.setLocalDescription(o)).catch(() => fin(null));
+    setTimeout(() => fin(null), 1000);
+  } catch { cb(null); }
+}
+(function accessQR() {
+  if (!['localhost', '127.0.0.1', ''].includes(location.hostname)) { renderQR(location.href); return; }
+  fetch('/server-ip')
+    .then(r => { if (!r.ok) throw 0; return r.text(); })
+    .then(ip => renderQR(urlWithHost(ip.trim())))
+    .catch(() => detectLocalIP(ip => {
+      if (ip) { renderQR(urlWithHost(ip)); return; }
+      renderQR(location.href);
+      const h = document.createElement('div');
+      h.className = 'qr-hint';
+      h.textContent = '⚠ localhost では スマホから ひらけません。PCの IPアドレスで ひらきなおしてください';
+      document.getElementById('qrUrl').after(h);
+    }));
+})();
+
+// ── 初期化 ────────────────────────────────────────────────────────
+modelGroup = new THREE.Group();
+modelGroup.scale.set(MODEL_SCALE_XY, MODEL_SCALE_XY, MODEL_SCALE_Z);   // 平面65%・厚み据え置き
+scene.add(modelGroup);
+rebuildBase();
+updateBaseSizeLabel();
+updateSliderRanges();
+refreshChips();
+renderFontPanel();
+goStep(0);
+</script>
+</body>
+</html>
