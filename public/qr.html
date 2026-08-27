@@ -21,6 +21,8 @@
 </script>
 
 <link rel="stylesheet" href="css/common.css">
+<!-- つづきから再開（window.Resume を作る。モジュールより先に読む） -->
+<script src="/js/resume.js"></script>
 <style>
 /* ── QRキーホルダー固有の見た目 ────────────────────────
    もとのアプリの class 名（.sec / .cards / .swatches / aria-pressed …）は
@@ -2740,6 +2742,8 @@ document.getElementById('stlFile').addEventListener('change', async e => {
     state.box.map = n.list.map(m => m.color == null ? null : nearestFilament(m.color));
     renderBoxMap();
     showErr('');
+    // つづきから のために、中身そのものも覚えておく（localStorage には入らないので別置き）
+    keepResume({ name: f.name, type: f.type, buf: await f.arrayBuffer() });
   } catch (ex) {
     state.box.mesh = null; state.box.info = null; state.box.map = [];
     renderBoxMap();
@@ -2979,7 +2983,61 @@ function goQrStep(i) {
 
 document.getElementById('navBack').onclick = () => goQrStep(qrStep - 1);
 document.getElementById('navNext').onclick = () => goQrStep(qrStep + 1);
-goQrStep(0);
+
+/* ══════════════════════════════════════════════════════════════
+   つづきから再開
+
+   このページのつまみは数が多く、state と画面が1対1でもないので、
+   state を書き写すのではなく **画面のつまみをそのまま覚えて、戻す**。
+   戻すときは値を入れて input を投げるので、いつもの処理が走って
+   state も 3D も付いてくる。
+
+   はめ込みで読みこんだ3Dモデルだけは つまみに出ないので、
+   ファイルの中身を別に覚えておいて、読みこみ直す。
+   ══════════════════════════════════════════════════════════════ */
+const RESUME  = 'qr';
+const MARU    = '①②③④⑤⑥⑦⑧';
+const sideEl  = document.querySelector('.side');
+const panelEl = document.getElementById('panel');
+
+function keepResume(file) {
+  // まだ何もしていない（①のまま・URLも既定）なら、覚えることがない
+  if (qrStep === 0 && state.text === 'https://core-shift.jp' && !state.text2 && !state.box.mesh) {
+    Resume.forget(RESUME);
+    return;
+  }
+  Resume.keep(RESUME, {
+    label: MARU[qrStep] + ' ' + QR_STEPS[qrStep].short + '　' + (state.text || ''),
+    data: { step: qrStep, form: Resume.readForm(panelEl), map: state.box.map },
+    file,
+  });
+}
+for (const ev of ['input', 'change', 'click']) sideEl.addEventListener(ev, () => keepResume());
+addEventListener('pagehide', () => Resume.flush(RESUME));
+
+const back = await Resume.check(RESUME);
+if (back && back.data) {
+  if (back.file) {
+    // ★読めなかったら はめ込み無しで進む。ここで止めると画面が出ない
+    try {
+      const f = new File([back.file.buf], back.file.name, { type: back.file.type || '' });
+      const n = normalizeMesh(await parseModel(f), f.name);
+      state.box.mesh = n.list; state.box.info = n.info;
+      state.box.map  = back.data.map && back.data.map.length === n.list.length
+        ? back.data.map
+        : n.list.map(m => m.color == null ? null : nearestFilament(m.color));
+      renderBoxMap();
+    } catch (ex) {
+      showErr(`前に読みこんだ ${back.file.name} を戻せませんでした（${ex && ex.message || ex}）`);
+    }
+  }
+  Resume.writeForm(panelEl, back.data.form);
+  syncBoxPanel();
+  rebuild(true);
+  goQrStep(back.data.step || 0);
+} else {
+  goQrStep(0);
+}
 </script>
 
 <!-- ひらがな切替（ヘッダー右上にボタンを足す） -->

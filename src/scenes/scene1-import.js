@@ -71,7 +71,11 @@ export function mountScene1(root, { onLoaded, onCreate } = {}) {
     try {
       const info = await readModelFile(file);
       clearNotice();
-      onLoaded?.(info);                 // 読めたら、そのままシーン2へ
+      /* ★中身そのものも渡す。「つづきから」で読みこみ直すのに要る
+           （ファイルの場所は覚えられないので、中身を持っておくしかない）。 */
+      const buf = await file.arrayBuffer();
+      onLoaded?.(info, { name: file.name, type: file.type,
+                         buf, key: file.name + ':' + buf.byteLength });
     } catch (e) {
       say('error', `<p><b>読めませんでした。</b><br>${String(e.message || e)}</p>`);
       picker.value = '';

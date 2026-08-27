@@ -1066,6 +1066,26 @@ export function mountScene3Lower(root, { model, onBack, onDone } = {}) {
   goto(1);
 
   return {
+    /* ── つづきから再開のための覚え書き ──────────────────
+       ★1つずつ書き写すのではなく、操作パネルのつまみをまとめて覚える
+         （window.Resume は clicker.html が <script> で読んでいる）。
+       ★戻すときは値を入れて input を投げるので、いつもの処理が走る＝
+         3Dも溝も付いてくる。②の「自分で描く」でなぞった線だけは
+         つまみに出ないので戻らない（そこは描き直してもらう）。 */
+    snapshot() {
+      return { step, form: window.Resume?.readForm(root.querySelector('.panel')) };
+    },
+    restore(s) {
+      if (!s) return;
+      /* ★先に goto。あとから writeForm にすること。
+           goto はフローに入るたびにバーの動く範囲を決め直すので、
+           値を入れてから goto すると、その値が上書きされる
+           （②の「大きさ（半径）」が 8.1 → 9.1 に戻ってしまった）。 */
+      goto(Math.max(1, Math.min(LAST, s.step || 1)));
+      window.Resume?.writeForm(root.querySelector('.panel'), s.form);
+    },
+    stepNow() { return step; },
+
     destroy() {
       cancelAnimationFrame(raf);
       topView.host.removeEventListener('pointerdown', onDown);

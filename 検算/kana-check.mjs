@@ -39,7 +39,8 @@ function toKana(s) {
 }
 
 /* ── 調べるファイル ───────────────────────────────────── */
-const files = ['index.html', 'clicker.html', 'public/nameplate.html', 'public/qr.html'];
+const files = ['index.html', 'clicker.html', 'public/nameplate.html', 'public/qr.html',
+               'public/js/resume.js'];   /* 「つづきから」のダイアログの文言 */
 for (const dir of ['src', 'src/scenes', 'src/geom', 'src/io']) {
   const abs = path.join(ROOT, dir);
   if (!fs.existsSync(abs)) continue;

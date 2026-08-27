@@ -22,6 +22,8 @@
   </script>
 
   <link rel="stylesheet" href="css/common.css">
+  <!-- つづきから再開（window.Resume を作る。モジュールより先に読む） -->
+  <script src="/js/resume.js"></script>
   <style>
     /* このページだけの調整 */
     .qr-wrap #qrCode { display: inline-block; background:#fff; padding:6px; border-radius:8px; line-height:0; }
@@ -1794,7 +1796,68 @@ updateBaseSizeLabel();
 updateSliderRanges();
 refreshChips();
 renderFontPanel();
-goStep(0);
+
+// ── つづきから再開 ──────────────────────────────────────────────
+// 読み直したときに「つづきから」か「さいしょから」かを聞く。
+// state はぜんぶ JSON にできるので、そのまま覚えて そのまま戻す。
+const RESUME = 'nameplate';
+const MARU = '①②③④⑤⑥⑦⑧⑨';
+
+// state → 画面のつまみ。戻したあとに1回だけ呼ぶ
+function syncControlsFromState() {
+  [...shapeGrid.children].forEach(c => c.classList.toggle('active', c.dataset.shape === state.shape));
+  sliderBaseW.value = Math.round(state.baseSX * 100);
+  sliderBaseH.value = Math.round(state.baseSY * 100);
+  [...subGrid.children].forEach(c => c.classList.toggle('active', c.dataset.sub === state.sub));
+  if (state.sub !== 'none' && subWrap.style.display === 'none') btnSubToggle.onclick();
+  sliderSubS.value = Math.round(state.subScale * 100);
+  document.getElementById('subSVal').textContent = sliderSubS.value + '%';
+  sliderSubX.value = state.subX;
+  sliderSubY.value = state.subY;
+  sliderSubR.value = Math.round(state.subRot * 180 / Math.PI);
+  document.getElementById('subRVal').textContent = sliderSubR.value + '°';
+  charsInput.value = state.chars.map(c => c.char).join('');
+  renderFontPanel();
+  if (fontCache[state.fontId]) font = fontCache[state.fontId];
+  updateSizeRange();
+  sliderSize.value = state.charSize;
+  sizeVal.textContent = (state.charSize * MODEL_SCALE_XY).toFixed(1) + ' mm';
+  applyColorMode();
+  buildColorList('base', () => state.baseColor, v => state.baseColor = v);
+  buildColorList('text', () => state.textColor, v => state.textColor = v);
+  updateColorLabels();
+  syncHoleOpts();
+}
+
+function keepResume() {
+  // まだ何もしていない（①のまま・名前も空）なら、覚えることがない
+  if (state.step === 0 && !state.chars.length) { Resume.forget(RESUME); return; }
+  const nm = state.chars.map(c => c.char).join('');
+  Resume.keep(RESUME, {
+    label: MARU[state.step] + ' ' + STEP_CAPS[state.step] + (nm ? '　「' + nm + '」' : ''),
+    data: { ...state, chars: state.chars.map(c => ({ ...c })) },
+  });
+}
+// ★つまみ1つずつに足すのではなく、操作パネルと3Dの窓でまとめて受ける。
+//   泡立ち（バブリング）で受けるので、ボタン自身の処理が終わってから呼ばれる＝
+//   そのときの state はもう新しい。
+for (const ev of ['input', 'change', 'click']) {
+  document.querySelector('.side').addEventListener(ev, keepResume);
+}
+document.querySelector('.stage').addEventListener('pointerup', keepResume);   // 文字を動かしたとき
+addEventListener('pagehide', () => Resume.flush(RESUME));
+
+const back = await Resume.check(RESUME);
+if (back && back.data) {
+  Object.assign(state, back.data);
+  syncControlsFromState();
+  applyBaseChange();      // 土台を作り直し、文字の位置を合わせる
+  rebuildChars();         // ★フォントがまだなら空。読めた時点で loadFonts が作り直す
+  updateColors();
+  refreshChips();
+  refreshSaveButtons();
+}
+goStep(state.step || 0);
 </script>
 
 <!-- ひらがな切替（ヘッダー右上にボタンを足す） -->
