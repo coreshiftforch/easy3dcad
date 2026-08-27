@@ -1,5 +1,7 @@
+node_modules/
+dist/
 __pycache__/
 *.pyc
 *.stl
 *.3mf
-出力/
+.DS_Store

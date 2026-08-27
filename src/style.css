@@ -1,0 +1,792 @@
+/* 色。明るい画面と暗い画面の両方に合わせる */
+:root {
+  --bg:      #f4f6f9;
+  --card:    #ffffff;
+  --ink:     #1d2430;
+  --dim:     #6b7684;
+  --line:    #c8d0da;
+  --accent:  #2b6fd6;
+  --accent-bg: #e8f0fc;
+  --ok:      #1f7a4d;
+  --ok-bg:   #e6f5ed;
+  --warn:    #8a5a00;
+  --warn-bg: #fdf1da;
+  --err:     #b3261e;
+  --err-bg:  #fdeceb;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:      #171b21;
+    --card:    #1f242c;
+    --ink:     #e6eaf0;
+    --dim:     #97a1ae;
+    --line:    #3a434f;
+    --accent:  #7aa8ef;
+    --accent-bg: #22304a;
+    --ok:      #7ed3a6;
+    --ok-bg:   #1e3229;
+    --warn:    #e8c07a;
+    --warn-bg: #33291a;
+    --err:     #f2a5a0;
+    --err-bg:  #3a2321;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+#app { min-height: 100dvh; }
+
+.scene {
+  min-height: 100dvh;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── 舞台。スマホは縦積み（ボタンは下）、パソコンは横並び（ボタンは右） ── */
+.stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+.side { display: flex; }
+
+/* ── インポート枠 ─────────────────────────────── */
+.dropzone {
+  flex: 1;
+  min-height: 260px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  border: 2.5px dashed var(--line);
+  border-radius: 20px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, transform .1s;
+}
+.dropzone:hover  { border-color: var(--accent); }
+.dropzone:active { transform: scale(.995); }
+.dropzone:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.dragging .dropzone {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.dz-icon { width: 56px; height: 56px; color: var(--accent); }
+.dz-title { font-size: clamp(22px, 5.5vw, 32px); font-weight: 700; letter-spacing: .02em; }
+.dz-sub { color: var(--dim); font-size: clamp(13px, 3.4vw, 15px); line-height: 1.7; text-align: center; }
+.dz-formats { color: var(--dim); font-size: clamp(12px, 3.2vw, 14px); }
+
+/* 文字はデバイスで出し分ける。
+   ★画面の幅ではなく「細かく指せるポインタがあるか」で見る。
+     ドラッグ＆ドロップができるのはマウスのある機械だけ。 */
+.only-pc    { display: none; }
+.only-touch { display: block; }
+@media (hover: hover) and (pointer: fine) {
+  .only-pc    { display: block; }
+  .only-touch { display: none; }
+}
+
+/* ── 「モデルを作る」 ─────────────────────────── */
+.make-btn {
+  width: 100%;
+  min-height: 64px;
+  padding: 16px 22px;
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: clamp(16px, 4.2vw, 19px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, transform .1s;
+}
+.make-btn:hover  { border-color: var(--accent); background: var(--accent-bg); }
+.make-btn:active { transform: scale(.99); }
+.make-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+/* ── 知らせ（読めた／注意／だめだった） ───────────── */
+.notice {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: var(--card);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.notice p { margin: 0 0 8px; }
+.notice p:last-child { margin-bottom: 0; }
+.notice .dim { color: var(--dim); font-weight: 400; }
+.notice.ok    { border-color: var(--ok);   background: var(--ok-bg); }
+.notice.warn  { border-color: var(--warn); background: var(--warn-bg); }
+.notice.error { border-color: var(--err);  background: var(--err-bg); }
+
+.notice .kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 16px;
+  margin: 10px 0;
+}
+.notice .kv dt { color: var(--dim); }
+.notice .kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+.notice .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.notice button {
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.notice button:hover { border-color: var(--accent); }
+.notice .go { border-color: var(--accent); background: var(--accent-bg); }
+
+/* ── パソコン（横に広い画面）─────────────────────
+     インポート枠を大きく、「モデルを作る」は右に置く */
+@media (min-width: 760px) {
+  .scene { padding: 24px; gap: 18px; }
+  .stage { flex-direction: row; align-items: stretch; gap: 20px; }
+  .dropzone { min-height: 340px; }
+  .side { flex-direction: column; justify-content: center; width: 220px; flex: none; }
+  .make-btn { min-height: 92px; font-size: 20px; }
+  .notice { max-width: 900px; }
+}
+
+/* ══════════════════════════════════════════════
+   シーン2：3Dで見て、作りを選ぶ
+   ══════════════════════════════════════════════ */
+/* ★シーン2は「1画面におさめる」。min-height だけだと、プレビューが出たときに
+     背が伸びてスクロールしてしまう。高さを決めておくと、3Dの窓のほうが縮む。 */
+.scene2 { height: 100dvh; gap: 12px; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+.back-btn {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.back-btn:hover { border-color: var(--accent); background: var(--accent-bg); }
+.back-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.file-name {
+  color: var(--dim);
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 左右の分かれ。ふだんは左（3D）だけ、作りを選ぶと右が開く */
+.split { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.left  { flex: 1 1 auto; min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.right { flex: none; display: none; flex-direction: column; gap: 10px; min-width: 0; }
+.scene2.picked .right { display: flex; }
+
+/* 3Dの窓。ここだけが伸び縮みする */
+.viewer {
+  flex: 1 1 auto;
+  min-height: 160px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  overflow: hidden;
+}
+.viewer canvas { display: block; width: 100%; height: 100%; }
+
+/* 作りの選択肢。3つ横並び */
+.choices { display: flex; gap: 10px; flex: none; }
+/* 読みこんだ大きさが範囲から外れたときだけ出す帯。ふだんは出さない */
+.size-fix[hidden] { display: none; }
+.size-fix {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--warn);
+  border-radius: 12px;
+  background: var(--warn-bg);
+}
+.size-fix .sf-msg { margin: 0; font-size: 13px; line-height: 1.6; font-weight: 600; }
+.size-fix input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
+.sf-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sf-auto {
+  flex: none;
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sf-auto:hover { border-color: var(--accent); }
+.sf-auto:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.size-fix .sf-note { font-size: 12px; color: var(--dim); }
+.type-btn {
+  flex: 1 1 0;
+  min-height: 56px;
+  padding: 12px 8px;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: clamp(13px, 3.6vw, 16px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.type-btn:hover { border-color: var(--accent); }
+.type-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.type-btn.on { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+
+/* 選んだあとに出る見本のプレビュー */
+.preview {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  background: var(--card);
+}
+.ph-box { width: 100%; max-width: 220px; margin: 0 auto 10px; color: var(--dim); }
+.ph-box .ph { display: block; width: 100%; height: auto; }
+.ph-label { margin: 0 0 4px; font-weight: 700; }
+.ph-note  { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.6; }
+
+/* 確定は右下 */
+.confirm-bar { flex: none; display: flex; justify-content: flex-end; gap: 10px; }
+/* 出るファイルの案内は、STL と 3MF を1行ずつ */
+.files { display: flex; flex-direction: column; gap: 3px; }
+.ok-btn {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 34px;
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+}
+.ok-btn:hover { filter: brightness(1.06); }
+.ok-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+/* ── 横に広い画面 ─────────────────────────────
+     右がわは幅0で置いておき、選ばれたら開く。
+     ★display:none から出すと動きがつかないので、flex-basis を動かす。
+       3Dの窓が細くなるぶん、モデルは左へすべっていく。 */
+@media (min-width: 760px) {
+  .split { flex-direction: row; gap: 0; }
+  .right {
+    display: flex;
+    flex: 0 0 0%;
+    overflow: hidden;
+    opacity: 0;
+    transition: flex-basis .45s ease, margin-left .45s ease, opacity .3s ease .1s;
+  }
+  .scene2.picked .right { flex-basis: 38%; margin-left: 16px; opacity: 1; }
+  .ph-box  { max-width: 260px; }
+  .ok-btn  { width: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .right { transition: none; }
+}
+
+@keyframes cm-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cm-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.scene2 { animation: cm-fade .30s ease-out both; }
+.scene2 .choices { animation: cm-rise .45s .55s ease-out both; }
+
+/* 動きを減らす設定の人には出さない */
+@media (prefers-reduced-motion: reduce) {
+  .scene2, .scene2 .choices { animation: none; }
+}
+
+/* ══════════════════════════════════════════════
+   シーン3：溝を決める（タイプ1・フロー①）
+   ══════════════════════════════════════════════ */
+.scene3 { height: 100dvh; gap: 12px; }
+
+.s3-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 左のフロー表示（せまい画面では上の横並び） */
+.flow {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  /* 横スクロールはできるが、バーは出さない（せまい画面で下に灰色の帯が出る） */
+  scrollbar-width: none;
+}
+.flow::-webkit-scrollbar { display: none; }
+.flow li {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--dim);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.flow li b {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--line);
+  color: var(--card);
+  font-size: 11px;
+}
+.flow li.on {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 700;
+}
+.flow li.on b { background: var(--accent); color: #fff; }
+/* まだ作っていないフロー（タイプ2の②〜④）。薄くして、押せないことを見せる */
+.flow li.todo { opacity: .45; }
+
+/* 横から／上から の2つの窓 */
+.views { flex: 1 1 auto; min-height: 0; display: flex; gap: 10px; }
+.view {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  overflow: hidden;
+}
+.view canvas { display: block; width: 100%; height: 100%; }
+/* ⑥は、つかんでまわせる（動かさずに離すと「押した」） */
+.view.clickable { cursor: grab; touch-action: none; }
+.view.clickable:active { cursor: grabbing; }
+/* 「自分で描く」のあいだは、なぞれることが分かるようにする */
+.view.drawing { cursor: crosshair; touch-action: none; }
+.view.drawing canvas { pointer-events: none; }
+.view-tag {
+  position: absolute;
+  top: 8px; left: 10px;
+  color: var(--dim);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+/* 右（せまい画面では下）の操作パネル */
+.panel {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--card);
+}
+.panel-h { margin: 0; font-size: 13px; font-weight: 700; color: var(--dim); }
+
+.shapes { display: flex; flex-wrap: wrap; gap: 6px; }
+.shape-btn {
+  flex: 1 1 auto;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.shape-btn:hover:not(:disabled) { border-color: var(--accent); }
+.shape-btn.on { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+.shape-btn:disabled { opacity: .45; cursor: default; }
+.shape-btn i { font-style: normal; font-size: 11px; opacity: .8; margin-left: 5px; }
+
+.slabel {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  color: var(--dim);
+  margin-top: 4px;
+}
+.slabel output { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.panel input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
+
+/* 高さのスライダ。見つけた候補に印を出す */
+.hwrap { position: relative; padding-bottom: 12px; }
+.marks { position: absolute; left: 0; right: 0; bottom: 2px; height: 8px; pointer-events: none; }
+/* ★つまみのぶん、両はしを少し内がわに詰める（印とつまみの位置を合わせる） */
+.marks i {
+  position: absolute;
+  bottom: 0;
+  width: 2px; height: 8px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--accent);
+  opacity: .75;
+}
+
+.panel .note { margin: 2px 0 0; font-size: 11px; line-height: 1.6; color: var(--dim); }
+.panel input[type=range]:disabled { opacity: .4; }
+
+.hint { margin: 2px 0 0; font-size: 12px; line-height: 1.6; color: var(--dim); }
+.hint.warn { color: var(--warn); font-weight: 600; }
+
+.next-btn {
+  align-self: flex-end;
+  min-height: 48px;
+  padding: 12px 30px;
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.next-btn:hover { filter: brightness(1.06); }
+.next-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+/* 横に広い画面：フローを左、窓をまんなか、操作を右 */
+@media (min-width: 900px) {
+  .s3-body { flex-direction: row; gap: 14px; }
+  .flow {
+    flex: 0 0 150px;
+    flex-direction: column;
+    gap: 8px;
+    overflow: visible;
+  }
+  .flow li { flex: none; font-size: 13px; padding: 10px 12px; }
+  .views { flex: 1 1 auto; }
+  .panel { flex: 0 0 375px; overflow-y: auto; }
+}
+
+/* 向きを変えるボタン（90°ずつ） */
+.turns { display: flex; gap: 6px; }
+.turn {
+  flex: 1 1 0;
+  min-height: 40px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.turn:hover  { border-color: var(--accent); }
+.turn:active { background: var(--accent-bg); }
+.turn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+/* 向きの軸ボタン */
+.axes { display: flex; gap: 6px; }
+.axis-btn {
+  flex: 1 1 0;
+  min-height: 42px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.axis-btn:hover { border-color: var(--accent); }
+.axis-btn.on { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+.axis-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+/* 回転を示す円状の矢印。軸から見た窓に重ねる。
+   ★SVG に hidden を付けても効かない。ブラウザ既定の [hidden]{display:none} は
+     HTML の名前空間に限られていて、SVG 要素には当たらないため。自分で書く。 */
+.spin-arrow[hidden] { display: none; }
+.spin-arrow {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 46%; height: 46%;
+  transform: translate(-50%, -50%);
+  color: var(--accent);
+  opacity: .38;
+  pointer-events: none;
+}
+.view[hidden] { display: none; }
+
+/* 虫眼鏡（フロー①だけ出る） */
+.zoomer[hidden] { display: none; }
+.zoomer {
+  position: absolute;
+  right: 8px; bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+.zoom {
+  display: grid;
+  place-items: center;
+  width: 30px; height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.zoom:hover { background: var(--accent-bg); color: var(--accent); }
+.zoom svg { width: 18px; height: 18px; display: block; }
+.zoom-pct {
+  min-width: 42px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 3つめの窓と「移動」中のならび */
+.views .col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.views.solo .col { display: none; }
+.views.three .view.side { flex: 1.15 1 0; }
+
+.move-btn, .split-btn, .xray-btn, .pro-btn, .neck-btn, .hand-btn, .flat-btn {
+  align-self: flex-start;
+  min-height: 40px;
+  padding: 8px 20px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.move-btn:hover, .split-btn:hover, .xray-btn:hover,
+.pro-btn:hover, .neck-btn:hover, .hand-btn:hover, .flat-btn:hover { border-color: var(--accent); }
+.move-btn.on, .xray-btn.on, .pro-btn.on, .hand-btn.on {
+  border-color: var(--accent); background: var(--accent-bg); color: var(--accent);
+}
+/* プロ編集のボタンは横に並べる */
+.pro-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.pro-row[hidden], .pro-note[hidden] { display: none; }
+.pro-row > button { flex: 1 1 auto; }
+/* ⑥のボタンは2つ並べる */
+.btn-row { display: flex; gap: 8px; }
+.btn-row > button { flex: 1 1 0; align-self: stretch; }
+.move-btn:focus-visible, .split-btn:focus-visible, .xray-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+/* ⑥のクリックのふきだし。作動点を通ったときだけ出す */
+.click-pop {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(6px) scale(.9);
+  transition: opacity .12s ease, transform .12s ease;
+}
+.click-pop.on { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+
+/* せまい画面では、3つの窓を縦に積む */
+@media (max-width: 899px) {
+  .views.three { flex-direction: column; }
+  .views.three .col { flex-direction: row; }
+}
+
+.pos-bars[hidden] { display: none; }
+.auto-depth[hidden], .fit-z[hidden], .auto-blen[hidden] { display: none; }
+.auto-depth, .fit-z, .auto-blen {
+  align-self: flex-start;
+  min-height: 34px;
+  padding: 6px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.auto-depth:hover, .fit-z:hover, .auto-blen:hover { border-color: var(--accent); }
+
+/* ══════════════════════════════════════════════
+   バーの行間をゆったりさせる
+   ★入れものを縦のフレックスにして gap で空ける。
+     [hidden] は display:none を当てるだけなので、display を書いた入れものには
+     自分で [hidden]{display:none} を足さないと隠れなくなる（前に踏んだ罠）。
+   ══════════════════════════════════════════════ */
+.sec-size, .sec-loop, .sec-groove, .sec-cut, .sec-hole, .sec-bowl,
+.sides-row, .wrap-row, .sec-pos, .sec-preview,
+.pos-bars, .corner-row, .inset-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sec-size[hidden], .sec-loop[hidden], .sec-groove[hidden], .sec-cut[hidden],
+.sec-hole[hidden], .sec-bowl[hidden], .sides-row[hidden], .wrap-row[hidden],
+.sec-preview[hidden],
+.sec-pos[hidden], .pos-bars[hidden], .corner-row[hidden], .inset-row[hidden] {
+  display: none;
+}
+
+/* ラベルとバーは1組。あいだは詰め、組と組のあいだを空ける */
+.panel { gap: 14px; }
+.slabel { margin: 0; }
+.panel .slabel + input[type=range] { margin-top: -4px; }
+.panel .note, .hint { margin: 0; }
+.hwrap { padding-bottom: 14px; }
+
+/* 柱の種類 */
+.bosses { display: flex; gap: 6px; flex-wrap: wrap; }
+.boss-btn {
+  flex: 1 1 auto;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.boss-btn:hover { border-color: var(--accent); }
+.boss-btn.on { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+.boss-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.ring-row[hidden] { display: none; }
+.ring-row { display: flex; flex-direction: column; gap: 12px; }
+
+/* 「戻る／次へ」のならび */
+.go-row { display: flex; gap: 10px; justify-content: flex-end; align-items: center; }
+.prev-btn {
+  min-height: 48px;
+  padding: 12px 22px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.prev-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-bg); }
+.prev-btn:disabled { opacity: .4; cursor: default; }
+.prev-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.go-row .next-btn { align-self: auto; }
+
+.prev-btn, .next-btn, .ok-btn, .auto-depth, .fit-z, .move-btn, .split-btn, .xray-btn { white-space: nowrap; }
+
+/* ── シーン4：書き出し ─────────────────────────
+     右がわは最初から開いている（選ぶものがそろっている画面なので）。 */
+.scene4 { height: 100dvh; gap: 12px; }
+.scene4 .right { display: flex; overflow: auto; }
+.scene4 .panel { flex: none; }
+.scene4 .fname {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+.scene4 .fname:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.scene4 .files { word-break: break-all; }
+
+.part-row {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 6px 0;
+  font-size: 12px;
+  border-top: 1px solid var(--line);
+}
+.part-row:first-child { border-top: 0; }
+.part-row i { width: 12px; height: 12px; border-radius: 3px; }
+.part-row b { font-size: 13px; }
+.part-row span { color: var(--dim); font-variant-numeric: tabular-nums; }
+/* ★「閉じているか」は行の下いっぱいに置く（数が長くても折れない） */
+.part-row .shut { grid-column: 2 / -1; font-style: normal; font-size: 11px; color: var(--dim); }
+.part-row .shut.ok { color: var(--ok); }
+.part-row .shut.ng { color: var(--warn); font-weight: 700; }
+
+@media (min-width: 760px) {
+  /* ★シーン2の右がわは「選ぶまで幅0・透明」で置いてある。シーン4はいつも開いて
+       いるので、幅も透明も戻すこと（opacity を戻し忘れて、まるごと見えなかった）。 */
+  .scene4 .right { flex: 0 0 34%; margin-left: 16px; opacity: 1; overflow: auto; }
+  .scene4 .ok-btn { width: 100%; }
+}

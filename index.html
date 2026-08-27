@@ -6,7 +6,7 @@
 <title>かんたん3D CAD</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f172a'/%3E%3Cg fill='none' stroke='%233b82f6' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M16 5l9 5v12l-9 5-9-5V10z'/%3E%3Cpath d='M7 10l9 5 9-5M16 15v12'/%3E%3C/g%3E%3C/svg%3E">
 
-<link rel="stylesheet" href="css/common.css">
+<link rel="stylesheet" href="/css/common.css">
 <style>
   /* トップページだけ、スクロールできる1枚もの */
   body { overflow: auto; height: auto; min-height: 100dvh; display: block; }
@@ -98,9 +98,9 @@
 
     <a class="card" href="clicker.html">
       <span class="ico">🔘</span>
-      <span class="nm">カチカチ クリッカー</span>
-      <span class="de">3Dモデル（GLB）を入れると、上下2つのパーツに切りわけて 押せるクリッカーにする。</span>
-      <span class="tag">分解プレビュー付き</span>
+      <span class="nm">クリッカーメーカー</span>
+      <span class="de">3Dモデル（STL / 3MF / GLB）を入れると、キースイッチでカチカチ押せる 上下2パーツにしてくれる。</span>
+      <span class="tag">Cherry MX互換</span>
       <span class="go">つくる ▶</span>
     </a>
 
@@ -118,7 +118,7 @@
 
   <footer>
     ※ つくったデータは この端末の中だけで つくられます。どこにも送信されません。<br>
-    ※ Three.js を ES Module で使うため、<b>server.py 経由</b>（起動.bat）で開いてください。
+    ※ 開発中に手もとで動かすときは <b>起動.bat</b>（＝ <code>npm run dev</code>）から開いてください。
   </footer>
 
 </div>

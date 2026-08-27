@@ -9,40 +9,56 @@
 |---|---|---|
 | `nameplate.html` | なまえプレート（形・フォント・色・穴を選ぶ） | 3MF（2色）・STL |
 | `qr.html` | QRキーホルダー（URLを入れるとQRの立体になる） | 3MF（多色）・STL・PNG |
-| `clicker.html` | カチカチ クリッカー（3Dモデルを上下2パーツに切る） | 3MF・STL |
+| `clicker.html` | クリッカーメーカー（3Dモデルをキースイッチで押せる上下2パーツにする） | 3MF・STL |
 
-## つかいかた
+## 動かす
 
-`起動.bat` をダブルクリックすると、サーバーが立ち上がってブラウザが開く。
-
-手で動かす場合:
-
-```powershell
-python server.py 8080
+```
+npm install
+npm run dev       # http://localhost:5173/
+npm run build     # dist/ に出る（これが提出物）
+npm run preview   # dist/ を確かめる
 ```
 
-そのあと <http://localhost:8080/index.html> を開く。
-
-> Three.js を ES Module（importmap）で読み込むため、`file://` で直接開くと動かない。
-> かならず `server.py` 経由で開くこと。
+`起動.bat` をダブルクリックすれば、初回セットアップ（`npm install`）から
+開発サーバー起動・ブラウザ表示までまとめてやる。
 
 ## ファイル構成
 
 ```
 easy3dcad/
-├ index.html      … トップ（3つから選ぶ）
-├ nameplate.html  … なまえプレート
-├ qr.html         … QRキーホルダー
-├ clicker.html    … カチカチ クリッカー
-├ css/common.css  … 3ページ共通のデザイン（← 見た目を変えるならここ）
-├ fonts/*.ttf     … なまえプレートで使う書体
-├ server.py       … 動作確認用サーバー（/server-ip つき）
-└ 起動.bat        … サーバー起動＋ブラウザを開く
+├ index.html        … トップ（3つから選ぶ）      ← Viteのエントリ
+├ clicker.html      … クリッカーメーカー          ← Viteのエントリ
+├ src/              … クリッカーメーカーのソース（約8,400行）
+│  ├ main.js        … シーンの入れかえ
+│  ├ scenes/        … 1インポート → 2作りを選ぶ → 3形をつくる → 4書き出し
+│  ├ geom/          … 立体をつくる部品
+│  ├ io/            … モデルの読み書き
+│  └ style.css      … クリッカーだけのスタイル
+├ public/           … ★Viteが一切いじらず、そのまま配られる
+│  ├ nameplate.html … なまえプレート（単一HTML）
+│  ├ qr.html        … QRキーホルダー（単一HTML）
+│  ├ css/common.css … なまえプレート／QR／トップの共通デザイン
+│  └ fonts/*.ttf    … なまえプレートで使う書体
+├ vite.config.js
+└ 起動.bat
 ```
 
-## デザインの決まりごと
+### なぜ public/ に分けているか
 
-3ページとも、`css/common.css` の同じ骨組みに乗せている。
+なまえプレートとQRキーホルダーは、**three.js を CDN の importmap で読む単一HTML**。
+これを Vite にビルドさせると、npm 側の three（0.185）で解決しようとして
+食いちがう。`public/` に置いたものは Vite が一切さわらないので、
+書いたままの形で配られる。
+
+いっぽう クリッカーメーカーは npm の three を `import` するモジュール構成なので、
+Vite のエントリ（`clicker.html` → `/src/main.js`）として束ねている。
+
+つまり **three.js が2系統ある**が、ページが別なので競合しない。
+
+## デザイン
+
+トップ・なまえプレート・QRキーホルダーは `public/css/common.css` の同じ骨組みに乗せている。
 
 ```html
 <header>…タイトル＋メニューへ戻るリンク…</header>
@@ -61,7 +77,9 @@ easy3dcad/
   （`.main` を `row-reverse` にしているので、DOMは `stage → side` の順で書く）
 
 色は `:root` の CSS変数（`--bg` `--panel` `--accent` など）だけで決めている。
-テーマを変えるときは変数の値を差しかえる。
+
+> **クリッカーメーカーだけ、まだこの共通デザインに乗っていない**（ライトテーマの独自UI）。
+> 見た目を揃えるかどうかは、3つ並べて見てから決める。
 
 ## つくる → 印刷までの流れ
 
@@ -75,10 +93,12 @@ STL は単色だが、どのスライサーでも開ける。
 
 ## 元になったアプリ
 
-このアプリは、別々に作っていた3つのアプリを1つにまとめたもの。
+別々に作っていた3つのアプリを1つにまとめたもの。
 
-- なまえプレート … `公民館イベントアプリ/cad3D_printing_ver2`（BASE決済・注文GAS連携は削除し、無料ダウンロードに変更）
+- なまえプレート … `公民館イベントアプリ/cad3D_printing_ver2`
+  （BASE決済・注文GAS連携は削除し、無料ダウンロードに変更）
 - QRキーホルダー … `QRコード3Dアプリ`
-- クリッカー … `フィギュアキーキャップ`
+- クリッカーメーカー … `projects/clicker-maker`
+  （`フィギュアキーキャップ` の単一HTML版を作り直したもの。旧版はもう使わない）
 
 外部サービスへの送信は一切行わない。生成したデータは端末の中だけで完結する。
