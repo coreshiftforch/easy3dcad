@@ -113,7 +113,7 @@
 
   <!-- ④ 大きさ -->
   <div class="step-page" data-page="3">
-    <div class="panel-title">④ 大きさを選ぼう <small>全部 同じ大きさ</small></div>
+    <div class="panel-title">④ 大きさを選ぼう <small>全部同じ大きさ</small></div>
     <div class="slider-row">
       <div class="lab"><span>文字の大きさ</span><b id="sizeVal">8.5 mm</b></div>
       <input type="range" id="sliderSize" min="10" max="56" step="1" value="26">
@@ -144,7 +144,7 @@
       <div class="lab"><span>傾き</span><b id="rotVal">0°</b></div>
       <input type="range" id="sliderRot" min="-180" max="180" step="1" value="0">
     </div>
-    <div style="text-align:center;"><button class="mini-btn" id="btnRotReset">まっすぐに 戻す</button></div>
+    <div style="text-align:center;"><button class="mini-btn" id="btnRotReset">まっすぐに戻す</button></div>
   </div>
 
   <!-- ⑦ 高さ -->
@@ -203,11 +203,11 @@
 
     <!-- 完成：アニメーションのあとに表示 -->
     <div id="resultPanel" style="display:none;">
-      <div style="text-align:center;font-size:20px;font-weight:bold;margin-bottom:4px;">🎉 できあがり！</div>
+      <div style="text-align:center;font-size:20px;font-weight:bold;margin-bottom:4px;">🎉 完成！</div>
       <div class="hint-line" style="margin-bottom:12px;">3Dプリンターで使えるデータを保存しよう</div>
 
-      <button class="action-btn" id="btnSave3MF">📥 3MFで 保存 <small style="display:block;font-weight:normal;font-size:11px;opacity:.85;">色付き・2色プリントできる</small></button>
-      <button class="action-btn green" id="btnSaveSTL">📥 STLで 保存 <small style="display:block;font-weight:normal;font-size:11px;opacity:.85;">どの3Dプリンターでも使える</small></button>
+      <button class="action-btn" id="btnSave3MF">📥 3MFで保存 <small style="display:block;font-weight:normal;font-size:11px;opacity:.85;">色付き・2色プリントできる</small></button>
+      <button class="action-btn green" id="btnSaveSTL">📥 STLで保存 <small style="display:block;font-weight:normal;font-size:11px;opacity:.85;">どの3Dプリンターでも使える</small></button>
 
       <div class="status-msg" id="statusMsg"></div>
       <button class="action-btn grey" id="btnBackEdit" style="margin-top:10px;padding:12px;">◀ 戻って直す</button>
