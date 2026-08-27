@@ -19,6 +19,7 @@ npm run dev        # http://localhost:5173/
 npm run build      # dist/ に出る（これが提出物）
 npm run preview    # dist/ を確かめる
 npm run check:kana # ひらがな切替の取りこぼし検査
+npm run check:split # 上パーツが割れたときの切り分け検査
 ```
 
 `起動.bat` をダブルクリックすれば、初回セットアップ（`npm install`）から
@@ -42,7 +43,9 @@ easy3dcad/
 │  ├ css/common.css … なまえプレート／QR／トップの共通デザイン
 │  ├ js/kana.js     … ひらがな切替（4ページ共通）
 │  └ fonts/*.ttf    … なまえプレートで使う書体
-├ 検算/kana-check.mjs … ひらがな切替の取りこぼし検査
+├ 検算/
+│  ├ kana-check.mjs   … ひらがな切替の取りこぼし検査
+│  └ split-shells.mjs … 上パーツが2つ以上に割れたときの切り分け検査
 ├ vite.config.js
 └ 起動.bat
 ```

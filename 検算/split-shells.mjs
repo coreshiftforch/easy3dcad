@@ -6,7 +6,7 @@
 
        npm run check:split
    ══════════════════════════════════════════════════════════════ */
-import { shells, pickShellAt } from '../src/geom/split.js';
+import { shells, pickShellAt, splitByStep } from '../src/geom/split.js';
 
 let ng = 0;
 const ok = (cond, name, extra = '') => {
@@ -104,6 +104,57 @@ console.log('\n■ 三角形の枚数が減らない（付けかえても失わ�
   const total = r.keep.length + r.strays.reduce((s, x) => s + x.length, 0);
   ok(total === both.length, '上＋下で もとの枚数と同じ',
      `→ ${total / 9} / ${both.length / 9}枚`);
+}
+
+console.log('\n■ 本物の切り分けを通す（U字を実際に切って、頂点のつながりを見る）');
+{
+  /* U字：台の上に腕が2本。単位mm
+       台   x 0..40, y 0..16, z 0..8
+       左腕 x 0..12,          z 8..34   ← クリッカーはこちら
+       右腕 x 28..40,         z 8..34 */
+  const model = cat(
+    box(0, 40, 0, 16, 0, 8),
+    box(0, 12, 0, 16, 8, 34),
+    box(28, 40, 0, 16, 8, 34),
+  );
+
+  /* 台より上（z=20）で、平らに切る。
+     ★タイプ2と同じ渡し方：zBot と zTop を同じにして floor=0 にすると
+       輪の内と外で高さが変わらない＝ただの平面カットになる。 */
+  const zg = 20;
+  const ring = [];                                  // 左腕をかこむ小さな輪
+  for (let i = 0; i < 32; i++) {
+    const a = i / 32 * Math.PI * 2;
+    ring.push([6 + 4 * Math.cos(a), 8 + 4 * Math.sin(a)]);
+  }
+  const r = splitByStep(model, ring, ring, zg, zg, 0, [zg, zg]);
+
+  const upParts = shells(r.upper);
+  ok(upParts.length === 2, '切り口より上は2つに分かれる', `→ ${upParts.length}`);
+  ok(shells(r.lower).length === 1, '下は1つのまま', `→ ${shells(r.lower).length}`);
+
+  /* 左腕（クリッカーのあるほう）を残し、右腕を下へ回す */
+  const picked = pickShellAt(r.upper, 6, 8);
+  ok(picked.strays.length === 1, '下へ回るのは1つ', `→ ${picked.strays.length}`);
+
+  const xRange = a => {
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < a.length; i += 3) { if (a[i] < lo) lo = a[i]; if (a[i] > hi) hi = a[i]; }
+    return [lo, hi];
+  };
+  const [kLo, kHi] = xRange(picked.keep);
+  const [sLo, sHi] = xRange(picked.strays[0]);
+  ok(kLo === 0 && kHi === 12, '残ったのは左腕（x 0..12）', `→ x ${kLo}..${kHi}`);
+  ok(sLo === 28 && sHi === 40, '回されたのは右腕（x 28..40）', `→ x ${sLo}..${sHi}`);
+
+  const total = picked.keep.length + picked.strays[0].length;
+  ok(total === r.upper.length, '枚数は減っていない',
+     `→ ${total / 9} / ${r.upper.length / 9}枚`);
+
+  /* クリッカーを右腕に置いたら、逆になること */
+  const p2 = pickShellAt(r.upper, 34, 8);
+  const [k2Lo, k2Hi] = xRange(p2.keep);
+  ok(k2Lo === 28 && k2Hi === 40, 'クリッカーが右なら右腕が残る', `→ x ${k2Lo}..${k2Hi}`);
 }
 
 console.log(ng ? `\n✗ ${ng}件 だめでした` : '\n✓ ぜんぶ通りました');
