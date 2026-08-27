@@ -31,7 +31,7 @@
 
 <header>
   <a class="home-link" href="index.html">◀ メニュー</a>
-  <span class="title">🪪 名前プレートをつくろう</span>
+  <span class="title">🪪 名前プレートを作ろう</span>
 </header>
 
 <div class="main">
@@ -53,45 +53,45 @@
 
   <!-- ① 土台 -->
   <div class="step-page" data-page="0">
-    <div class="panel-title">① 土台を えらぼう</div>
+    <div class="panel-title">① 土台を選ぼう</div>
     <div class="shape-grid" id="shapeGrid"></div>
 
     <div class="slider-row">
-      <div class="lab"><span>横の 長さ</span><b id="baseWVal">– mm</b></div>
+      <div class="lab"><span>横の長さ</span><b id="baseWVal">– mm</b></div>
       <input type="range" id="sliderBaseW" min="70" max="140" step="2" value="100">
     </div>
     <div class="slider-row">
-      <div class="lab"><span>縦の 長さ</span><b id="baseHVal">– mm</b></div>
+      <div class="lab"><span>縦の長さ</span><b id="baseHVal">– mm</b></div>
       <input type="range" id="sliderBaseH" min="70" max="140" step="2" value="100">
     </div>
-    <div class="hint-line" id="baseSizeHint">できあがりは 50mm × 40mm までに おさまるよ</div>
-    <div style="text-align:center;"><button class="mini-btn" id="btnBaseReset">大きさを もとに 戻す</button></div>
+    <div class="hint-line" id="baseSizeHint">できあがりは 50mm × 40mm までに収まるよ</div>
+    <div style="text-align:center;"><button class="mini-btn" id="btnBaseReset">大きさを元に戻す</button></div>
 
-    <button class="mini-btn" id="btnSubToggle" style="width:100%;margin-top:12px;">▸ もうひとつ 重ねる</button>
+    <button class="mini-btn" id="btnSubToggle" style="width:100%;margin-top:12px;">▸ もう一つ重ねる</button>
     <div id="subWrap" style="display:none;margin-top:8px;">
-      <div class="hint-line">重ねる 形を えらんでね</div>
+      <div class="hint-line">重ねる形を選んでね</div>
       <div class="shape-grid" id="subGrid"></div>
       <div class="slider-row">
-        <div class="lab"><span>重ねる 大きさ</span><b id="subSVal">55%</b></div>
+        <div class="lab"><span>重ねる大きさ</span><b id="subSVal">55%</b></div>
         <input type="range" id="sliderSubS" min="25" max="110" step="1" value="55">
       </div>
       <div class="slider-row">
-        <div class="lab"><span>よこ ⬅➡</span></div>
+        <div class="lab"><span>横 ⬅➡</span></div>
         <input type="range" id="sliderSubX" min="-140" max="140" step="1" value="0">
       </div>
       <div class="slider-row">
-        <div class="lab"><span>たて ⬆⬇</span></div>
+        <div class="lab"><span>縦 ⬆⬇</span></div>
         <input type="range" id="sliderSubY" min="-140" max="140" step="1" value="0">
       </div>
       <div class="slider-row">
-        <div class="lab"><span>重ねる 傾き</span><b id="subRVal">0°</b></div>
+        <div class="lab"><span>重ねる傾き</span><b id="subRVal">0°</b></div>
         <input type="range" id="sliderSubR" min="-180" max="180" step="1" value="0">
       </div>
       <div id="joinMsg" class="hint-line" style="display:none;"></div>
     </div>
 
     <div class="qr-wrap">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">📱 スマホで ひらく（QRを 読みとってね）</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">📱 スマホで開く（QRを読みとってね）</div>
       <div id="qrCode"></div>
       <div id="qrUrl" class="qr-url"></div>
     </div>
@@ -99,23 +99,23 @@
 
   <!-- ② 文字 -->
   <div class="step-page" data-page="1">
-    <div class="panel-title">② 名前を 入れよう <small>12文字まで</small></div>
+    <div class="panel-title">② 名前を入れよう <small>12文字まで</small></div>
     <input type="text" id="charsInput" class="chars-input" maxlength="12" placeholder="なまえ">
-    <div class="hint-line" id="charsHint">ひらがな・カタカナ・英語・数字・記号（ ( ) _ - ! ? & @ など）が 使えるよ</div>
-    <div class="hint-line" id="fontStatus" style="color:#64748b;">フォント 読みこみ中…</div>
+    <div class="hint-line" id="charsHint">ひらがな・カタカナ・英語・数字・記号（ ( ) _ - ! ? & @ など）が使えるよ</div>
+    <div class="hint-line" id="fontStatus" style="color:#64748b;">フォント読みこみ中…</div>
   </div>
 
   <!-- ③ フォント -->
   <div class="step-page" data-page="2">
-    <div class="panel-title">③ フォントを えらぼう</div>
+    <div class="panel-title">③ フォントを選ぼう</div>
     <div class="font-list" id="fontList"></div>
   </div>
 
   <!-- ④ 大きさ -->
   <div class="step-page" data-page="3">
-    <div class="panel-title">④ 大きさを えらぼう <small>ぜんぶ 同じ 大きさ</small></div>
+    <div class="panel-title">④ 大きさを選ぼう <small>全部 同じ大きさ</small></div>
     <div class="slider-row">
-      <div class="lab"><span>文字の 大きさ</span><b id="sizeVal">8.5 mm</b></div>
+      <div class="lab"><span>文字の大きさ</span><b id="sizeVal">8.5 mm</b></div>
       <input type="range" id="sliderSize" min="10" max="56" step="1" value="26">
       <div id="sizeHint" style="font-size:12px;color:#fbbf24;margin-top:6px;"></div>
     </div>
@@ -123,25 +123,25 @@
 
   <!-- ⑤ 移動 -->
   <div class="step-page" data-page="4">
-    <div class="panel-title">⑤ 文字を 動かそう</div>
+    <div class="panel-title">⑤ 文字を動かそう</div>
     <div class="char-chips" data-chips="move"></div>
     <div class="slider-row">
-      <div class="lab"><span>よこ ⬅➡</span></div>
+      <div class="lab"><span>横 ⬅➡</span></div>
       <input type="range" id="sliderX" min="-70" max="70" step="0.5" value="0">
     </div>
     <div class="slider-row">
-      <div class="lab"><span>たて ⬆⬇</span></div>
+      <div class="lab"><span>縦 ⬆⬇</span></div>
       <input type="range" id="sliderY" min="-45" max="45" step="0.5" value="0">
     </div>
-    <div style="text-align:center;"><button class="mini-btn" id="btnCenter">はじめの 場所に 戻す</button></div>
+    <div style="text-align:center;"><button class="mini-btn" id="btnCenter">最初の場所に戻す</button></div>
   </div>
 
   <!-- ⑥ 回転 -->
   <div class="step-page" data-page="5">
-    <div class="panel-title">⑥ 文字を 回そう</div>
+    <div class="panel-title">⑥ 文字を回そう</div>
     <div class="char-chips" data-chips="rot"></div>
     <div class="slider-row">
-      <div class="lab"><span>かたむき</span><b id="rotVal">0°</b></div>
+      <div class="lab"><span>傾き</span><b id="rotVal">0°</b></div>
       <input type="range" id="sliderRot" min="-180" max="180" step="1" value="0">
     </div>
     <div style="text-align:center;"><button class="mini-btn" id="btnRotReset">まっすぐに 戻す</button></div>
@@ -149,14 +149,14 @@
 
   <!-- ⑦ 高さ -->
   <div class="step-page" data-page="6">
-    <div class="panel-title">⑦ 高さを えらぼう <small>文字の 厚さ</small></div>
+    <div class="panel-title">⑦ 高さを選ぼう <small>文字の厚さ</small></div>
     <div class="char-chips" data-chips="depth"></div>
     <div class="opt-grid" id="depthOpts"></div>
   </div>
 
   <!-- ⑧ 色 -->
   <div class="step-page" data-page="7">
-    <div class="panel-title">⑧ 色を えらぼう</div>
+    <div class="panel-title">⑧ 色を選ぼう</div>
     <div class="seg" id="colorModeSeg">
       <button data-mode="1" class="active">🎨 1色</button>
       <button data-mode="2">🎨🎨 2色</button>
@@ -166,7 +166,7 @@
     <div class="color-card" data-card="base">
       <div class="color-card-head">
         <span class="cc-icon">🟦</span>
-        <span class="cc-title" id="baseColorTitle">全体の 色</span>
+        <span class="cc-title" id="baseColorTitle">全体の色</span>
         <span class="cc-current"><span class="cc-swatch" id="baseSwatch"></span><span class="cc-name" id="baseColorName"></span></span>
       </div>
       <div class="color-list" data-colors="base"></div>
@@ -176,7 +176,7 @@
     <div class="color-card for-text" id="textColorBlock" style="display:none;">
       <div class="color-card-head">
         <span class="cc-icon">🔤</span>
-        <span class="cc-title">名前（文字）の 色</span>
+        <span class="cc-title">名前（文字）の色</span>
         <span class="cc-current"><span class="cc-swatch" id="textSwatch"></span><span class="cc-name" id="textColorName"></span></span>
       </div>
       <div class="color-list" data-colors="text"></div>
@@ -186,11 +186,11 @@
 
   <!-- ⑨ 穴 -->
   <div class="step-page" data-page="8">
-    <div class="panel-title">⑨ 穴を つける <small>ボールチェーン用</small></div>
+    <div class="panel-title">⑨ 穴を開ける <small>ボールチェーン用</small></div>
 
     <!-- 編集：穴の位置えらび＋かんせいボタン -->
     <div id="holeEdit">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">ひもを とおす 穴の 場所を えらぼう</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">ひもを通す穴の場所を選ぼう</div>
       <div class="opt-grid" id="holeOpts">
         <button class="opt-btn" data-hole="none">なし</button>
         <button class="opt-btn" data-hole="top">上</button>
@@ -204,13 +204,13 @@
     <!-- 完成：アニメーションのあとに表示 -->
     <div id="resultPanel" style="display:none;">
       <div style="text-align:center;font-size:20px;font-weight:bold;margin-bottom:4px;">🎉 できあがり！</div>
-      <div class="hint-line" style="margin-bottom:12px;">3Dプリンターで 使える データを 保存しよう</div>
+      <div class="hint-line" style="margin-bottom:12px;">3Dプリンターで使えるデータを保存しよう</div>
 
       <button class="action-btn" id="btnSave3MF">📥 3MFで 保存 <small style="display:block;font-weight:normal;font-size:11px;opacity:.85;">色付き・2色プリントできる</small></button>
-      <button class="action-btn green" id="btnSaveSTL">📥 STLで 保存 <small style="display:block;font-weight:normal;font-size:11px;opacity:.85;">どの3Dプリンターでも 使える</small></button>
+      <button class="action-btn green" id="btnSaveSTL">📥 STLで 保存 <small style="display:block;font-weight:normal;font-size:11px;opacity:.85;">どの3Dプリンターでも使える</small></button>
 
       <div class="status-msg" id="statusMsg"></div>
-      <button class="action-btn grey" id="btnBackEdit" style="margin-top:10px;padding:12px;">◀ 戻って なおす</button>
+      <button class="action-btn grey" id="btnBackEdit" style="margin-top:10px;padding:12px;">◀ 戻って直す</button>
     </div>
   </div>
 
@@ -1161,7 +1161,7 @@ function updateBaseSizeLabel() {
   const clamped = baseFit < 0.999;
   baseSizeHint.textContent = clamped
     ? `⚠ ${PLATE_MAX_W_MM}mm × ${PLATE_MAX_H_MM}mm に おさまるよう じどうで ちいさくしたよ`
-    : `できあがりは ${PLATE_MAX_W_MM}mm × ${PLATE_MAX_H_MM}mm までに おさまるよ`;
+    : `できあがりは ${PLATE_MAX_W_MM}mm × ${PLATE_MAX_H_MM}mm までに収まるよ`;
   baseSizeHint.style.color = clamped ? '#fbbf24' : '';
   updateJoinMsg();
 }
@@ -1174,7 +1174,7 @@ function updateFloatWarn() {
   floatWarn.style.display = bad ? '' : 'none';
   if (bad) {
     const names = floatingChars.map(i => state.chars[i].char).join('');
-    floatWarn.textContent = `⚠「${names}」が 土台から はみ出してるよ！ 「動かす」か「大きさ」で なおしてね`;
+    floatWarn.textContent = `⚠「${names}」が 土台からはみ出してるよ！ 「動かす」か「大きさ」で直してね`;
   }
   refreshSaveButtons();
 }
@@ -1185,10 +1185,10 @@ function updateJoinMsg() {
   joinMsg.style.display = state.sub === 'none' ? 'none' : '';
   if (state.sub !== 'none') {
     if (!baseJoin.touching) {
-      joinMsg.textContent = '⚠ 形が はなれているよ！ 重なるように 動かしてね';
+      joinMsg.textContent = '⚠ 形が離れているよ！ 重なるように動かしてね';
       joinMsg.style.color = '#f87171';
     } else if (baseJoin.widthMM < JOIN_MIN_MM) {
-      joinMsg.textContent = `⚠ くっつきかたが 弱いよ（${baseJoin.widthMM.toFixed(1)}mm）。もっと 深く 重ねてね`;
+      joinMsg.textContent = `⚠ くっつきかたが 弱いよ（${baseJoin.widthMM.toFixed(1)}mm）。もっと深く重ねてね`;
       joinMsg.style.color = '#f87171';
     } else {
       joinMsg.textContent = `✓ しっかり くっついてるよ（${baseJoin.widthMM.toFixed(1)}mm）`;
@@ -1287,7 +1287,7 @@ function refreshChips() {
   document.querySelectorAll('[data-chips]').forEach(box => {
     box.innerHTML = '';
     if (!state.chars.length) {
-      box.innerHTML = '<span style="color:var(--muted);font-size:13px;">先に ②で 名前を 入れてね</span>';
+      box.innerHTML = '<span style="color:var(--muted);font-size:13px;">先に②で名前を入れてね</span>';
       return;
     }
     state.chars.forEach((sel, i) => {
@@ -1411,7 +1411,7 @@ const colorModeSeg = document.getElementById('colorModeSeg');
 function applyColorMode() {
   colorModeSeg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.mode === state.colorMode));
   document.getElementById('textColorBlock').style.display = state.colorMode === '2' ? 'block' : 'none';
-  document.getElementById('baseColorTitle').textContent = state.colorMode === '2' ? 'どだい（したの いた）の いろ' : '全体の 色';
+  document.getElementById('baseColorTitle').textContent = state.colorMode === '2' ? 'どだい（したの いた）の いろ' : '全体の色';
 }
 colorModeSeg.querySelectorAll('button').forEach(btn => {
   btn.onclick = () => {
