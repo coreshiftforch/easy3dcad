@@ -269,7 +269,7 @@ details.adv[open] summary { margin-bottom: 8px; }
           スタンド<small>店頭に置く</small>
         </button>
       </div>
-      <div class="note">よく使う目的から始める場合は、下のプリセットで大きさと形をまとめて合わせられます。</div>
+      <div class="note">下のプリセットで、大きさと形をまとめて決められます。</div>
       <div class="recipe-grid" id="recipes">
         <button type="button" data-kind="key" data-size="42" data-url="https://core-shift.jp">
           小さめキーホルダー<small>配布しやすい軽いサイズ</small>
@@ -312,8 +312,7 @@ details.adv[open] summary { margin-bottom: 8px; }
         <label class="row" for="slotPlateBack"><span>プレートのうら（彫りこみ）</span></label>
         <select data-slot="plateBack" id="slotPlateBack"></select>
       </div>
-      <div class="note">もとのURLが空なら、その面は素のままになります。
-        <b>はめ込み（ロゴ）</b>を選ぶと、自分で作ったロゴの四角柱・円柱が落ちこむ受け口を開けます。</div>
+      <div class="note">URLが空の面は素のままになります。</div>
 
       <div id="boxPanel" style="display:none; margin-top:12px; border-top:1px dashed var(--line); padding-top:10px">
         <label class="row"><span>入れかた</span></label>
@@ -321,10 +320,7 @@ details.adv[open] summary { margin-bottom: 8px; }
           <button data-v="flush" aria-pressed="true">地続き（すきま0）</button>
           <button data-v="part">差し替え（すきまあり）</button>
         </div>
-        <div class="note" id="joinNote">すきま0でぴったり入れます。<b>刷ると融合して1つの固まり</b>に
-          なるので、面はツライチで継ぎ目のすき間が出ません。色は「5 色」の
-          <b>ロゴ</b>で選べます（板と同じ色にすれば線も見えなくなります）。
-          あとから差し替えることはできません。</div>
+        <div class="note" id="joinNote">刷ると融合して1つになります。あとから差し替えはできません。</div>
         <label class="row"><span>はめ込むもの（ロゴ）</span></label>
         <div class="seg" id="boxKind">
           <button data-v="rect" aria-pressed="true">四角柱</button>
@@ -354,9 +350,7 @@ details.adv[open] summary { margin-bottom: 8px; }
           <div id="boxMap" style="display:none; margin-top:10px">
             <label class="row"><span>読みこんだ色 → 使うフィラメント</span></label>
             <div id="boxMapRows"></div>
-            <div class="note">左が<b>モデルの色</b>、右が<b>使うフィラメント</b>。
-              読みこんだときに、いちばん近い色を自動で選んであります。
-              いちばん左の斜線は「<b>もとの色のまま</b>」です。</div>
+            <div class="note">左がモデルの色、右が使うフィラメント。斜線は「もとの色のまま」。</div>
           </div>
           <label class="row"><span>ロゴの向き（面から見て）</span></label>
           <div class="seg" id="boxTurn">
@@ -369,9 +363,7 @@ details.adv[open] summary { margin-bottom: 8px; }
             <button data-v="0" aria-pressed="true">そのまま</button>
             <button data-v="1">裏返す</button>
           </div>
-          <div class="note">読みこんだモデルは <b>+Z がわ（上）が見せたい面</b>として入れます。
-            逆さに作ってあって<b>絵が裏から出ている</b>ときは「裏返す」を押してください。<br>
-            四角柱で 90°／270° にすると、受け口の<b>タテヨコも入れかわります</b>。</div>
+          <div class="note"><b>+Zがわ（上）が見せたい面</b>です。絵が裏から出ていたら「裏返す」。</div>
           <label class="row"><span>倍率</span></label>
           <div class="seg" id="boxScale">
             <button data-v="1" aria-pressed="true">×1（mm）</button>
@@ -387,23 +379,12 @@ details.adv[open] summary { margin-bottom: 8px; }
             <label class="row"><span>高さの上限</span><b id="bhmaxV">0.60 mm</b></label>
             <input type="range" id="bhmax" min="0.4" max="3" step="0.1" value="0.6">
           </div>
-          <div class="note">ロゴは<b>見える面の絵</b>が本体なので、厚みは 0.6mm もあれば十分です。
-            上限を超えたモデルは<b>高さだけを縮めます</b>（タテヨコはそのまま・絵は変わりません）。<br>
-            ★<b>0.6mm 以下なら、本体を厚くしなくてもそのまま収まります</b>
-            （深いと受け口が肉を突きぬけるので、その部品を厚くするしかなく、
-            スタンドでは「入りません」になります）。</div>
+          <div class="note">厚みは <b>0.6mm</b> あれば十分。超えたぶんは高さだけ縮めます（絵は変わりません）。</div>
 
           <label class="row"><span>大きさの微調整</span><b id="bfineV">×1.00</b></label>
           <input type="range" id="bfine" min="1" max="1.5" step="0.01" value="1">
-          <div class="note">読みこんだ<b>ロゴ（アイコン）だけ</b>を、そのままの大きさ（×1.00）から
-            <b>×1.50</b> まで少しずつ大きくできます。タテヨコだけでなく<b>厚み（＝受け口の深さ）も
-            同じ倍率</b>で大きくなります（形は変わりません）。<b>受け口も一緒に大きくなる</b>ので
-            はめ合いは変わりません。面に入らなくなったときは、その面には受け口を開けずに
-            下の案内に出します（倍率を下げるか、本体を大きくしてください）。</div>
-          <div class="note">読めるのは <b>STL（バイナリ／ASCII）・OBJ・3MF</b> の3つ。
-            Blenderの「エクスポート」からどれで出してもOKです。<br>
-            <b>3MFは単位が書いてある</b>ので倍率は要りません。STL・OBJは単位が無いので、
-            <b>1単位＝1mm</b> のつもりで作っていれば ×1 のままで合います。</div>
+          <div class="note">ロゴだけを ×1.00〜×1.50 に。受け口も一緒に大きくなります。</div>
+          <div class="note">読めるのは <b>STL・OBJ・3MF</b>。STL・OBJは <b>1単位＝1mm</b> なら ×1 のまま。</div>
         </div>
 
         <div id="boxFitRow" style="display:none">
@@ -430,12 +411,7 @@ details.adv[open] summary { margin-bottom: 8px; }
       <div class="swatches" id="cBody"></div>
       <label class="row" style="margin-top:11px"><span>ロゴ（はめ込み）</span><b id="c5n"></b></label>
       <div class="swatches" id="cLogo"></div>
-      <div class="note">★<b>読みこんだ3MFに色が付いていれば、その色がそのまま残ります</b>
-        （色ごとに別パーツになるので、スライサーでフィラメントを割りあてられます）。
-        下のロゴの色は、色の付いていないモデルや「寸法を決める」で作った柱に使われます。<br>
-        はめ込みは「地続き」でも<b>別パーツとして色を選べます</b>
-        （すきま0でぴったり接しているので、刷ると融合して1つの固まりになります）。
-        板と同じ色にすれば、継ぎ目の線も見えなくなります。</div>
+      <div class="note">読みこんだ3MFに色が付いていれば、<b>その色がそのまま残ります</b>。</div>
     </div>
 
     <div id="secAdv" class="sec">
@@ -499,9 +475,7 @@ details.adv[open] summary { margin-bottom: 8px; }
           <small>色つき・これ1枚で刷れます</small></button>
         <button id="dlplatestl">プレートのSTL<small>単色・全部で1ファイル</small></button>
       </div>
-      <div class="note">部品どうしは <b>4mm</b>、ふちからは <b>5mm</b> 空けて、
-        背の高い順に段を作って詰めています。入りきらないときはセット数を自動で減らします。
-        並びはスライサーで開いて確かめてください。</div>
+      <div class="note">部品どうしは <b>4mm</b>、ふちからは <b>5mm</b> 空けて詰めています。</div>
     </div>
 
     </div><!-- /.panel -->
@@ -2665,10 +2639,8 @@ segBox('boxJoin', v => {
   state.box.join = v;
   document.getElementById('boxFitRow').style.display = v === 'part' ? '' : 'none';
   document.getElementById('joinNote').innerHTML = v === 'flush'
-    ? 'すきま0でぴったり入れます。<b>刷ると融合して1つの固まり</b>になるので、面はツライチで' +
-      '継ぎ目のすき間が出ません。色は「5 色」の<b>ロゴ</b>で選べます' +
-      '（板と同じ色にすれば線も見えなくなります）。あとから差し替えることはできません。'
-    : 'すきまを取るので、<b>あとから差し替えられます</b>。色も別に選べます。';
+    ? '刷ると融合して1つになります。あとから差し替えはできません。'
+    : 'すきまを取るので、<b>あとから差し替えられます</b>。';
 });
 segBox('boxKind', v => {
   state.box.kind = v;
