@@ -15,9 +15,10 @@
 
 ```
 npm install
-npm run dev       # http://localhost:5173/
-npm run build     # dist/ に出る（これが提出物）
-npm run preview   # dist/ を確かめる
+npm run dev        # http://localhost:5173/
+npm run build      # dist/ に出る（これが提出物）
+npm run preview    # dist/ を確かめる
+npm run check:kana # ひらがな切替の取りこぼし検査
 ```
 
 `起動.bat` をダブルクリックすれば、初回セットアップ（`npm install`）から
@@ -39,7 +40,9 @@ easy3dcad/
 │  ├ nameplate.html … なまえプレート（単一HTML）
 │  ├ qr.html        … QRキーホルダー（単一HTML）
 │  ├ css/common.css … なまえプレート／QR／トップの共通デザイン
+│  ├ js/kana.js     … ひらがな切替（4ページ共通）
 │  └ fonts/*.ttf    … なまえプレートで使う書体
+├ 検算/kana-check.mjs … ひらがな切替の取りこぼし検査
 ├ vite.config.js
 └ 起動.bat
 ```
@@ -55,6 +58,23 @@ easy3dcad/
 Vite のエントリ（`clicker.html` → `/src/main.js`）として束ねている。
 
 つまり **three.js が2系統ある**が、ページが別なので競合しない。
+
+## ひらがな切替
+
+ふだんは ふつうの日本語。ヘッダー右上の「⇆ あいうえお」で漢字をひらがなに開ける。
+選んだ状態は `localStorage` に残るので、ページをまたいでも保たれる。
+
+しくみは `public/js/kana.js`。**漢字→ひらがな の一方向だけ**変換する
+（逆向きは読みが定まらないのでやらない）。漢字のかたまりだけ置きかえ、
+送りがなは残すので `['大き','おおき']` ひとつで 大きさ／大きい／大きく をまかなえる。
+
+> **★文言に漢字を足したら `npm run check:kana` を走らせること。**
+> `kana.js` の語彙に入れ忘れると、ひらがなモードで漢字が残る。
+> 検査は画面に出る文字を2か所（HTMLのタグの中／JSの文字列リテラル）から集めて、
+> 開けなかった漢字を一覧で出す。
+>
+> 複合語で読みが変わるものは、長いかたちも一緒に入れる。
+> 例) `['最','さい']` だけだと「最初」が「さい初」になる。`['最初','さいしょ']` を足す。
 
 ## デザイン
 
