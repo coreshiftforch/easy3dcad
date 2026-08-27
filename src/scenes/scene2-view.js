@@ -22,7 +22,7 @@ const NICE_LONG = SWITCH_H * 4;
 export const TYPES = [
   { id: 'flush', label: 'タイプ1',     note: 'カップケーキ型。溝を彫って、上パーツがその中へ落ちこむ。外から見える分かれめは溝1本' },
   { id: 'case',  label: 'タイプ2',     note: '平面ひとつで切るだけ。切り口に十字の穴のついた柱を足して、下にスイッチの部屋を抜く' },
-  { id: 'lower', label: '下パーツ生成', note: '（これから作る）' },
+  { id: 'lower', label: '下パーツ生成', note: 'オブジェクトは切らない。底に穴を掘って、受けるおわんを下に作る' },
 ];
 
 /* ── 見本の絵（切ったところを横から見た図） ────────────────
@@ -32,14 +32,16 @@ export const TYPES = [
 const BLOB = 'M160 26C198 26 222 54 222 92L222 150C222 168 196 178 160 178'
            + 'C124 178 98 168 98 150L98 92C98 54 122 26 160 26Z';
 
-/* 図の外がわ。輪郭と、上下パーツの呼び名 */
-const frame = inner => `<svg class="ph" viewBox="0 0 320 200" role="img">
+/* 図の外がわ。輪郭と、上下パーツの呼び名。
+   ★下パーツ生成だけはオブジェクトを切らないので、呼び名を差しかえられるようにしてある */
+const frame = (inner, top = '上パーツ', bottom = '下パーツ') =>
+  `<svg class="ph" viewBox="0 0 320 200" role="img">
   <path d="${BLOB}" fill="currentColor" fill-opacity=".07"
         stroke="currentColor" stroke-width="2.2" opacity=".75"/>
   ${inner}
   <g fill="currentColor" font-size="11" opacity=".65" text-anchor="middle">
-    <text x="46" y="70">上パーツ</text>
-    <text x="46" y="158">下パーツ</text>
+    <text x="46" y="70">${top}</text>
+    <text x="46" y="158">${bottom}</text>
   </g>
 </svg>`;
 
@@ -83,6 +85,18 @@ const ART = {
     </g>
     ${call(226, 112, 258, '切り口')}
     ${call(174, 128, 214, '柱')}`),
+
+  /* 下パーツ生成 … オブジェクトは切らない。底に穴を掘り、その下におわんを作る。
+     ★分かれめの線を引かないことが、そのまま「切らない」の説明になっている。 */
+  lower: frame(`
+    ${room(138, 146, 44, 32)}
+    ${sw(142, 150, 26, 0)}
+    <g fill="none" stroke="var(--accent)" stroke-width="3"
+       stroke-linejoin="round" stroke-linecap="round">
+      <path d="M86 124 L86 164C86 182 116 190 160 190C204 190 234 182 234 164L234 124"/>
+    </g>
+    ${call(182, 162, 246, '掘った穴')}`,
+    'オブジェクト', 'おわん'),
 };
 
 /* 下パーツ生成は、まだ中身が無いので仮の絵のまま */
