@@ -41,6 +41,7 @@ import { buildProfile } from '../geom/profile.js';
 import { pointInPoly } from '../geom/section.js';
 import { bowlSolid, digPocket } from '../geom/bowl.js';
 import { BOSS } from '../geom/boss.js';
+import { PRESS_NOTE, travelNote } from './notes.js';
 
 const FLOW = ['大きさと向き', 'おわん', 'プレビュー'];
 const BUILT = 3;                       // 作ってあるのは③まで
@@ -138,9 +139,8 @@ export function mountScene3Lower(root, { model, onBack, onDone } = {}) {
     '        <label class="slabel">回す<output class="out-spin"></output></label>',
     '        <input class="r-spin" type="range" min="0" max="355" step="5" value="0">',
     '        <p class="note axis-note"></p>',
-    `        <p class="note">オブジェクトは切らない。底に穴を掘って、おわんはその下に作る。`
-    + `「包む」なら ${NEED_IN.toFixed(1)}mm（穴 ${ROOM_SIDE}角×${RECESS.toFixed(1)} ＋ 十字 ${HOLE_DEPTH.toFixed(1)}）、`
-    + `「のせる」なら ${NEED_ON.toFixed(1)}mm（十字だけ）ぶんの肉が要る</p>`,
+    `        <p class="note">オブジェクトは切らない。底に穴を掘るので、`
+    + `「包む」なら ${NEED_IN.toFixed(1)}mm、「のせる」なら ${NEED_ON.toFixed(1)}mm ぶんの肉が要る</p>`,
     '      </div>',
     '      <div class="sec-bowl" hidden>',
     '        <p class="panel-h">包み方</p>',
@@ -176,12 +176,9 @@ export function mountScene3Lower(root, { model, onBack, onDone } = {}) {
     '          <button class="split-btn" type="button">分解</button>',
     '          <button class="xray-btn" type="button">半透明</button>',
     '        </div>',
-    '        <p class="note">オブジェクトを押すと、カチッと沈む。半透明にすると中と穴が見える。'
-    + 'つかむとまわせる</p>',
+    `        <p class="note">${PRESS_NOTE}</p>`,
     '        <p class="note parts"></p>',
-    `        <p class="note">押しきった形で作っている。指を離すとオブジェクトが ${TRAVEL.toFixed(1)}mm 上がる。`
-    + `スイッチの部屋は ${ROOM_SIDE}mm角で自動（下は突きぬけない。`
-    + `底のまん中に中心ポールの φ${POLE_D} のくぼみ）</p>`,
+    `        <p class="note">${travelNote(TRAVEL, ROOM_SIDE, 'オブジェクト')}</p>`,
     '      </div>',
     '      <p class="hint"></p>',
     '      <div class="go-row">',

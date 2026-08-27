@@ -27,6 +27,7 @@ import { buildProfile, radiusAt, neckAt } from '../geom/profile.js';
 import { makeSwitchMock, SWITCH_H, SWITCH_W, BELOW_PLATE, HOLE_DEPTH, TRAVEL } from '../geom/switch-mock.js';
 import { makeGizmo, AXIS_VEC } from '../geom/gizmo.js';
 import { makeBoss, bossSolid, holeDepth, BOSS, BOSS_TYPES, ENTRY } from '../geom/boss.js';
+import { PRESS_NOTE, BOSS_NOTE, travelNote } from './notes.js';
 
 const FLOW = ['大きさと向き', '溝を決める', '溝を作る', 'クリッカーの位置',
               '十字の穴', 'プレビュー'];
@@ -148,8 +149,7 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
     '        <p class="panel-h">十字穴のついた柱</p>',
     `        <div class="bosses">${bossHTML}</div>`,
     '        <p class="note boss-note"></p>',
-    '        <p class="note">太さも長さも実測どおりで決まる（変えられない）。'
-    + '十字は 3.90 × 腕1.45。長さが要るときは上へ伸ばす（上パーツをえぐる）</p>',
+    `        <p class="note">${BOSS_NOTE}</p>`,
     '      </div>',
     '      <div class="sec-preview" hidden>',
     '        <p class="panel-h">プレビュー</p>',
@@ -157,11 +157,9 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
     '          <button class="split-btn" type="button">分解</button>',
     '          <button class="xray-btn" type="button">半透明</button>',
     '        </div>',
-    '        <p class="note">モデルを押すと、カチッと沈む。半透明にすると中と穴が見える</p>',
+    `        <p class="note">${PRESS_NOTE}</p>`,
     '        <p class="note parts"></p>',
-    `        <p class="note">押しきった形で作っている。指を離すと上パーツが ${TRAVEL.toFixed(1)}mm 上がる。`
-    + `スイッチの部屋は ${ROOM.side}mm角で自動（上は溝の底、底は胴の底。`
-    + `そのまん中に中心ポールの φ${ROOM.pole} のくぼみ）</p>`,
+    `        <p class="note">${travelNote(TRAVEL, ROOM.side, '上パーツ')}</p>`,
     '      </div>',
     '      <div class="sec-pos" hidden>',
     '        <p class="panel-h">クリッカーの位置</p>',

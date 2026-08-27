@@ -25,6 +25,7 @@ import { findNecks } from '../geom/necks.js';
 import { thin, sectionSegs, buildLoops, nestLoops, safeZ, pointInPoly } from '../geom/section.js';
 import { makeGizmo, AXIS_VEC } from '../geom/gizmo.js';
 import { makeBoss, bossSolid, bossPts, BOSS, BOSS_TYPES, ENTRY } from '../geom/boss.js';
+import { PRESS_NOTE, BOSS_NOTE, travelNote } from './notes.js';
 import { splitByStep } from '../geom/split.js';
 import { capFlat } from '../geom/caps.js';
 import { roomBox, roomSquare, roomFits, cutRoom } from '../geom/room.js';
@@ -136,13 +137,8 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
       + ` type="button" data-id="${t.id}">${t.label}</button>`).join('\n'),
     '        </div>',
     '        <p class="note boss-note"></p>',
-    `        <p class="note">太さも長さも実測で決まるので、バーは置かない。`
-    + `十字は ${BOSS_DIM.arm.toFixed(2)} × 腕 ${BOSS_DIM.th.toFixed(2)}。`
-    + `柱は切り口から下へ ${ENTRY.toFixed(1)}mm 出て、押しきったときスイッチの開口へ`
-    + '入りこむ（触れるだけだと横ぶれの案内にならない）</p>',
-    `        <p class="note">下パーツの穴（スイッチの部屋）は自動。`
-    + `${ROOM_SIDE}mm角 × ${NEED_BELOW.toFixed(1)}mm ＋ 底にポールのくぼみ φ${POLE_D}×${POLE_H}。`
-    + '場所は切り口のまん中で、決めるところはない</p>',
+    `        <p class="note">${BOSS_NOTE}</p>`,
+    '        <p class="note">下パーツの穴は自動。決めるところはない</p>',
     '      </div>',
     '      <div class="sec-preview" hidden>',
     '        <p class="panel-h">プレビュー</p>',
@@ -150,12 +146,9 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
     '          <button class="split-btn" type="button">分解</button>',
     '          <button class="xray-btn" type="button">半透明</button>',
     '        </div>',
-    '        <p class="note">モデルを押すと、カチッと沈む。半透明にすると中と穴が見える。'
-    + 'つかむとまわせる</p>',
+    `        <p class="note">${PRESS_NOTE}</p>`,
     '        <p class="note parts"></p>',
-    `        <p class="note">押しきった形で作っている。指を離すと上パーツが ${TRAVEL.toFixed(1)}mm 上がる。`
-    + `スイッチの部屋は ${ROOM_SIDE}mm角で自動（上は切り口、底は胴の底。`
-    + `そのまん中に中心ポールの φ${POLE_D} のくぼみ）</p>`,
+    `        <p class="note">${travelNote(TRAVEL, ROOM_SIDE, '上パーツ')}</p>`,
     '      </div>',
     '      <p class="hint"></p>',
     '      <div class="go-row">',
