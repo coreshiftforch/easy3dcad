@@ -46,8 +46,9 @@ body {
   border-bottom: 1px solid var(--line);
 }
 .app-head .title { font-size: 16px; font-weight: bold; }
-.app-head .spacer { margin-left: auto; }
+/* トップへもどるリンク。3ページとも左上（タイトルより前に書く） */
 .app-head .home-link {
+  flex: none;
   display: inline-flex; align-items: center; gap: 5px;
   background: var(--sunk); border: 1px solid var(--line); border-radius: 9px;
   color: var(--dim); font-size: 12px; font-weight: bold;

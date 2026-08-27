@@ -58,9 +58,9 @@ header {
   border-bottom: 1px solid var(--line);
 }
 header .title { font-size: 16px; font-weight: bold; }
-header .spacer { margin-left: auto; }
-/* トップへもどるリンク（3ページ共通で右上に置く） */
+/* トップへもどるリンク。3ページとも左上（タイトルより前に書く） */
 .home-link {
+  flex: none;
   display: inline-flex; align-items: center; gap: 5px;
   background: var(--panel2); border: 1px solid var(--line); border-radius: 9px;
   color: var(--muted); font-size: 12px; font-weight: bold;
