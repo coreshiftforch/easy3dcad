@@ -58,7 +58,9 @@ button.mini:hover { border-color: var(--accent2); color: var(--text); }
 /* 入力欄 */
 input[type=text] {
   width: 100%; padding: 11px 12px; border: 2px solid var(--line); border-radius: 12px;
-  font-size: 14px; font-family: inherit; background: var(--panel2); color: var(--text);
+  /* ★16px 未満にしないこと。iOS のブラウザが「小さい字だ」と判断して、
+     さわった瞬間に勝手にページを拡大してしまう */
+  font-size: 16px; font-family: inherit; background: var(--panel2); color: var(--text);
 }
 input[type=text]:focus { outline: none; border-color: var(--accent2); }
 select {

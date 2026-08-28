@@ -405,3 +405,24 @@ input[type=range]::-moz-range-thumb {
   10%  { opacity: 1; }
   100% { transform: translateY(var(--fall)) rotate(var(--spin)); opacity: 0; }
 }
+
+/* ── スマホの見やすさ（せまい画面だけ）───────────────────
+   このファイルは スマホが土台（下の @media 900px が広い画面ぶん）。
+   小さすぎた文字と、指で押すところの大きさをそろえる。
+   ★入力欄は 16px 未満にしないこと。iOS のブラウザが「小さい字だ」と判断して、
+     さわった瞬間に勝手にページを拡大してしまう。 */
+@media (max-width: 899px) {
+  .panel-title small { font-size: 13px; }
+  .note              { font-size: 13px; line-height: 1.75; }
+  .hint-line         { font-size: 13px; }
+  .status-msg        { font-size: 13px; }
+  .slider-row .lab   { font-size: 14px; }
+  .opt-btn           { font-size: 14px; }
+  .opt-btn small     { font-size: 12px; }
+  .shape-btn .nm     { font-size: 13px; }
+  .font-btn .nm      { font-size: 14px; }
+  .stage-warn        { font-size: 13px; }
+  .stage-hint        { font-size: 11px; }
+  .qr-url            { font-size: 11px; }
+  input[type=text], input[type=url], input[type=number], textarea { font-size: 16px; }
+}

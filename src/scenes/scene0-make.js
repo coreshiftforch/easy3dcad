@@ -53,7 +53,7 @@ export function mountScene0(root, { onBack, onMade } = {}) {
           <div class="view"><span class="view-tag">できる形</span></div>
         </div>
         <div class="panel">
-          <p class="panel-h">かたち（このまま上へのばした柱になる）</p>
+          <p class="panel-h">かたち（上へのばして柱にする）</p>
           <div class="shapes many k-shape">${btns('shape-btn', SHAPES, DEF.shape)}</div>
           <label class="slabel">よこ幅<output class="o-width"></output></label>
           <input class="r-width" type="range" min="25" max="120" step="1" value="${DEF.width}">

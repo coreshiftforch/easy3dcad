@@ -758,6 +758,53 @@ body {
     border-top: 1px solid var(--line);
   }
   .panel-foot .go-row { margin-top: 6px; }
+
+  /* ── スマホの見やすさ ─────────────────────────────
+     ここから下は **せまい画面だけ**の書きかえ。指で押す大きさ（44px以上）と、
+     腕をのばして読める文字の大きさにそろえる。広い画面は前のまま。
+     ★入力欄は 16px 未満にしないこと。iOS のブラウザが「小さい字だ」と
+       判断して、さわった瞬間に勝手にページを拡大してしまう。 */
+  .panel-h  { font-size: 15px; }
+  .slabel   { font-size: 15px; }
+  .panel .note { font-size: 13px; line-height: 1.7; }
+  .hint     { font-size: 14px; line-height: 1.7; }
+  .notice   { font-size: 16px; }
+  .view-tag { font-size: 13px; }
+  .topbar .file-name { font-size: 14px; }
+  .back-btn { font-size: 15px; min-height: 46px; }
+  .flow li  { font-size: 13px; }
+  .panel input[type=text] { font-size: 16px; min-height: 48px; }
+  .shape-btn, .turn, .axis-btn { font-size: 15px; min-height: 46px; }
+  .next-btn { font-size: 17px; min-height: 52px; padding: 14px 28px; }
+  .notice button { font-size: 15px; min-height: 48px; }
+  .size-fix .sf-msg { font-size: 14px; }
+  .size-fix .sf-note { font-size: 13px; }
+
+  /* かたちが23個あると、たてに積んで7だん（約290px）。パネルを食いつぶし、
+     ほかのつまみが画面の外へ出てしまう。
+     ★せまい画面では **よこに2だんの帯** にして、横スワイプでえらぶ。
+       パネルのたてスクロールと向きが違うので、指の動きがぶつからない
+       （ステップの帯 .flow が、せまい画面で横スクロールなのと同じ考え）。
+     ★しくみは「たてに並べて、はみ出したら次の列へ（column wrap）」＋高さ固定。 */
+  .shapes.many {
+    /* ★flex: none を忘れないこと。パネル（たて flex）の中で、
+         よこスクロールする箱は「0まで縮んでよい」あつかいになり、
+         高さを書いても つぶれて見えなくなる。 */
+    flex: none;
+    flex-flow: column wrap;
+    align-content: flex-start;
+    /* 46px × 2だん ＋ すきま5px ＝ 97px。パソコンの細い画面では下に
+       よこスクロールの棒が出て10pxほど食うので、そのぶんを見こんでおく
+       （見こまないと1だんに減る）。スマホの棒は場所を取らない。 */
+    height: 112px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+  .shapes.many .shape-btn { flex: none; font-size: 14px; min-height: 46px; padding: 8px 14px; }
+
+  /* 帯にしたぶんパネルが短くなるので、そのぶんを3Dの窓にまわす */
+  .scene0 .panel { max-height: 46dvh; }
 }
 
 .pos-bars[hidden] { display: none; }
