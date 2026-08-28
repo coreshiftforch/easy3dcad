@@ -10,7 +10,7 @@
      （@media 900px の order がそのまま効く）。 */
 
 import * as THREE from 'three';
-import { SHAPES, FONTS, buildMake } from '../geom/make.js';
+import { SHAPES, FONTS, KEEP, buildMake } from '../geom/make.js';
 import { stlBinary } from '../io/saveModel.js';
 import { readModelFile } from '../io/loadModel.js';
 import { SWITCH_W } from '../geom/switch-mock.js';
@@ -27,6 +27,15 @@ const DEF = {
   text: 'ぽち', fontId: 'gothic', textPct: 80,
   url: 'https://example.com', ec: 'M', qrPct: 85,
 };
+
+/* 知らせを1行ぶんのHTMLにする。
+   ★KEEP で囲まれたところは、打った字そのもの。ひらがなに開かれると
+     「『猫』がありません」が「『ねこ』が…」になって意味が通らないので、
+     data-no-kana で包んで kana.js に手を出させない。
+   ★打った字がそのまま画面に出るので、記号は必ず逃がす（<>& を書かれても平気に）。 */
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const warnHTML = line => line.split(KEEP)
+  .map((part, i) => (i % 2 ? `<span data-no-kana>${esc(part)}</span>` : esc(part))).join('');
 
 const btns = (cls, list, on) => list.map(o =>
   `<button class="${cls}" type="button" data-v="${o.id}"${o.id === on ? ' aria-pressed="true"' : ''}>`
@@ -89,9 +98,11 @@ export function mountScene0(root, { onBack, onMade } = {}) {
             <input class="r-depth" type="range" min="0.4" max="3" step="0.1" value="${DEF.depth}">
           </div>
 
-          <p class="hint h-size"></p>
-          <p class="hint warn h-warn" hidden></p>
-          <div class="go-row"><button class="next-btn make-go" type="button">これで作る →</button></div>
+          <div class="panel-foot">
+            <p class="hint h-size"></p>
+            <p class="hint warn h-warn" hidden></p>
+            <div class="go-row"><button class="next-btn make-go" type="button">これで作る →</button></div>
+          </div>
         </div>
       </div>
     </div>`;
@@ -226,7 +237,7 @@ export function mountScene0(root, { onBack, onMade } = {}) {
         + ` × ${span.z.toFixed(1)} mm`
         + (m.info.qr ? `　／　QR ${m.info.qr.count}×${m.info.qr.count}マス`
                      + `（1マス ${m.info.qr.module.toFixed(2)}mm）` : '');
-      hWarn.innerHTML = warn.join('<br>');
+      hWarn.innerHTML = warn.map(warnHTML).join('<br>');
       hWarn.toggleAttribute('hidden', !warn.length);
     } catch (e) {
       made = null;

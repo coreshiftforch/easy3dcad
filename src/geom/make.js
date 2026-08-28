@@ -35,6 +35,13 @@ import qrcode from 'qrcode-generator';
 
 qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];   // 日本語のURLも通す
 
+/* 知らせの中で「打った字をそのまま見せたいところ」を囲む印。
+   ★ひらがな切替（kana.js）は画面の文字をかたっぱしから開くので、
+     「この書体に『猫』がありません」が「…『ねこ』が…」になってしまう。
+     それでは何の字の話か分からない。ここを囲んでおけば、画面がわが
+     data-no-kana で包んで、その中だけ変換されずに残る。 */
+export const KEEP = '\u0001';
+
 const SEG  = 40;         // 曲線を何本の直線で表すか
 export const FUSE = 0.4; // のせるとき、土台にどれだけ食いこませるか（mm）
 const RING = 5;          // 上のふちを丸めるときの、リングの数
@@ -443,7 +450,7 @@ export async function decoPolys(opt) {
          はじめの5つの書体は かな＋英数字だけで、漢字が入っていない。 */
     const miss = [...text].filter(c => font.charToGlyphIndex(c) === 0);
     if (miss.length)
-      info.warn.push(`この書体に「${[...new Set(miss)].join('')}」がありません。`
+      info.warn.push(`この書体に「${KEEP}${[...new Set(miss)].join('')}${KEEP}」がありません。`
                    + '書体を「かんじ」にすると出ます');
     const r = room(opt.textPct / 100);
     const t = textPolys(font, text, r.w, r.h);

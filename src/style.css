@@ -743,6 +743,21 @@ body {
     overflow-y: auto;
     overscroll-behavior: contain;
   }
+  /* 「モデルを作る」は、かたちが23個あってパネルがとても長い（1000px近く）。
+     いちばん下にある **知らせと「これで作る」がスマホの画面に入らない** ので、
+     ★パネルの下に貼りつける。「厚みが足りない」「この書体に無い字がある」は、
+     つまみをいじっている最中に見えないと意味がない。
+     負のマージンでパネルの内よはくぶん外へ広げ、はしまで地を敷く。 */
+  .panel-foot {
+    position: sticky;
+    bottom: -12px;
+    z-index: 1;
+    margin: 0 -14px -12px;
+    padding: 8px 14px 12px;
+    background: var(--card);
+    border-top: 1px solid var(--line);
+  }
+  .panel-foot .go-row { margin-top: 6px; }
 }
 
 .pos-bars[hidden] { display: none; }
