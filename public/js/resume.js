@@ -42,7 +42,10 @@
   var NS      = 'easy3dcad:resume:';   // localStorage の名前の頭
   var DB      = 'easy3dcad';           // IndexedDB の名前
   var STORE   = 'files';
-  var VER     = 1;                     // 形を変えたら上げる（古い保存は捨てられる）
+  var VER     = 2;                     /* 形を変えたら上げる（古い保存は捨てられる）
+                                          ★2 … QRの操作パネルを作り直して、つまみの
+                                            並びが変わった（並び順で覚えているので
+                                            そのままだと値がよそへ入る） */
   var HOME    = 'index.html';          // 「さいしょから」の行き先（3つから選ぶ画面）
   var KEEP_MS = 2 * 60 * 60 * 1000;    // 2時間より古い保存は使わない
   var WAIT_MS = 400;                   // これだけ何も起きなければ書く

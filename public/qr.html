@@ -398,21 +398,20 @@ details.adv[open] summary { margin-bottom: 8px; }
       <div class="note">QRの誤り訂正は <b>H（30%まで欠けても読める）で固定</b>。
         3Dプリントは色や影のコントラストが弱く誤読しやすいので、
         下げると（実機で試したとおり）読めなくなります。</div>
-      <div id="thickKey">
-        <label class="row"><span>厚み</span>
-          <span class="rt"><button type="button" class="mini" id="thickMin">いちばん薄く</button>
-          <b id="thickV">いちばん薄く</b></span></label>
-        <input type="range" id="thick" min="0" max="12" step="0.2" value="0">
-        <div class="note" id="thickNote"></div>
-      </div>
-
-      <label class="row"><span>QRの深さ（うら面は高さ）</span><b id="qrhV">0.6 mm</b></label>
-      <input type="range" id="qrh" min="0.4" max="3" step="0.1" value="0.6">
-      <div class="note" id="qrhNote"></div>
-      <label class="row"><span>QRのまわりの余白</span><b id="marV">2.5 mm</b></label>
-      <input type="range" id="mar" min="1.5" max="6" step="0.5" value="2.5">
       <details class="adv">
         <summary>くわしい設定</summary>
+        <div id="thickKey">
+          <label class="row"><span>厚み</span>
+            <span class="rt"><button type="button" class="mini" id="thickMin">いちばん薄く</button>
+            <b id="thickV">いちばん薄く</b></span></label>
+          <input type="range" id="thick" min="0" max="12" step="0.2" value="0">
+          <div class="note" id="thickNote"></div>
+        </div>
+
+        <!-- QRごとの深さ・余白。中身は JS が作る（面の数だけ並ぶ） -->
+        <div id="qrEach"></div>
+        <div class="note" id="qrhNote"></div>
+
         <div id="advKey">
           <label class="row"><span>磁石</span><b></b></label>
           <div class="seg" id="magOn">
@@ -581,7 +580,11 @@ const state = {
     mesh:null, info:null,
     map:[],            // 読みこんだ色 → 使うフィラメント（null＝もとの色のまま）
   },
-  qrh:0.6, margin:2.5, mag:'6.5x3', rim:2.0, ring:4.0,
+  /* ★深さと余白は **面ごと**。QRが2つ3つ乗るので、1本きりだと
+       「うらは浅く、おもては深く」ができない。 */
+  qrh:   { tileFront:0.6, tileBack:0.6, bodyBack:0.6, plateFront:0.6, plateBack:0.6 },
+  margin:{ tileFront:2.5, tileBack:2.5, bodyBack:2.5, plateFront:2.5, plateBack:2.5 },
+  mag:'6.5x3', rim:2.0, ring:4.0,
   /* QRタイルの厚み（mm）。0＝いちばん薄く（磁石がちょうど入るだけ）。
      ★増やしたぶんは **おもて側の肉** になる。QRの彫りこみはそこに掘るので、
        厚くするほど深く掘れる。 */
@@ -1276,6 +1279,11 @@ const qrName = slot => 'QR' + (MARU_NO[SLOT_NO[slot]] || '');
 /* もようの名前（プルダウン・知らせ・部品表で同じものを使う） */
 const itemName = art => (art.item === 'qr' ? qrName(art.slot) : ITEMS[art.item]);
 
+/* 面ごとの「深さ」と「まわりの余白」。art（もよう）から引く */
+const QRH_DEF = 0.6, MAR_DEF = 2.5;
+const qrhOf = art => (art && state.qrh[art.slot] != null ? state.qrh[art.slot] : QRH_DEF);
+const marOf = art => (art && state.margin[art.slot] != null ? state.margin[art.slot] : MAR_DEF);
+
 /* 名前や「つづき」の見出しに使う、代表のURL（QRを乗せた最初の面のもの）*/
 function mainUrl() {
   for (const slot of Object.keys(state.url))
@@ -1396,10 +1404,11 @@ const artName = (art, where) => `${itemName(art)}（${where}）`;
 // 一辺 W の面に、もようをどれだけの大きさで置くか。QRは静穏帯4マスぶんを内側に取る
 function artFit(art, W) {
   const n = Math.max(art.w, art.h) + art.quiet;
-  const cell = (W - 2 * state.margin) / n;
+  const mar = marOf(art);
+  const cell = (W - 2 * mar) / n;
   return { cell, aw: art.w * cell, ah: art.h * cell,
            side: Math.max(art.w, art.h) * cell,
-           minW: MIN_MODULE * n + 2 * state.margin };   // 1モジュールを下限以上にするのに要る一辺
+           minW: MIN_MODULE * n + 2 * mar };   // 1モジュールを下限以上にするのに要る一辺
 }
 
 /* もようのジオメトリ。
@@ -1439,8 +1448,8 @@ function buildFlatKey() {
   const fBack  = aBack  && artFit(aBack,  bodyW);
   /* 掘れる深さ。板1枚なので、おもてとうらで肉を取りあう。半分から0.4mm残す */
   const inlayMax = Math.max(0.2, T / 2 - 0.4);
-  const dF = aFront ? Math.min(state.qrh, inlayMax) : 0;
-  const dB = aBack  ? Math.min(state.qrh, inlayMax) : 0;
+  const dF = aFront ? Math.min(qrhOf(aFront), inlayMax) : 0;
+  const dB = aBack  ? Math.min(qrhOf(aBack),  inlayMax) : 0;
   const gF = aFront && artGeom(aFront, fFront, 0, 0, dF, true);
   const gB = aBack  && artGeom(aBack,  fBack,  0, T - dB, T, false);
 
@@ -1467,7 +1476,7 @@ function buildFlatKey() {
   const info = {
     arts, boxes:[], boxMiss, box:null,
     plateT:T, lowT:0, upT:T, rimH:0, bodyW, tileW:bodyW,
-    minT, inlayMax, qrhCut:(aFront || aBack) && state.qrh > inlayMax,
+    minT, inlayMax, qrhCut:[aFront, aBack].some(a => a && qrhOf(a) > inlayMax),
     magnet:null,
     minSize: Math.ceil(Math.max(0, ...arts.filter(a => a.art.kind === 'qr').map(a => a.need))),
     sizeMax: 90,
@@ -1545,9 +1554,9 @@ function buildKeyholder() {
   /* ★うら面は肉を削らず **下へ足す**（baseTile）ので、いくら深くしてもよい。
      ★おもて面と本体のうらは、おもて側の肉のなかに掘る。0.4mm は残す。 */
   const inlayMax   = Math.max(0.2, ceilT - 0.4);
-  const inlayTile  = aTile  ? state.qrh : 0;
-  const inlayFront = aFront ? Math.min(state.qrh, inlayMax) : 0;
-  const inlayBody  = aBody  ? Math.min(state.qrh, inlayMax) : 0;
+  const inlayTile  = aTile  ? qrhOf(aTile) : 0;
+  const inlayFront = aFront ? Math.min(qrhOf(aFront), inlayMax) : 0;
+  const inlayBody  = aBody  ? Math.min(qrhOf(aBody),  inlayMax) : 0;
 
   /* ── はめ込み（四角柱・円柱）。もようと違って mm で決まった大きさなので、
      ★入る面にだけ受け口を開ける（入らないまま開けると輪郭や磁石の穴と交わって
@@ -1556,7 +1565,7 @@ function buildKeyholder() {
        磁石までの肉やダボの層を削ってはいけないため（＝うら面の彫りと同じ流儀）。 */
   const bx = boxSpec();
   const useBox = (slot, availW) =>
-    bx && slotIsBox(slot) && boxFits(bx, availW - 2 * state.margin, availW - 2 * state.margin)
+    bx && slotIsBox(slot) && boxFits(bx, availW - 2 * MAR_DEF, availW - 2 * MAR_DEF)
       ? bx : null;
   const bFront = useBox('tileFront', tileW);
   const bTile  = useBox('tileBack',  tileW);
@@ -1693,7 +1702,8 @@ function buildKeyholder() {
 
   const info = {
     arts, boxes, boxMiss, box:bx, plateT:tPlate, lowT:tLow, upT:upTB, rimH, bodyW, tileW,
-    minT, inlayMax, qrhCut: (aFront || aBody) && state.qrh > inlayMax,
+    minT, inlayMax,
+    qrhCut: [aFront, aBody].some(a => a && qrhOf(a) > inlayMax),
     magnet:[md, mt],
     minSize: Math.ceil(Math.max(0, ...arts.filter(a => a.art.kind === 'qr').map(a => a.need))),
     sizeMax: 90,
@@ -1769,7 +1779,7 @@ function buildStand() {
   // おもては凸、うらは彫りこみ（うら＝ベッドに接する面なので凸にできない）。どちらも同じ正方形に置く
   const aFront = slotArt('plateFront'), aBack = slotArt('plateBack');
   const fFront = aFront && artFit(aFront, W), fBack = aBack && artFit(aBack, W);
-  const inlayT = Math.min(state.qrh, 1.0);
+  const inlayT = aBack ? Math.min(qrhOf(aBack), 1.0) : 0;   // うらの彫りこみ（面ごと）
 
   /* ── はめ込み（四角柱・円柱）。
      ★スタンドは「板厚＝脚の厚み」でないと一枚板に見えないので、キーホルダーのように
@@ -1778,7 +1788,7 @@ function buildStand() {
        おもては上の層（tt〜T）、うらは舌の層（0〜tt）のなかに収める。 */
   const bxS = boxSpec();
   const roomFront = Math.max(0, T - tt - 0.6), roomBack = Math.max(0, tt - 0.6);
-  const fitsOn = b => b && boxFits(b, W - 2 * state.margin, W - 2 * state.margin);
+  const fitsOn = b => b && boxFits(b, W - 2 * MAR_DEF, W - 2 * MAR_DEF);
   const bPlateF = slotIsBox('plateFront') && fitsOn(bxS) && bxS.h <= roomFront ? bxS : null;
   const bPlateB = slotIsBox('plateBack')  && fitsOn(bxS) && bxS.h <= roomBack  ? bxS : null;
   const boxMissS = [
@@ -1902,7 +1912,7 @@ function buildStand() {
                  asm:g => pullOut(g).multiply(mT(0, 0, (bPlateB.merged ? 0 : -2.4) * g)), lift:out });
   // スタンドのおもては上を向くので、アイコンもQRと同じく「凸」でよい
   if (aFront) parts.push({ name:artName(aFront, 'おもて'), color:markColor(aFront),
-               geoms:[artGeom(aFront, fFront, qrCy, T - K.embed, T + state.qrh, false).marks],
+               geoms:[artGeom(aFront, fFront, qrCy, T - K.embed, T + qrhOf(aFront), false).marks],
                print:{ x:0, y:0 }, asm:pullOut, lift:out });
   if (gBack) parts.push({ name:artName(aBack, 'うら'), color:markColor(aBack), geoms:[gBack.marks],
                           print:{ x:0, y:0 }, asm:pullOut, lift:out });
@@ -2620,9 +2630,9 @@ function updateThickInfo(info) {
   t.innerHTML = `いま <b>${info.plateT.toFixed(1)} mm</b>（いちばん薄いときで ${info.minT.toFixed(1)} mm。` +
     (info.magnet ? `磁石 ${state.mag} が入るぶん）` : `磁石なしの1枚もの）`);
   q.innerHTML = info.qrhCut
-    ? `<span class="bad">⚠ おもて面は <b>${info.inlayMax.toFixed(1)} mm</b> までしか掘れません。` +
+    ? `<span class="bad">⚠ 掘れるのは <b>${info.inlayMax.toFixed(1)} mm</b> まで。` +
       `厚みを増やすと、もっと深くできます</span>`
-    : `おもて面は <b>${info.inlayMax.toFixed(1)} mm</b> まで掘れます（うら面は上に足すので制限なし）`;
+    : `掘れるのは <b>${info.inlayMax.toFixed(1)} mm</b> まで（QRタイルのうら面は上に足すので制限なし）`;
 }
 
 function updateBoxInfo(info) {
@@ -2713,7 +2723,7 @@ document.querySelectorAll('select[data-slot]').forEach(sel => {
     state.slots[sel.dataset.slot] = sel.value;
     syncBoxPanel();
     syncSlotUrls();
-syncMagnet();
+    syncQrEach();
     requestRebuild(false);          // 面の割りあてでは大きさが変わらない＝カメラはそのまま
   });
 });
@@ -2893,7 +2903,50 @@ segment('kind', 'kind', () => {
 segment('mag', 'mag');
 
 slider('size', 'size', v => v + ' mm', 'sizeV');
-slider('qrh', 'qrh', v => v.toFixed(1) + ' mm', 'qrhV');
+
+/* ══ QRごとの「深さ」と「まわりの余白」════════════════════
+   面が2つ3つあるので、1本のつまみでは足りない。面の数だけ並べる。
+
+   ★つまみは **5面ぶんぜんぶ作っておいて、要らない面を隠す**。
+     そのつど作り直すと、画面のつまみの数が増えたり減ったりして、
+     「つづきから」（並び順で覚えている）がずれる。 */
+const QR_SLOTS = ['tileFront', 'tileBack', 'bodyBack', 'plateFront', 'plateBack'];
+const KIND_SLOTS = { key:['tileFront', 'tileBack', 'bodyBack'], stand:['plateFront', 'plateBack'] };
+const KEY_OF = { qrh:'qrh', mar:'margin' };
+document.getElementById('qrEach').innerHTML = QR_SLOTS.map(slot => `
+  <div class="qr-each" data-for="${slot}" style="display:none">
+    <label class="row"><span>${qrName(slot)} の深さ（うら面は高さ）</span>
+      <b data-out="qrh" data-slot="${slot}"></b></label>
+    <input type="range" data-key="qrh" data-slot="${slot}" min="0.4" max="3" step="0.1" value="0.6">
+    <label class="row"><span>${qrName(slot)} のまわりの余白</span>
+      <b data-out="mar" data-slot="${slot}"></b></label>
+    <input type="range" data-key="mar" data-slot="${slot}" min="1.5" max="6" step="0.5" value="2.5">
+  </div>`).join('');
+
+function paintQrEach() {
+  for (const inp of document.querySelectorAll('#qrEach input[data-key]')) {
+    const { key, slot } = inp.dataset;
+    const v = state[KEY_OF[key]][slot];
+    inp.value = v;
+    document.querySelector(`#qrEach b[data-out="${key}"][data-slot="${slot}"]`).textContent =
+      v.toFixed(1) + ' mm';
+  }
+}
+document.getElementById('qrEach').addEventListener('input', e => {
+  const inp = e.target.closest('input[data-key]'); if (!inp) return;
+  const { key, slot } = inp.dataset;
+  state[KEY_OF[key]][slot] = parseFloat(inp.value);
+  paintQrEach();
+  requestRebuild(false);
+});
+/* いま出す面だけ見せる（そのかたちに有る面で、QRをえらんでいるもの） */
+function syncQrEach() {
+  const use = KIND_SLOTS[state.kind] || [];
+  for (const row of document.querySelectorAll('#qrEach .qr-each'))
+    row.style.display = (use.includes(row.dataset.for) && state.slots[row.dataset.for] === 'qr')
+      ? '' : 'none';
+}
+paintQrEach();
 
 /* 磁石を入れるかどうか。入れないと **べた一の1枚もの** になるので、
    磁石の大きさと「うら面（QRタイル）」は出しても意味がない＝隠す。 */
@@ -2910,7 +2963,6 @@ document.getElementById('thickMin').addEventListener('click', () => {
   document.getElementById('thickV').textContent = 'いちばん薄く';
   requestRebuild(false);
 });
-slider('mar', 'margin', v => v.toFixed(1) + ' mm', 'marV');
 slider('rim', 'rim', v => v.toFixed(1) + ' mm', 'rimV');
 slider('ring', 'ring', v => v.toFixed(1) + ' mm', 'ringV');
 slider('tilt', 'tilt', v => v + '°', 'tiltV');
@@ -3115,9 +3167,11 @@ if (back && back.data) {
 } else {
   goQrStep(0);
 }
-/* ★URL欄の出し入れは、つづきから でも まっさらでも いちど通す。
+/* ★出し入れのそろえ直しは、つづきから でも まっさらでも いちど通す。
      つづきの中だけに置いていて、ふつうに開いたとき欄が出なかった。 */
 syncSlotUrls();
+syncMagnet();
+syncQrEach();
 </script>
 
 <!-- ひらがな切替（ヘッダー右上にボタンを足す） -->
