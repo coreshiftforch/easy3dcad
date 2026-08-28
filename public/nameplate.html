@@ -211,17 +211,6 @@
               style="margin-top:16px;padding:16px;font-size:20px;">🎉 完成！</button>
     </div>
 
-    <!-- 完成：アニメーションのあとに表示 -->
-    <div id="resultPanel" style="display:none;">
-      <div style="text-align:center;font-size:20px;font-weight:bold;margin-bottom:4px;">🎉 完成！</div>
-      <div class="hint-line" style="margin-bottom:12px;">3Dプリンターで使えるデータを保存しよう</div>
-
-      <button class="action-btn" id="btnSave3MF">📥 3MFで保存 <small style="display:block;font-weight:normal;font-size:11px;opacity:.85;">色付き・2色プリントできる</small></button>
-      <button class="action-btn green" id="btnSaveSTL">📥 STLで保存 <small style="display:block;font-weight:normal;font-size:11px;opacity:.85;">どの3Dプリンターでも使える</small></button>
-
-      <div class="status-msg" id="statusMsg"></div>
-      <button class="action-btn grey" id="btnBackEdit" style="margin-top:10px;padding:12px;">◀ 戻って直す</button>
-    </div>
   </div>
 
 </div>
@@ -1532,7 +1521,7 @@ function resetCompletion() {
   clearTimeout(celEl._t1); clearTimeout(celEl._t2);
   celEl.className = ''; celEl.innerHTML = '';
   document.getElementById('holeEdit').style.display = '';
-  document.getElementById('resultPanel').style.display = 'none';
+  if (window.SaveScreen) SaveScreen.close();
 }
 
 // ポケポケGET風の演出（放射光・キラキラ・紙吹雪・できた！）
@@ -1573,15 +1562,51 @@ document.getElementById('btnComplete').onclick = () => {
   spawnCelebration();
   playCompletion(() => {
     document.getElementById('holeEdit').style.display = 'none';
-    document.getElementById('resultPanel').style.display = 'block';
-    panel.scrollTop = 0;
+    openSaveScreen();
   });
 };
-document.getElementById('btnBackEdit').onclick = () => {
-  resetCompletion();
-  camView = viewForStep(state.step);   // ⑧の通常視点（真上）へ戻す
-  moveCameraTo(camView);
-};
+
+/* ── さいごの画面（4ページ共通の SaveScreen）──────────────
+   ★ファイルは **押されたときに作る**。先に作っておくと、つまみを
+     動かすたびに 重い書き出しが走る。 */
+function openSaveScreen() {
+  const b = baseBox || { w: 0, h: 0 };
+  const nm = state.chars.map(c => c.char).join('');
+  SaveScreen.open({
+    title: 'なまえプレート',
+    name: plateFileBase(),
+    files: [
+      { id:'3mf', ext:'3mf', label:'3MF でダウンロード',
+        note:'色つき。2色プリントできる（スライサーはこちら推奨）',
+        make: () => new Blob([export3MF()], { type:'model/3mf' }) },
+      { id:'stl', ext:'stl', label:'STL でダウンロード',
+        note:'単色。どの3Dプリンターでも開ける',
+        make: () => {
+          modelGroup.updateMatrixWorld(true);
+          return new Blob([new STLExporter().parse(modelGroup, { binary:true })],
+                          { type:'model/stl' });
+        } },
+    ],
+    info: [
+      ['なまえ', nm || '（なし）'],
+      ['大きさ', `${(baseFootprint.w * MODEL_SCALE_XY).toFixed(1)} × ` +
+                 `${(baseFootprint.h * MODEL_SCALE_XY).toFixed(1)} mm`],
+      ['文字の大きさ', `${(state.charSize * MODEL_SCALE_XY).toFixed(1)} mm`],
+      ['色', state.colorMode === '2' ? '2色（土台と文字を分けて刷る）' : '1色'],
+    ],
+    howto: [
+      '① 平置きのまま印刷（サポートは要りません）',
+      '② 2色で刷るときは、土台と文字が別パーツになった <b>3MF</b> を使ってください',
+      '③ キーリングの穴にリングを通せば できあがり',
+    ],
+    onBack: () => {
+      resetCompletion();
+      camView = viewForStep(state.step);
+      moveCameraTo(camView);
+    },
+  });
+}
+
 
 // ── ステップ切り替え ──────────────────────────────────────────────
 function goStep(i) {
@@ -1778,10 +1803,7 @@ function saveSTL() {
   }
 }
 
-document.getElementById('btnSave3MF').onclick = save3MF;
-document.getElementById('btnSaveSTL').onclick = saveSTL;
-
-function setStatus(m) { document.getElementById('statusMsg').textContent = m; }
+function setStatus(m) { /* 知らせは SaveScreen が出す */ void m; }
 
 // ── フォント読み込み（3書体まとめて・軽量サブセット）──────────────────
 const fontStatusEl = document.getElementById('fontStatus');
@@ -1920,6 +1942,7 @@ goStep(state.step || 0);
 
 <!-- ひらがな切替（ヘッダー右上にボタンを足す） -->
 <!-- 使いかた（右上の「？」）-->
+<script src="/js/save.js"></script>
 <script src="/js/help.js"></script>
 <script src="/js/kana.js"></script>
 </body>

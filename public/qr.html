@@ -465,10 +465,8 @@ details.adv[open] summary { margin-bottom: 8px; }
     <div id="secOut" class="sec download-sec">
       <h2><span class="n">5</span>ダウンロード</h2>
       <div class="dl">
-        <button class="primary" id="dl3mf">3MF をダウンロード
-          <small>色つき・スライサーはこちら推奨</small></button>
-        <button id="dlstl">STL をダウンロード<small>単色・全パーツ1ファイル</small></button>
-        <button id="dlpng">QR画像（PNG）</button>
+        <button class="primary" id="toSave">ダウンロードへ ▶
+          <small>ファイルの形と名前を えらべます</small></button>
       </div>
       <div class="info" id="partinfo" style="margin-top:10px"></div>
       <div class="info" id="howto" style="margin-top:10px"></div>
@@ -3011,12 +3009,35 @@ document.getElementById('viewbar').addEventListener('click', e => {
   requestRebuild(true);
 });
 
-document.getElementById('dl3mf').onclick = () =>
-  current && save(export3MF(current.parts), fileBase() + '.3mf', 'model/3mf');
-document.getElementById('dlstl').onclick = () =>
-  current && save(exportSTL(current.parts), fileBase() + '.stl', 'model/stl');
+/* ── さいごの画面（4ページ共通の SaveScreen）──────────────
+   ★ファイルは押されたときに作る。先に作っておくと、つまみを動かすたびに
+     重い書き出しが走る。 */
+document.getElementById('toSave').onclick = () => {
+  if (!current) return;
+  const i = current.info;
+  SaveScreen.open({
+    title: 'QRキーホルダー',
+    name: fileBase(),
+    files: [
+      { id:'3mf', ext:'3mf', label:'3MF でダウンロード',
+        note:'色つき。多色でそのまま刷れる（スライサーはこちら推奨）',
+        mime:'model/3mf', make: () => export3MF(current.parts) },
+      { id:'stl', ext:'stl', label:'STL でダウンロード',
+        note:'単色。部品ぜんぶで1ファイル',
+        mime:'model/stl', make: () => exportSTL(current.parts) },
+      { id:'png', ext:'png', label:'QRの画像（PNG）',
+        note:'紙に刷ったり、読み取りをためすとき用',
+        make: () => { savePNGs(); } },
+    ],
+    parts: current.parts.map(pt => ({ name: pt.name, note: '' })),
+    info: i.dims.map(d => [d[0], String(d[1]).replace(/<[^>]+>/g, '')]),
+    howto: i.howto.map(h => String(h).replace(/<[^>]+>/g, '')),
+    onBack: () => {},
+  });
+};
 
-document.getElementById('dlpng').onclick = () => {
+/* QRの絵（PNG）は 1枚とはかぎらないので、ここで直接おとす */
+function savePNGs() {
   if (!current) return;
   // うら面もあるときは2枚とも落とす
   const pngOf = (qr, suffix) => {
@@ -3040,7 +3061,7 @@ document.getElementById('dlpng').onclick = () => {
     // ★ファイル名は半角のみ。面の名前（tileFront など）をそのまま使う
     pngOf(a.art.qr, current.info.arts.length === 1 ? '_QR' : '_' + a.art.slot);
   }
-};
+}
 
 // 動作確認用の入口（DevToolsから __qr3d.check() で書き出しの中身を数字で見られる）
 window.__qr3d = {
@@ -3178,6 +3199,7 @@ syncQrEach();
 
 <!-- ひらがな切替（ヘッダー右上にボタンを足す） -->
 <!-- 使いかた（右上の「？」）-->
+<script src="/js/save.js"></script>
 <script src="/js/help.js"></script>
 <script src="/js/kana.js"></script>
 </body>
