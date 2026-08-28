@@ -56,9 +56,58 @@
 
   .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 18px 64px; }
 
-  /* ══ つくるもの ════════════════════════════════════════ */
-  .menu { display: grid; gap: 24px; grid-template-columns: 1fr; }
-  @media (min-width: 780px) { .menu { grid-template-columns: repeat(3, 1fr); } }
+  /* ══ つくるもの ════════════════════════════════════════
+     ROOM-Maker の島と同じ組み立て。**まん中のものだけ大きく**、
+     左右は小さくして のぞかせる。左右を押すと まん中に来る。
+     ★3枚を同じマスに重ねて置き、transform でずらしている。
+       こうすると 高さを数字で決めなくてよく、いちばん高いカードに
+       自然にそろう（説明の長さが3枚でちがうため）。 */
+  .deck { position: relative; overflow: hidden; padding: 14px 0 4px; }
+  .deck-rail { display: grid; justify-items: center; }
+
+  .deck-rail .card {
+    grid-area: 1 / 1;                       /* 3枚とも同じマスへ重ねる */
+    width: min(370px, 76vw);
+    transition: transform .42s cubic-bezier(.22, .7, .25, 1), opacity .42s;
+    will-change: transform;
+  }
+  .card[data-pos="0"]  { transform: translateX(0)    scale(1);   opacity: 1;   z-index: 3; }
+  .card[data-pos="-1"] { transform: translateX(-97%) scale(.74); opacity: .52; z-index: 2; }
+  .card[data-pos="1"]  { transform: translateX(97%)  scale(.74); opacity: .52; z-index: 2; }
+  /* まん中でないカードは、押すと まん中に来るだけ（中の「作る」は働かない） */
+  .card:not([data-pos="0"]) { cursor: pointer; }
+  .card:not([data-pos="0"]) .go { opacity: .45; }
+
+  /* 送りボタン */
+  .deck-arrow {
+    position: absolute; top: 50%; z-index: 5;
+    width: 46px; height: 46px; border-radius: 50%;
+    display: grid; place-items: center;
+    border: 1px solid var(--line); background: var(--panel);
+    color: var(--muted); font-size: 15px; cursor: pointer;
+    transform: translateY(-50%);
+  }
+  .deck-arrow.prev { left: 4px; }
+  .deck-arrow.next { right: 4px; }
+  .deck-arrow:hover { color: var(--accent2); border-color: var(--accent2); }
+
+  .deck-dots { display: flex; justify-content: center; gap: 10px; margin-top: 24px; }
+  .deck-dots button {
+    width: 10px; height: 10px; padding: 0; border: 0; border-radius: 50%;
+    background: var(--line); cursor: pointer; transition: background .2s, transform .2s;
+  }
+  .deck-dots button[aria-current="true"] { background: var(--accent); transform: scale(1.4); }
+
+  @media (max-width: 720px) {
+    /* ★せまい画面では、まん中を細くして 左右をもっと見せる。
+         のぞきが細いと「まだ他にもある」ことが伝わらない。 */
+    .deck-rail .card { width: 70vw; }
+    .card[data-pos="-1"] { transform: translateX(-84%) scale(.68); opacity: .45; }
+    .card[data-pos="1"]  { transform: translateX(84%)  scale(.68); opacity: .45; }
+    .deck-arrow { width: 38px; height: 38px; font-size: 13px; opacity: .92; }
+    .deck-arrow.prev { left: 2px; }
+    .deck-arrow.next { right: 2px; }
+  }
 
   .card {
     display: flex; flex-direction: column;
@@ -90,14 +139,17 @@
     background: var(--accent); color: #fff; font-size: 16px; font-weight: bold;
     transition: gap .18s;
   }
+  /* ★浮かせる動きは まん中のカードだけ。全部にかけると、
+       左右にずらす transform を打ち消してしまう（重なって見えた）。 */
   @media (hover: hover) and (pointer: fine) {
-    .card:hover {
-      border-color: var(--accent2); transform: translateY(-4px);
-      box-shadow: 0 14px 30px color-mix(in srgb, var(--bg) 70%, transparent);
+    .card[data-pos="0"]:hover {
+      border-color: var(--accent2); transform: translateY(-5px) scale(1.015);
+      box-shadow: 0 16px 34px color-mix(in srgb, var(--bg) 70%, transparent);
     }
-    .card:hover .go { gap: 11px; }
+    .card[data-pos="0"]:hover .go { gap: 11px; }
+    .card:not([data-pos="0"]):hover { opacity: .78; }
   }
-  .card:active { transform: translateY(-1px); }
+  .card[data-pos="0"]:active { transform: translateY(-1px); }
 
   /* 絵のなかの色づかい。3つとも同じ決まりでそろえる */
   .il-fill   { fill: var(--panel); }
@@ -127,7 +179,9 @@
 
 <div class="wrap">
 
-  <div class="menu">
+  <div class="deck" id="deck">
+
+    <div class="deck-rail">
 
     <a class="card" href="nameplate.html">
       <span class="art">
@@ -206,6 +260,19 @@
       </span>
     </a>
 
+    </div>
+
+    <button class="deck-arrow prev" type="button" data-no-kana
+            aria-label="ひとつ前"><span aria-hidden="true">◀</span></button>
+    <button class="deck-arrow next" type="button" data-no-kana
+            aria-label="つぎ"><span aria-hidden="true">▶</span></button>
+
+    <div class="deck-dots" role="tablist" data-no-kana>
+      <button type="button" aria-label="なまえプレート"></button>
+      <button type="button" aria-label="QRキーホルダー"></button>
+      <button type="button" aria-label="クリッカーメーカー"></button>
+    </div>
+
   </div>
 
 </div>
@@ -213,6 +280,74 @@
 
 <!-- ひらがな切替（ヘッダー右上にボタンを足す） -->
 <!-- 使いかた（右上の「？」）-->
+<!-- ══ つくるものを、島のように送る ══════════════════════════
+     まん中の1枚だけを大きく見せ、左右は小さくのぞかせる。
+     ・左右のカードを押す … そのカードが まん中に来るだけ（先へは進まない）
+     ・まん中のカードを押す … そのアプリへ行く
+     ・◀ ▶ ／ 左右キー ／ 横になぞる でも送れる
+     ★位置は data-pos（-1 / 0 / 1）で持ち、見た目はCSSが決める。 -->
+<script>
+(function () {
+  'use strict';
+  var deck = document.getElementById('deck');
+  if (!deck) return;
+
+  var cards = Array.prototype.slice.call(deck.querySelectorAll('.card'));
+  var dots  = Array.prototype.slice.call(deck.querySelectorAll('.deck-dots button'));
+  var n = cards.length;
+  var at = 0;
+
+  /* i 番のカードが、いま まん中から見て どこにいるか（-1 / 0 / 1） */
+  function posOf(i) { return ((i - at + 1) % n + n) % n - 1; }
+
+  function paint() {
+    for (var i = 0; i < n; i++) {
+      var p = posOf(i);
+      cards[i].setAttribute('data-pos', String(p));
+      /* まん中でないカードは タブで飛ばさない（押しても進まないため） */
+      cards[i].setAttribute('tabindex', p === 0 ? '0' : '-1');
+    }
+    for (var k = 0; k < dots.length; k++)
+      dots[k].setAttribute('aria-current', k === at ? 'true' : 'false');
+  }
+  function go(k) { at = ((k % n) + n) % n; paint(); }
+
+  cards.forEach(function (c, i) {
+    c.addEventListener('click', function (e) {
+      if (posOf(i) === 0) return;      // まん中なら そのまま進む
+      e.preventDefault();              // まん中でなければ、まず まん中に持ってくる
+      go(i);
+    });
+  });
+  dots.forEach(function (d, i) { d.onclick = function () { go(i); }; });
+  deck.querySelector('.deck-arrow.prev').onclick = function () { go(at - 1); };
+  deck.querySelector('.deck-arrow.next').onclick = function () { go(at + 1); };
+
+  document.addEventListener('keydown', function (e) {
+    if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    if (e.key === 'ArrowLeft')  { go(at - 1); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { go(at + 1); e.preventDefault(); }
+  });
+
+  /* 横になぞって送る。★たてに動かしたときは ページのスクロールを邪魔しない */
+  var x0 = 0, y0 = 0, live = false;
+  deck.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    x0 = e.clientX; y0 = e.clientY; live = true;
+  });
+  deck.addEventListener('pointerup', function (e) {
+    if (!live) return;
+    live = false;
+    var dx = e.clientX - x0, dy = e.clientY - y0;
+    if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy)) return;
+    go(dx < 0 ? at + 1 : at - 1);
+  });
+  deck.addEventListener('pointercancel', function () { live = false; });
+
+  paint();
+})();
+</script>
+
 <script src="/js/save.js"></script>
 <script src="/js/help.js"></script>
 <script src="/js/kana.js"></script>
