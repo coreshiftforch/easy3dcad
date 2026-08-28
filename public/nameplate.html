@@ -122,10 +122,10 @@
       <div id="sizeHint" style="font-size:12px;color:#fbbf24;margin-top:6px;"></div>
     </div>
     <div class="slider-row">
-      <div class="lab"><span>線の ふとさ</span><b id="boldVal">そのまま</b></div>
+      <div class="lab"><span>線の太さ</span><b id="boldVal">そのまま</b></div>
       <input type="range" id="sliderBold" min="0" max="100" step="5" value="0">
       <div id="boldHint" style="font-size:12px;color:var(--muted);margin-top:6px;">
-        細い線は 印刷で 消えないよう じどうで ふとらせています。ここは そこから さらに ふとくします</div>
+        細い線は 印刷で 消えないよう 自動で太らせています。ここは そこから さらに太くします</div>
     </div>
   </div>
 
@@ -1917,6 +1917,8 @@ goStep(state.step || 0);
 </script>
 
 <!-- ひらがな切替（ヘッダー右上にボタンを足す） -->
+<!-- 使いかた（右上の「？」）-->
+<script src="/js/help.js"></script>
 <script src="/js/kana.js"></script>
 </body>
 </html>

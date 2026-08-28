@@ -91,7 +91,7 @@ export function mountScene0(root, { onBack, onMade } = {}) {
           </div>
 
           <div class="sec-how">
-            <p class="panel-h">のせかた</p>
+            <p class="panel-h">のせ方</p>
             <div class="shapes k-how">${btns('shape-btn',
               [{ id: 'carve', name: '彫る' }, { id: 'raise', name: 'のせる' }], DEF.how)}</div>
             <label class="slabel">深さ／高さ<output class="o-depth"></output></label>
