@@ -48,49 +48,17 @@ const FMT = [
 ];
 
 export function mountScene4(root, { model, parts, onBack } = {}) {
-  root.innerHTML = `
-    <div class="scene scene4">
-      <div class="topbar">
-        <button class="back-btn" type="button">← 戻る</button>
-        <span class="file-name">${model?.name ?? ''}</span>
-      </div>
-      <div class="split">
-        <div class="left">
-          <div class="viewer"></div>
-        </div>
-        <div class="right">
-          <div class="panel">
-            <p class="panel-h">向き</p>
-            <div class="shapes lay">
-              <button class="shape-btn" type="button" data-lay="print">印刷向き</button>
-              <button class="shape-btn" type="button" data-lay="asis">モデルのまま</button>
-            </div>
-            <p class="note lay-note"></p>
-          </div>
-          <div class="panel">
-            <p class="panel-h">名前</p>
-            <input class="fname" type="text" spellcheck="false">
-            <p class="note files"></p>
-          </div>
-          <div class="panel parts-panel">
-            <p class="panel-h">部品</p>
-            <div class="part-list"></div>
-          </div>
-          <p class="hint save-hint"></p>
-          <div class="confirm-bar">
-            ${FMT.map(f => `<button class="ok-btn" type="button" data-fmt="${f.id}">${f.label}</button>`).join('')}
-          </div>
-        </div>
-      </div>
-    </div>`;
-
-  const $ = s => root.querySelector(s);
-  const host = $('.viewer');
-  const nameEl = $('.fname');
-  const hint = $('.save-hint');
+  /* ★画面そのものは **4ページ共通の SaveScreen**（public/js/save.js）が持つ。
+       ここが渡すのは「3Dの窓」「向きの切りかえ」「ファイルの作りかた」
+       「部品の一覧」だけ。なまえプレート・QRと同じ見た目になる。 */
+  root.innerHTML = '<div class="scene scene4"></div>';
+  const host = document.createElement('div');
+  host.className = 'viewer';
+  host.style.cssText = 'position:absolute;inset:0';
 
   let lay = 'print';
-  nameEl.value = safeName(model?.name);
+  let fileName = safeName(model?.name) || 'clicker';
+  let warn = '';                    // 閉じていない部品があるときの知らせ
 
   /* ── 保存する形にそろえる ───────────────────────
      ★ここが「見えているもの＝保存されるもの」の一本道。
@@ -221,108 +189,90 @@ export function mountScene4(root, { model, parts, onBack } = {}) {
   host.addEventListener('pointercancel', stop);
 
   /* ── 部品の表 ───────────────────────────────── */
-  function paintParts() {
-    $('.part-list').innerHTML = parts.map(p => {
+  /* 部品の一覧。★「閉じているか」は ここが最後の関所。
+       数えるのは重い（三角形10万枚で1秒近く）ので、まず画面を出して
+       あとから数えなおし、SaveScreen に入れ直す。 */
+  let shut = null;                  // id → ひらいた辺の数（null＝まだ数えていない）
+  function partList() {
+    return parts.map(p => {
       const b = boundsOf(p.tris);
       const size = b.size.map(v => v.toFixed(1)).join(' × ');
-      return `<div class="part-row">
-        <i style="background:#${(p.color ?? 0xd9dee6).toString(16).padStart(6, '0')}"></i>
-        <b>${p.label}</b>
-        <span>${size} mm ／ ${(p.tris.length / 9).toLocaleString()}枚</span>
-        <em class="shut" data-id="${p.id}">調べています…</em>
-      </div>`;
-    }).join('');
-    /* ★数えるのは重い（三角形10万枚で1秒近く）。画面を出してから後回しでやる */
+      const n = shut && shut[p.id];
+      const state = shut == null ? '調べています…' : (n ? `ひらいた辺 ${n}本` : '閉じている');
+      return { name: p.label, note: `${size} mm ／ ${(p.tris.length / 9).toLocaleString()}枚 ／ ${state}` };
+    });
+  }
+  function countShut() {
     setTimeout(() => {
+      shut = {};
       let bad = 0;
-      for (const p of parts) {
-        const n = openEdges(p.tris);
-        if (n) bad++;
-        const el = root.querySelector(`.shut[data-id="${p.id}"]`);
-        if (el) {
-          el.textContent = n ? `ひらいた辺 ${n}本` : '閉じている';
-          el.className = `shut ${n ? 'ng' : 'ok'}`;
-        }
-      }
-      if (bad) hint.textContent = '閉じていない部品がある。このまま印刷すると失敗することがある';
-      paintHint();
+      for (const p of parts) { const n = openEdges(p.tris); shut[p.id] = n; if (n) bad++; }
+      warn = bad ? '⚠ 閉じていない部品があります。このまま印刷すると失敗することがあります' : '';
+      SaveScreen.update({ parts: partList(), info: infoRows() });
     }, 60);
   }
 
-  function paintHint() {
-    if (hint.textContent.includes('閉じていない')) { hint.className = 'hint warn save-hint'; return; }
-    hint.className = 'hint save-hint';
-  }
-
   /* ── 出す ────────────────────────────────────── */
-  /* ★どちらのボタンを押すと何が出るか、両方まとめて出しておく */
-  function paintFiles() {
-    const base = safeName(nameEl.value) || 'clicker';
-    const stl = parts.map(p => `${base}_${p.label}.stl`).join(' ／ ');
-    $('.files').textContent = '';
-    for (const [k, v] of [['STL', `${stl}（${FMT[0].note}）`],
-                          ['3MF', `${base}.3mf（${parts.length}つの部品が1ファイルに入る）`]]) {
-      const el = document.createElement('span');
-      el.className = 'file-line';
-      el.textContent = `${k} … ${v}`;
-      $('.files').appendChild(el);
-    }
-  }
-
-  function paint() {
-    root.querySelectorAll('.lay .shape-btn').forEach(b => b.classList.toggle('on', b.dataset.lay === lay));
+  const layNote = () => {
     /* ★ひっくり返す部品があるときだけ、そう書く（回らないのに「回す」と書かない） */
     const anyFlip = parts.some(p => p.flip);
-    $('.lay-note').textContent = lay === 'print'
+    return lay === 'print'
       ? (anyFlip ? 'ひっくり返す部品はひっくり返して、' : '向きはモデルのまま。')
         + 'それぞれ底を台に置いて、横に並べる'
       : '組み立てた位置のまま出す。読みこみ直すとぴったり重なるので、確かめるのに向く';
-    paintFiles();
-    build();
+  };
+  const infoRows = () => [
+    ['部品の数', `${parts.length}つ`],
+    ['三角形', `${parts.reduce((n, p) => n + p.tris.length / 9, 0).toLocaleString()}枚`],
+    ...(warn ? [['たしかめ', warn]] : []),
+  ];
+
+  function paint() { build(); }
+
+  /* ★書き出しは **自分で落とす**（部品ごとに1枚ずつ出るので、
+       SaveScreen に Blob を1つ返す形にはできない）。
+       だから make は なにも返さず、SaveScreen は「保存した」とだけ出す。 */
+  function openSave() {
+    SaveScreen.open({
+      title: '書き出し',
+      name: fileName,
+      preview: host,
+      options: [{
+        label: '向き', pick: lay, note: layNote(),
+        items: [{ v: 'print', t: '印刷向き' }, { v: 'asis', t: 'モデルのまま' }],
+        onPick: v => { lay = v; paint(); SaveScreen.update({ options: [{ note: layNote() }] }); },
+      }],
+      files: [
+        { id: '3mf', ext: '3mf', label: '3MF でダウンロード',
+          note: `${parts.length}つの部品が1ファイルに入る。mm で書けるので大きさがずれない`,
+          make: async (base) => {
+            download(await threeMF(laid().map(p => ({ label: p.label, tris: p.tris }))), `${base}.3mf`);
+          } },
+        { id: 'stl', ext: 'stl', label: 'STL でダウンロード',
+          note: `部品ごとに1枚ずつ（${parts.length}枚）。どのソフトでも開ける`,
+          make: async (base) => {
+            const list = laid();
+            /* ★続けて何枚も落とすと、ブラウザに止められることがある。少し間を空ける */
+            for (let i = 0; i < list.length; i++) {
+              download(stlBinary(list[i].tris, `${base} ${list[i].label}`), `${base}_${list[i].label}.stl`);
+              if (i < list.length - 1) await new Promise(r => setTimeout(r, 350));
+            }
+          } },
+      ],
+      parts: partList(),
+      info: infoRows(),
+      howto: [
+        '① そのまま平置きで印刷（サポートは要りません）',
+        '② スイッチは、下パーツの四角い部屋へ 上から落としこみます',
+        '③ 磁石を使う作りのときは、向き（N-S）をそろえて入れてください',
+      ],
+      onBack: () => onBack?.(),
+    });
   }
-
-  root.querySelectorAll('.lay .shape-btn').forEach(b => {
-    b.onclick = () => { lay = b.dataset.lay; paint(); };
-  });
-  nameEl.oninput = paintFiles;
-
-  /* 押したボタンの形式でそのまま出す。
-     ★作っているあいだは両方とも押せなくする（二重に落ちると止められる）。 */
-  const okBtns = [...root.querySelectorAll('.ok-btn')];
-  for (const btn of okBtns) {
-    const kind = btn.dataset.fmt;
-    const label = FMT.find(f => f.id === kind).label;
-    btn.onclick = async () => {
-      const base = safeName(nameEl.value) || 'clicker';
-      const list = laid();
-      for (const b of okBtns) b.disabled = true;
-      btn.textContent = '作っています…';
-      try {
-        if (kind === '3mf') {
-          download(await threeMF(list.map(p => ({ label: p.label, tris: p.tris }))), `${base}.3mf`);
-          hint.textContent = '3MF を保存した';
-        } else {
-          /* ★続けて何枚も落とすと、ブラウザに止められることがある。少し間を空ける */
-          for (let i = 0; i < list.length; i++) {
-            download(stlBinary(list[i].tris, `${base} ${list[i].label}`), `${base}_${list[i].label}.stl`);
-            if (i < list.length - 1) await new Promise(r => setTimeout(r, 350));
-          }
-          hint.textContent = `STL を ${list.length}枚 保存した`;
-        }
-        hint.className = 'hint save-hint';
-      } catch (e) {
-        hint.textContent = `保存できなかった：${e.message}`;
-        hint.className = 'hint warn save-hint';
-      }
-      for (const b of okBtns) b.disabled = false;
-      btn.textContent = label;
-    };
-  }
-
-  $('.back-btn').onclick = () => onBack?.();
 
   paint();
-  paintParts();
+  openSave();
+  countShut();
 
   return {
     destroy() {

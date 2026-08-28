@@ -232,19 +232,19 @@
         /* ★重い書き出しでボタンが固まって見えないよう、1フレーム置いてから作る */
         requestAnimationFrame(function () {
           setTimeout(function () {
-            try {
-              var out = f.make(name);
+            /* ★make は Promise を返してもよい（3MFの ZIP は非同期で作る）。
+                 待たずに進むと、できていないものを保存しようとする。 */
+            Promise.resolve().then(function () { return f.make(name); }).then(function (out) {
               /* ★Blob を返してくれたら こちらが保存する。返さないときは
-                   「アプリが自分で保存した」とみなす（QRの絵は 何枚か出るので
-                   むこうで落としている）。 */
+                   「アプリが自分で保存した」とみなす（QRの絵やクリッカーのSTLは
+                   何枚も出るので、むこうで落としている）。 */
               if (out) download(out instanceof Blob ? out : new Blob([out], { type: f.mime || '' }),
                                 name + '_' + stamp() + '.' + (f.ext || f.id));
               say('✓ ' + f.label + ' を保存しました');
-            } catch (err) {
+            }).catch(function (err) {
               console.error(err);
               say('保存できませんでした（' + (err && err.message || err) + '）', true);
-            }
-            btn.disabled = false;
+            }).then(function () { btn.disabled = false; });
           }, 0);
         });
       });
@@ -265,6 +265,21 @@
   }
 
   window.SaveScreen = {
+    /* 出したあとで中身を入れかえる。★打ちかけの名前は消さない。
+         部品の「閉じているか」は数えるのが重くて後から出るので、これで入れ直す。 */
+    update: function (patch) {
+      if (!sheet || !opt || !patch) return;
+      var typed = sheet.querySelector('.sv-name');
+      if (typed) opt.name = typed.value;
+      Object.keys(patch).forEach(function (k) {
+        if (k === 'options' && opt.options) {
+          patch.options.forEach(function (o, i) {
+            if (opt.options[i]) Object.assign(opt.options[i], o);
+          });
+        } else opt[k] = patch[k];
+      });
+      render();
+    },
     open: function (o) {
       if (!sheet) build();
       opt = o || {};
