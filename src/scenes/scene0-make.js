@@ -22,7 +22,7 @@ const WALL = 1.6;
 const MIN_THICK = SWITCH_W + WALL * 2;      // 18.8
 
 const DEF = {
-  shape: 'round', width: 60, thick: 22,
+  shape: 'keycap', width: 60, thick: 22,
   deco: 'text', how: 'carve', depth: 1.2,
   text: 'ぽち', fontId: 'gothic', textPct: 80,
   url: 'https://example.com', ec: 'M', qrPct: 85,
@@ -44,8 +44,8 @@ export function mountScene0(root, { onBack, onMade } = {}) {
           <div class="view"><span class="view-tag">できる形</span></div>
         </div>
         <div class="panel">
-          <p class="panel-h">土台のかたち</p>
-          <div class="shapes k-shape">${btns('shape-btn', SHAPES, DEF.shape)}</div>
+          <p class="panel-h">かたち（このまま上へのばした柱になる）</p>
+          <div class="shapes many k-shape">${btns('shape-btn', SHAPES, DEF.shape)}</div>
           <label class="slabel">よこ幅<output class="o-width"></output></label>
           <input class="r-width" type="range" min="25" max="120" step="1" value="${DEF.width}">
           <label class="slabel">厚み<output class="o-thick"></output></label>

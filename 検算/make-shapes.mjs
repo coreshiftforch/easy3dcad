@@ -1,11 +1,13 @@
 /* 「モデルを作る」でできる形を、ブラウザを開かずに確かめる。
    ── npm run check:make
 
-   見ているのは4つ。
-     ① 寸法      … 頼んだ 幅・厚み どおりの箱に収まっているか
-     ② 彫った跡  … 彫ったら体積が減り、のせたら増えるか（向きの取りちがえ検出）
-     ③ 島        … 「あ」のように中に閉じたところがある字で、島が残っているか
-     ④ QR        … マスが重なっていないか（重なると earcut がこわれる）
+   見ているのは6つ。
+     ① 寸法    … 頼んだ よこ幅・高さ どおりの箱に収まっているか
+     ② 向き    … 面が外を向いているか（体積が正の数か）。全部の形で
+     ③ 彫った量 … 「字の面積 × 深さ」ぴったりか。**島の作り忘れがここで出る**
+     ④ 書体    … 無い字を黙って消さずに知らせるか／6書体とも読めるか
+     ⑤ QR      … マスが重なっていないか（重なると earcut がこわれる）
+     ⑥ キーキャップ … 先すぼまりになっているか（上の面が下より小さい）
 
    ★体積は「符号つき四面体の足し算」で出す。面が外を向いていれば正の数になる。
      負や 0 に近い数が出たら、三角形の向きが裏返っている。
@@ -23,7 +25,8 @@ globalThis.fetch = async (p) => {
   return { ok: true, arrayBuffer: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length) };
 };
 
-const { buildMake, decoPolys, qrPolys, SHAPES, FONTS } = await import('../src/geom/make.js');
+const { buildMake, decoPolys, qrPolys, inkArea, FUSE, SHAPES, FONTS } =
+  await import('../src/geom/make.js');
 
 /* ── 道具 ───────────────────────────────────── */
 function volumeOf(t) {
@@ -43,6 +46,13 @@ function boxOf(t) {
     }
   return { lo, hi, size: hi.map((h, k) => h - lo[k]) };
 }
+/* z がこの高さのあたりにある点の、広がりを見る（先すぼまりの検査に使う）*/
+function widthAtZ(t, z, tol) {
+  let x0 = Infinity, x1 = -Infinity;
+  for (let i = 0; i < t.length; i += 3)
+    if (Math.abs(t[i + 2] - z) < tol) { if (t[i] < x0) x0 = t[i]; if (t[i] > x1) x1 = t[i]; }
+  return x1 - x0;
+}
 
 let ng = 0;
 const ok = (cond, msg) => {
@@ -50,70 +60,84 @@ const ok = (cond, msg) => {
   if (!cond) ng++;
 };
 
-const BASE = { shape: 'round', width: 60, thick: 6, deco: 'none', how: 'carve',
+const BASE = { shape: 'round', width: 60, thick: 22, deco: 'none', how: 'carve',
                depth: 1.2, text: '', fontId: 'gothic', textPct: 80,
                url: '', ec: 'M', qrPct: 80 };
 
-/* ── ① 寸法 ─────────────────────────────────── */
-console.log('① 頼んだ大きさになるか');
+/* ── ①② 形ぜんぶ：寸法と向き ───────────────────── */
+console.log(`① ② 形ぜんぶ（${SHAPES.length}個）で、大きさが合っていて 面が外を向いているか`);
+const plainVol = {};
 for (const s of SHAPES) {
   const m = await buildMake({ ...BASE, shape: s.id });
   const b = boxOf(m.positions);
-  ok(Math.abs(b.size[0] - 60) < 0.6 && Math.abs(b.size[2] - 6) < 1e-4,
-     `${s.name}　よこ ${b.size[0].toFixed(1)}mm・厚み ${b.size[2].toFixed(1)}mm`);
+  const v = volumeOf(m.positions);
+  plainVol[s.id] = v;
+  const wOK = Math.abs(b.size[0] - 60) < 0.6;
+  const zOK = Math.abs(b.size[2] - 22) < 1e-3;
+  /* ★体積は「その形の面積 × 高さ」より小さいはず（先すぼまりは さらに小さい）。
+       0以下や、箱いっぱいを超える数字が出たら、面が壊れている。
+     ★ただし2つ以上のかたちが重なってできている形（ねこ・くも等）は、重なりを
+       二重に数えるので、箱より大きい数が出ることがある。まちがいではないので、
+       かたちの数だけ上限をゆるめる。 */
+  const vOK = v > 0 && v < 60 * b.size[1] * 22 * m.info.parts;
+  ok(wOK && zOK && vOK,
+     `${s.name.padEnd(7, '　')} ${b.size[0].toFixed(1)} × ${b.size[1].toFixed(1)} × ${b.size[2].toFixed(1)}mm`
+     + `　${(v / 1000).toFixed(1)}cm³`
+     + (m.info.parts > 1 ? `（${m.info.parts}つのかたちが重なっている）` : ''));
 }
-
-/* ── ② 彫ると減る・のせると増える ───────────────── */
-console.log('\n② 彫ったら減り、のせたら増えるか');
-const plain  = await buildMake({ ...BASE });
-const carved = await buildMake({ ...BASE, deco: 'text', how: 'carve', text: 'あア8' });
-const raised = await buildMake({ ...BASE, deco: 'text', how: 'raise', text: 'あア8' });
-const vP = volumeOf(plain.positions), vC = volumeOf(carved.positions), vR = volumeOf(raised.positions);
-ok(vP > 0, `板だけ ${vP.toFixed(0)}mm³（正の数＝面が外を向いている）`);
-ok(vC > 0 && vC < vP, `彫った ${vC.toFixed(0)}mm³ < 板だけ ${vP.toFixed(0)}mm³`);
-ok(vR > vP, `のせた ${vR.toFixed(0)}mm³ > 板だけ ${vP.toFixed(0)}mm³`);
-ok(Math.abs(boxOf(carved.positions).size[2] - 6) < 1e-4, '彫っても厚みは変わらない');
-ok(Math.abs(boxOf(raised.positions).size[2] - 7.2) < 1e-4,
-   `のせたら 6 + 1.2 = ${boxOf(raised.positions).size[2].toFixed(1)}mm になる`);
 
 /* ── ③ 彫った量が、字の面積ぴったりか ─────────────
    彫った跡は「字のかたち × 深さ」ぶんだけ減るはず。
    ★「あ」や「お」のように中が閉じている字は、その中に **島** が残る。
      島を作り忘れると、そこまで抜けおちて **減りすぎる**。
-     だから紙の上で出した面積とくらべれば、島の作り忘れがそのまま出る。 */
+   ★穴はまっすぐ下ろしている（縮めない）ので、先すぼまりの形でも同じ式で合う。 */
 console.log('\n③ 彫った量が、字の面積のぶんぴったりか');
-const area = pts => {
-  let a = 0;
-  for (let i = 0, n = pts.length; i < n; i++) {
-    const p = pts[i], q = pts[(i + 1) % n];
-    a += p.x * q.y - q.x * p.y;
+for (const shape of ['round', 'circle', 'star', 'cat', 'keycap']) {
+  for (const [label, text] of [['島あり', 'あおぬ'], ['島なし', 'くしつ']]) {
+    const opt = { ...BASE, shape, deco: 'text', how: 'carve', text, textPct: 80 };
+    const { deco } = await decoPolys(opt);
+    const ink = inkArea(deco);
+    const got = volumeOf((await buildMake(opt)).positions);
+    const want = plainVol[shape] - ink * BASE.depth;
+    ok(Math.abs(got - want) < 0.5,
+       `${SHAPES.find(s => s.id === shape).name}／${label}「${text}」　`
+       + `${got.toFixed(1)} ≒ ${plainVol[shape].toFixed(1)} − ${ink.toFixed(1)}mm² × ${BASE.depth}mm`);
   }
-  return Math.abs(a) / 2;
-};
-for (const [label, text] of [['島のある字', 'あおぬ'], ['島のない字', 'くしつ']]) {
-  const opt = { ...BASE, deco: 'text', how: 'carve', text, textPct: 80 };
-  const { deco } = await decoPolys(opt);
-  const ink = deco.reduce((s, p) => s + area(p.outer) - p.holes.reduce((h, q) => h + area(q), 0), 0);
-  const got = volumeOf((await buildMake(opt)).positions);
-  const want = vP - ink * BASE.depth;
-  ok(Math.abs(got - want) < 0.5,
-     `${label}「${text}」　彫った ${got.toFixed(1)} ≒ 板 ${vP.toFixed(1)} − 面積 ${ink.toFixed(1)}mm² × ${BASE.depth}mm`);
-  if (text === 'あおぬ')
-    ok(deco.some(p => p.holes.length > 0), '　　　　「あおぬ」には島がある（穴の中に閉じたところ）');
+}
+{
+  const { deco } = await decoPolys({ ...BASE, deco: 'text', text: 'あおぬ', textPct: 80 });
+  ok(deco.some(p => p.holes.length > 0), '「あおぬ」には島がある（穴の中に閉じたところ）');
 }
 
-/* ── ③b この書体に無い字は、黙って消さずに知らせるか ────
-   はじめの5つの書体には漢字が入っていない。打った本人には分からないので、
-   ★出ない字を名指しで知らせること。 */
-console.log('\n③b 書体に無い字を知らせるか');
-const kanji = await decoPolys({ ...BASE, deco: 'text', text: '漢字', fontId: 'gothic' });
-ok(kanji.info.warn.some(w => w.includes('漢字')), 'ゴシックに「漢字」が無いと知らせる');
+/* ── のせたら増える ────────────────────────────── */
+console.log('\n③b のせたら、その ぶんだけ増えるか');
+{
+  const opt = { ...BASE, deco: 'text', how: 'raise', text: 'あおぬ', textPct: 80 };
+  const { deco } = await decoPolys(opt);
+  const m = await buildMake(opt);
+  const got = volumeOf(m.positions);
+  /* ★のせたものは**別の立体**として土台に食いこませてある。体積を足すと
+       食いこんだぶん（FUSE）も数えるので、増えるのは (深さ + FUSE) ぶん。
+       外から見える高さは 深さ ぶんだけ（下の行で見ている）。 */
+  const want = plainVol.round + inkArea(deco) * (BASE.depth + FUSE);
+  ok(Math.abs(got - want) < 0.5, `のせた ${got.toFixed(1)} ≒ ${want.toFixed(1)}`);
+  ok(Math.abs(boxOf(m.positions).size[2] - (22 + 1.2)) < 1e-3, '高さは 22 + 1.2 = 23.2mm');
+}
+
+/* ── ④ 書体 ────────────────────────────────── */
+console.log('\n④ 書体に無い字を知らせるか／ぜんぶ読めるか');
+const kanjiNG = await decoPolys({ ...BASE, deco: 'text', text: '漢字', fontId: 'gothic' });
+ok(kanjiNG.info.warn.some(w => w.includes('漢字')), 'ゴシックに「漢字」が無いと知らせる');
 const kanjiOK = await decoPolys({ ...BASE, deco: 'text', text: '漢字', fontId: 'kanji' });
 ok(kanjiOK.info.warn.length === 0 && kanjiOK.deco.length > 0, '「かんじ」の書体なら出る');
+for (const f of FONTS) {
+  const m = await buildMake({ ...BASE, deco: 'text', how: 'raise', text: 'あA1', fontId: f.id });
+  ok(volumeOf(m.positions) > plainVol.round, `${f.name}`);
+}
 
-/* ── ④ QRのマスが重なっていないか ─────────────────
+/* ── ⑤ QRのマスが重なっていないか ─────────────────
    重なったまま穴にすると earcut がこわれて、面がぐちゃぐちゃになる。 */
-console.log('\n④ QRのマスが重なっていないか');
+console.log('\n⑤ QRのマスが重なっていないか');
 const { polys, count, module } = qrPolys('https://example.com/abc', 'M', 30);
 const rects = polys.map(p => ({
   x0: Math.min(...p.outer.map(q => q.x)), x1: Math.max(...p.outer.map(q => q.x)),
@@ -126,19 +150,28 @@ for (let i = 0; i < rects.length; i++)
     if (a.x0 < b.x1 - 1e-9 && b.x0 < a.x1 - 1e-9 && a.y0 < b.y1 - 1e-9 && b.y0 < a.y1 - 1e-9) overlap++;
   }
 ok(overlap === 0, `${count}×${count}マス → ${rects.length}個の長方形。重なり ${overlap}件`);
-ok(module > 0 && Math.abs(module - 30 / count) < 1e-9, `1マス ${module.toFixed(2)}mm`);
+{
+  const opt = { ...BASE, deco: 'qr', how: 'carve', url: 'https://example.com/abc' };
+  const { deco, info } = await decoPolys(opt);
+  const got = volumeOf((await buildMake(opt)).positions);
+  const want = plainVol.round - inkArea(deco) * BASE.depth;
+  ok(Math.abs(got - want) < 0.5, `QRを彫った量も面積ぴったり（1マス ${info.qr.module.toFixed(2)}mm）`);
+}
 
-const qrCarve = await buildMake({ ...BASE, deco: 'qr', how: 'carve', url: 'https://example.com/abc' });
-const qrRaise = await buildMake({ ...BASE, deco: 'qr', how: 'raise', url: 'https://example.com/abc' });
-ok(volumeOf(qrCarve.positions) > 0 && volumeOf(qrCarve.positions) < vP, 'QRを彫ると減る');
-ok(volumeOf(qrRaise.positions) > vP, 'QRをのせると増える');
-ok(qrCarve.info.qr.count === count, `情報に出るマス数 ${qrCarve.info.qr.count} が合っている`);
-
-/* ── おまけ：書体をぜんぶ読めるか ─────────────────── */
-console.log('\n⑤ 書体をぜんぶ読めるか');
-for (const f of FONTS) {
-  const m = await buildMake({ ...BASE, deco: 'text', how: 'raise', text: 'あA1', fontId: f.id });
-  ok(volumeOf(m.positions) > vP, `${f.name}`);
+/* ── ⑥ キーキャップは先すぼまりか ─────────────────
+   キーボードのキーらしく見えるかは、**上の面が下より小さいこと**で決まる。
+   まっすぐな柱と見くらべる。 */
+console.log('\n⑥ キーキャップが先すぼまりか');
+{
+  const cap = await buildMake({ ...BASE, shape: 'keycap' });
+  const box = await buildMake({ ...BASE, shape: 'square' });
+  const capLo = widthAtZ(cap.positions, 0, 0.01), capHi = widthAtZ(cap.positions, 22, 0.01);
+  const boxLo = widthAtZ(box.positions, 0, 0.01), boxHi = widthAtZ(box.positions, 22, 0.01);
+  ok(capHi < capLo * 0.9,
+     `キーキャップ　下 ${capLo.toFixed(1)}mm → 上 ${capHi.toFixed(1)}mm（${(capHi / capLo * 100).toFixed(0)}%）`);
+  ok(Math.abs(boxHi - boxLo) < 0.01,
+     `正方形はまっすぐ　下 ${boxLo.toFixed(1)}mm → 上 ${boxHi.toFixed(1)}mm`);
+  ok(plainVol.keycap < plainVol.square, 'すぼまっているぶん、正方形より体積が小さい');
 }
 
 console.log(ng ? `\n✗ ${ng}件だめでした` : '\n✓ ぜんぶ通りました');

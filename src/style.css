@@ -529,6 +529,15 @@ body {
 }
 .panel input[type=text]:focus { border-color: var(--accent); outline: none; }
 .panel input[type=text]::placeholder { color: var(--dim); }
+/* かたちの えらびボタンが多いとき（「モデルを作る」の23個）。
+   1つずつを小さくして、パネルを食いつぶさないようにする */
+.shapes.many { gap: 5px; }
+.shapes.many .shape-btn {
+  flex: 0 1 auto;
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
 /* 出さない欄は、中の入力ごと隠す（つまみの並び順は変わらない）*/
 .panel [hidden] { display: none; }
 
