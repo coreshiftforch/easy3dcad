@@ -516,6 +516,21 @@ body {
 }
 .slabel output { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
 .panel input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; }
+/* 文字・URLを打つところ（「モデルを作る」）*/
+.panel input[type=text] {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--sunk);
+  color: var(--ink);
+  font: inherit;
+}
+.panel input[type=text]:focus { border-color: var(--accent); outline: none; }
+.panel input[type=text]::placeholder { color: var(--dim); }
+/* 出さない欄は、中の入力ごと隠す（つまみの並び順は変わらない）*/
+.panel [hidden] { display: none; }
 
 /* 高さのスライダ。見つけた候補に印を出す */
 .hwrap { position: relative; padding-bottom: 12px; }

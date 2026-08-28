@@ -1,5 +1,6 @@
 import './style.css';
 import { readModelFile } from './io/loadModel.js';
+import { mountScene0 } from './scenes/scene0-make.js';
 import { mountScene1 } from './scenes/scene1-import.js';
 import { mountScene2 } from './scenes/scene2-view.js';
 import { mountScene3Type1 } from './scenes/scene3-type1.js';
@@ -24,6 +25,7 @@ let current = null;
    覚えないもの
      - ②の「自分で描く」でなぞった線（つまみに出ないので戻せない）
      - 書き出し画面（シーン4）。戻すのは、その手前のフローまで
+     - **いちばん最初の画面（シーン1）**。まだ何もしていないので聞かない
    ══════════════════════════════════════════════════════════════ */
 const RESUME = 'clicker';
 const FLOW_NAME = { view: '作りを選ぶ', type1: 'タイプ1', type2: 'タイプ2', lower: '下パーツ生成' };
@@ -31,6 +33,14 @@ let here = null;      // { where, model, file }  … いま何をしているか
 
 function keepResume() {
   if (!here) { Resume.forget(RESUME); return; }
+  /* モデルを作っている途中。まだモデルは無いので、つまみだけを覚える */
+  if (here.where === 'make') {
+    const panel = app.querySelector('.panel');
+    if (panel) Resume.keep(RESUME, {
+      label: 'モデルを作る', data: { where: 'make', form: Resume.readForm(panel) },
+    });
+    return;
+  }
   const snap = current?.snapshot?.();
   const n = snap ? '　' + '①②③④⑤⑥'[Math.max(0, (snap.step || 1) - 1)] : '';
   Resume.keep(RESUME, {
@@ -65,11 +75,20 @@ function showImport() {
   Resume.forget(RESUME);       // 最初の画面まで戻ったら、覚えていることは要らない
   swap(() => mountScene1(app, {
     onLoaded: (model, file) => showView(model, file),
-    onCreate() {
-      // 「モデルを作る」の行き先は、決まったら繋ぐ
-      current.say('warn', '<p>「モデルを作る」の行き先は、あとで繋ぎます。</p>');
-    },
+    onCreate: () => showMake(),
   }));
+}
+
+/* モデルを作る。できたものは「読みこんだモデル」とまったく同じ形で返るので、
+   そのままシーン2へ渡せる（onMade の中身は onLoaded と同じ）。 */
+function showMake(form) {
+  here = { where: 'make', model: null, file: undefined };
+  swap(() => mountScene0(app, {
+    onBack: () => showImport(),
+    onMade: (model, file) => showView(model, file),
+  }));
+  if (form) current.restore?.(form);
+  keepResume();
 }
 
 function showView(model, file) {
@@ -128,7 +147,10 @@ function showSave(model, parts) {
    ★モデルを読めなかったら、黙って最初の画面にする（つづきにできない）。 */
 const back = await Resume.check(RESUME);
 let started = false;
-if (back && back.file) {
+if (back && back.data && back.data.where === 'make') {
+  showMake(back.data.form);
+  started = true;
+} else if (back && back.file) {
   try {
     const file = new File([back.file.buf], back.file.name, { type: back.file.type || '' });
     const model = await readModelFile(file);
