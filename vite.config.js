@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 /*
-  かんたん3D CAD のビルド設定。
+  ZEROモデリング のビルド設定。
 
   ・エントリは index.html（トップ）と clicker.html（クリッカーメーカー）の2つ。
     クリッカーだけが src/ のモジュールを読むので、Viteが束ねるのはこの2つ。
