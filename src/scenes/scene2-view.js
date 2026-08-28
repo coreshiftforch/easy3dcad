@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import { buildGeometry } from '../geom/model.js';
+import { attachOrbit, resetButton } from './orbit.js';
 import { SWITCH_H, SWITCH_W } from '../geom/switch-mock.js';
 
 /* ── 大きさの目安 ─────────────────────────────────
@@ -218,6 +219,11 @@ export function mountScene2(root, { model, onBack, onConfirm } = {}) {
   const dirFar  = new THREE.Vector3(0.30, -0.60, 0.74).normalize();
   const dirNear = new THREE.Vector3(0.42, -0.84, 0.34).normalize();
 
+  /* ★つかんでまわせる。まわしはじめたら、ひとりでに回るのは止める
+       （両方いっぺんに動くと、どっちが自分の操作か分からない）。 */
+  const orb = attachOrbit(host, { dir: dirNear.toArray(), onChange: place });
+  resetButton(host, () => { orb.reset(); mesh.rotation.z = 0; place(); });
+
   /* ── 入りのアニメーション ───────────────────────
      遠くから作業スペースへ寄っていく。1秒ちょっとで落ちつく。 */
   const INTRO = 1.1;          // 秒
@@ -244,7 +250,8 @@ export function mountScene2(root, { model, onBack, onConfirm } = {}) {
   function place() {
     const k = introT >= INTRO ? 1 : easeOut(introT / INTRO);
     const dist = baseDist * (AWAY + (1 - AWAY) * k);
-    dirNow.copy(dirFar).lerp(dirNear, k).normalize();
+    if (orb && orb.moved) dirNow.fromArray(orb.dir());
+    else dirNow.copy(dirFar).lerp(dirNear, k).normalize();
     camera.position.copy(target).addScaledVector(dirNow, dist);
     camera.lookAt(target);
     camera.near = Math.max(baseDist / 500, 0.05);
@@ -279,7 +286,7 @@ export function mountScene2(root, { model, onBack, onConfirm } = {}) {
     timer.update();
     const dt = Math.min(timer.getDelta(), 0.1);   // タブを離れて戻ったとき飛ばない
     if (!sized) fit();                            // 消えたまま出さないよう、描く直前に直す
-    mesh.rotation.z += SPIN * dt;
+    if (!orb.moved) mesh.rotation.z += SPIN * dt;   // まわしはじめたら 止める
     if (introT < INTRO) { introT = Math.min(INTRO, introT + dt); place(); }
     renderer.render(scene, camera);
   })();
@@ -309,6 +316,7 @@ export function mountScene2(root, { model, onBack, onConfirm } = {}) {
   return {
     destroy() {
       cancelAnimationFrame(raf);
+      orb.dispose();
       ro.disconnect();
       geo.dispose();
       mesh.material.dispose();

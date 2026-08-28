@@ -29,6 +29,7 @@ import { PRESS_NOTE, BOSS_NOTE, travelNote } from './notes.js';
 import { splitByStep, pickShellAt } from '../geom/split.js';
 import { capFlat } from '../geom/caps.js';
 import { roomBox, roomSquare, roomFits, cutRoom } from '../geom/room.js';
+import { resetButton } from './orbit.js';
 
 const FLOW = ['大きさと向き', '切る高さ', '穴の種類', 'プレビュー'];
 const BUILT = 4;                       // 作ってあるのは④まで
@@ -1078,18 +1079,27 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
        穴の見本は0番なので、輪切りの上に重なって見える。 */
     if (!solo) topView.setLayers(step === 2 || step === 3 ? 'slice' : 'model');
     sideView.setLayers(step === LAST ? 'parts' : 'model');
-    /* ④はつかんでまわせる */
-    sideView.host.classList.toggle('clickable', step === LAST);
-    if (step === LAST) {
-      sideView.setOrbit(orbitAng.az, orbitAng.el);
-      sideView.setTag('まわして見る');
-    } else { sideView.clearOrbit(); sideView.setTag(DIRS.front.tag); }
+    /* ★左の窓は いつでも つかんでまわせる */
+    sideView.host.classList.toggle('clickable', true);
+    sideView.setOrbit(orbitAng.az, orbitAng.el);
+    sideView.setTag(step === LAST ? 'まわして見る' : '正面から（つかんでまわせる）');
     aimLight();
 
     /* ①は大きさを固定（虫眼鏡つき）、②以降はモデルに合わせて寄る */
     for (const v of views) inTurn ? v.setFixed(FIXED_MM_PER_PX) : v.setAuto();
     for (const v of views) v.reframe();
   }
+
+
+  /* ★左の窓は いつでも つかんでまわせる。まわしたら「視点」で戻す。
+       右の窓（上から・断面）は 決まった向きのまま。見くらべる相手が
+       動いてしまうと、寸法の話ができなくなるため。 */
+  resetButton(sideView.host, () => {
+    orbitAng.az = 0; orbitAng.el = 0;
+    sideView.setOrbit(0, 0);
+    aimLight();
+    repaint();
+  });
 
   /* ── 操作 ────────────────────────────────────── */
   root.querySelectorAll('.cut-btn').forEach(b => {
@@ -1180,7 +1190,7 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
   let orbiting = null;
   sideView.host.addEventListener('pointerdown', ev => {
     /* ★矢印をつかんだときは、まわさない（②）。当たり判定が先に走るのでゆずる */
-    if (step !== LAST || dragAxis) return;
+    if (dragAxis) return;
     orbiting = { x: ev.clientX, y: ev.clientY, moved: 0 };
     try { sideView.host.setPointerCapture(ev.pointerId); } catch {}
   });

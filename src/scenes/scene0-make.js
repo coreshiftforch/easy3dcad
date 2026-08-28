@@ -14,6 +14,7 @@ import { SHAPES, FONTS, KEEP, buildMake } from '../geom/make.js';
 import { stlBinary } from '../io/saveModel.js';
 import { readModelFile } from '../io/loadModel.js';
 import { SWITCH_W } from '../geom/switch-mock.js';
+import { attachOrbit, resetButton } from './orbit.js';
 
 /* いちばん薄いところが これより薄いと、スイッチ＋まわりの肉が入らない。
    ★シーン2の「小さすぎ」の判定と同じ値。ここで先に知らせておけば、
@@ -157,6 +158,11 @@ export function mountScene0(root, { onBack, onMade } = {}) {
   const mat = new THREE.MeshStandardMaterial({ color: 0xd9dee6, roughness: 0.62, metalness: 0.04 });
   let mesh = null, span = { x: 60, y: 40, z: 20 };
 
+  /* ★つかんでまわせる。まわしはじめたら、ひとりでに回るのは止める */
+  const HOME_DIR = [0.34, -0.78, 0.52];
+  const orb = attachOrbit(host, { dir: HOME_DIR, onChange: () => frame() });
+  resetButton(host, () => { orb.reset(); if (mesh) mesh.rotation.z = 0; frame(); });
+
   function frame() {
     const halfV = Math.tan(camera.fov * Math.PI / 360);
     const halfH = halfV * camera.aspect;
@@ -165,7 +171,7 @@ export function mountScene0(root, { onBack, onMade } = {}) {
     const dist = Math.max((span.z / 2) / halfV, radius / halfH) * 1.25 + radius;
     const target = new THREE.Vector3(0, 0, span.z / 2);
     camera.position.copy(target)
-      .addScaledVector(new THREE.Vector3(0.34, -0.78, 0.52).normalize(), dist);
+      .addScaledVector(new THREE.Vector3(...orb.dir()).normalize(), dist);
     camera.lookAt(target);
     camera.near = Math.max(dist / 500, 0.05);
     camera.far = dist * 6;
@@ -194,7 +200,8 @@ export function mountScene0(root, { onBack, onMade } = {}) {
     raf = requestAnimationFrame(loop);
     timer.update();
     if (!sized) fit();
-    if (mesh) mesh.rotation.z += SPIN * Math.min(timer.getDelta(), 0.1);
+    const dt = Math.min(timer.getDelta(), 0.1);
+    if (mesh && !orb.moved) mesh.rotation.z += SPIN * dt;   // まわしはじめたら 止める
     renderer.render(scene, camera);
   })();
 
@@ -302,6 +309,7 @@ export function mountScene0(root, { onBack, onMade } = {}) {
     restore(form) { Resume.writeForm(q('.panel'), form); },
     destroy() {
       cancelAnimationFrame(raf);
+      orb.dispose();
       clearTimeout(wait);
       ro.disconnect();
       if (mesh) mesh.geometry.dispose();

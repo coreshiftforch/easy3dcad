@@ -28,6 +28,7 @@ import { makeSwitchMock, SWITCH_H, SWITCH_W, BELOW_PLATE, HOLE_DEPTH, TRAVEL } f
 import { makeGizmo, AXIS_VEC } from '../geom/gizmo.js';
 import { makeBoss, bossSolid, holeDepth, BOSS, BOSS_TYPES, ENTRY } from '../geom/boss.js';
 import { PRESS_NOTE, BOSS_NOTE, travelNote } from './notes.js';
+import { resetButton } from './orbit.js';
 
 const FLOW = ['大きさと向き', '溝を決める', '溝を作る', 'クリッカーの位置',
               '十字の穴', 'プレビュー'];
@@ -244,7 +245,9 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
      ★プロ編集では、正面からだと向こうがわの点が手前の点に隠れてつかめない
        （点は depthTest なしで全部見えているので、光線は手前のほうに当たる）。
        まわせるようにして、はじめて12方向ぜんぶに手が届く。 */
-  const canOrbit = () => step === 6 || (step === 3 && pro);
+  /* ★左の窓は いつでも まわせる（前は⑥とプロ編集のときだけだった）。
+       右の窓は 決まった向きのまま。 */
+  const canOrbit = () => true;
 
   /* ── プロ編集（分かれめを高さ方向にうねらせる） ─────
      ★うねりは「②で決めた高さからのずれ」で持つ。高さのバーを動かしても
@@ -1540,7 +1543,7 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
     sideView.host.classList.toggle('clickable', canOrbit());
     if (canOrbit()) {
       sideView.setOrbit(orbitAng.az, orbitAng.el);
-      sideView.setTag(step === 6 ? 'まわして見る' : '正面から（まわせる）');
+      sideView.setTag(step === 6 ? 'まわして見る' : '正面から（つかんでまわせる）');
     } else { sideView.clearOrbit(); sideView.setTag(DIRS.front.tag); }
     aimLight();
     /* バーは「移動」を押しているあいだだけ出す */
@@ -1550,6 +1553,17 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
     for (const v of views) inTurn ? v.setFixed(FIXED_MM_PER_PX) : v.setAuto();
     for (const v of views) v.reframe();
   }
+
+
+  /* ★左の窓は いつでも つかんでまわせる。まわしたら「視点」で戻す。
+       右の窓（上から・断面）は 決まった向きのまま。見くらべる相手が
+       動いてしまうと、寸法の話ができなくなるため。 */
+  resetButton(sideView.host, () => {
+    orbitAng.az = 0; orbitAng.el = 0;
+    sideView.setOrbit(0, 0);
+    aimLight();
+    repaint();
+  });
 
   /* ── 操作 ────────────────────────────────────── */
   moveBtn.onclick = () => { moving = !moving; paintViews(); repaint(); };

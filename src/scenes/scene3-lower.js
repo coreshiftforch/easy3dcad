@@ -42,6 +42,7 @@ import { pointInPoly } from '../geom/section.js';
 import { bowlSolid, digPocket } from '../geom/bowl.js';
 import { BOSS } from '../geom/boss.js';
 import { PRESS_NOTE, travelNote } from './notes.js';
+import { resetButton } from './orbit.js';
 
 const FLOW = ['大きさと向き', 'おわん', 'プレビュー'];
 const BUILT = 3;                       // 作ってあるのは③まで
@@ -917,17 +918,26 @@ export function mountScene3Lower(root, { model, onBack, onDone } = {}) {
     for (const v of views) v.setLayers(step === LAST ? 'parts' : step === 2 ? 'bowl' : 'model');
     /* 「自分で描く」のあいだは、上の窓をなぞれることを見せる */
     topView.host.classList.toggle('drawing', step === 2 && pillar === 'free');
-    /* ③はつかんでまわせる */
-    sideView.host.classList.toggle('clickable', step === LAST);
-    if (step === LAST) {
-      sideView.setOrbit(orbitAng.az, orbitAng.el);
-      sideView.setTag('まわして見る');
-    } else { sideView.clearOrbit(); sideView.setTag(DIRS.front.tag); }
+    /* ★左の窓は いつでも つかんでまわせる */
+    sideView.host.classList.toggle('clickable', true);
+    sideView.setOrbit(orbitAng.az, orbitAng.el);
+    sideView.setTag(step === LAST ? 'まわして見る' : '正面から（つかんでまわせる）');
     aimLight();
     /* ①は大きさを固定（虫眼鏡つき）、②以降はモデルに合わせて寄る */
     for (const v of views) inTurn ? v.setFixed(FIXED_MM_PER_PX) : v.setAuto();
     for (const v of views) v.reframe();
   }
+
+
+  /* ★左の窓は いつでも つかんでまわせる。まわしたら「視点」で戻す。
+       右の窓（上から・断面）は 決まった向きのまま。見くらべる相手が
+       動いてしまうと、寸法の話ができなくなるため。 */
+  resetButton(sideView.host, () => {
+    orbitAng.az = 0; orbitAng.el = 0;
+    sideView.setOrbit(0, 0);
+    aimLight();
+    repaint();
+  });
 
   /* ── 操作 ────────────────────────────────────── */
   root.querySelectorAll('.mode-btn').forEach(b => {
@@ -993,7 +1003,6 @@ export function mountScene3Lower(root, { model, onBack, onDone } = {}) {
   ray.layers.enableAll();
   let orbiting = null;
   sideView.host.addEventListener('pointerdown', ev => {
-    if (step !== LAST) return;
     orbiting = { x: ev.clientX, y: ev.clientY, moved: 0 };
     try { sideView.host.setPointerCapture(ev.pointerId); } catch {}
   });
