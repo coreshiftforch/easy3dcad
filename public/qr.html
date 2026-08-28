@@ -243,13 +243,13 @@ details.adv[open] summary { margin-bottom: 8px; }
     <div class="sec" id="secUrl">
       <h2><span class="n">1</span>URL・テキスト</h2>
       <label class="row" for="url" style="margin-top:0"><span>おもて面</span></label>
-      <input type="text" id="url" value="https://core-shift.jp" spellcheck="false"
+      <input type="text" id="url" value="https://google.com" spellcheck="false"
              placeholder="https://example.com">
       <label class="row" for="url2"><span>うら面<small style="opacity:.8">（空なら片面だけ）</small></span></label>
       <input type="text" id="url2" value="" spellcheck="false"
              placeholder="入れると、うら面にも別のQRが付きます">
       <div class="quick-row">
-        <button type="button" class="mini" data-sample-url="https://core-shift.jp">サンプルURL</button>
+        <button type="button" class="mini" data-sample-url="https://google.com">サンプルURL</button>
         <button type="button" class="mini" data-sample-url="">空にする</button>
       </div>
       <div id="err"></div>
@@ -274,16 +274,16 @@ details.adv[open] summary { margin-bottom: 8px; }
       </div>
       <div class="note">下のプリセットで、大きさと形をまとめて決められます。</div>
       <div class="recipe-grid" id="recipes">
-        <button type="button" data-kind="key" data-size="42" data-url="https://core-shift.jp">
+        <button type="button" data-kind="key" data-size="42" data-url="https://google.com">
           小さめキーホルダー<small>配布しやすい軽いサイズ</small>
         </button>
-        <button type="button" data-kind="key" data-size="56" data-url="https://core-shift.jp">
+        <button type="button" data-kind="key" data-size="56" data-url="https://google.com">
           読み取り安定<small>余白とQRを大きめに確認</small>
         </button>
-        <button type="button" data-kind="stand" data-size="90" data-url="https://core-shift.jp">
+        <button type="button" data-kind="stand" data-size="90" data-url="https://google.com">
           店頭スタンド<small>机や受付に置くサイズ</small>
         </button>
-        <button type="button" data-kind="key" data-size="48" data-url="https://core-shift.jp">
+        <button type="button" data-kind="key" data-size="48" data-url="https://google.com">
           イベント配布<small>まとめ刷り前提の標準</small>
         </button>
       </div>
@@ -564,7 +564,7 @@ const PL = {
 };
 
 const state = {
-  text:'https://core-shift.jp', text2:'', kind:'key', size:48,
+  text:'https://google.com', text2:'', kind:'key', size:48,
   // 面ごとに「何を乗せるか」。もとのURLが空ならその面は素のまま
   slots:{ tileFront:'qr1', tileBack:'qr2', bodyBack:'none', plateFront:'qr1', plateBack:'qr2' },
   // はめ込み（四角柱／円柱）。どの面に置いても同じものが入る
