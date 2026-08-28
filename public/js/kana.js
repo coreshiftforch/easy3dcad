@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════════════════════════════
    ひらがな切替（3ページ共通）
 
-   ふだんは ふつうの日本語。ヘッダー右上の「⇆ あいうえお」を押すと
+   ふだんは ふつうの日本語。ヘッダー右上の「⇆ ひらがな」を押すと
    漢字をひらがなに開く。選んだ状態は localStorage に残す。
 
    ── しくみ ──────────────────────────────────────────────
@@ -258,7 +258,8 @@
     paint(document.body);
     var btn = document.getElementById('kanaToggle');
     if (btn) {
-      btn.textContent = next === 'kana' ? '⇆ かんじ' : '⇆ あいうえお';
+      /* ★このボタンは data-no-kana なので、ひらがなモードでも漢字のまま出せる */
+      btn.textContent = next === 'kana' ? '⇆ 漢字' : '⇆ ひらがな';
       btn.setAttribute('aria-pressed', next === 'kana' ? 'true' : 'false');
     }
   }

@@ -42,15 +42,6 @@
   }
   .hero > * { position: relative; }
 
-  .badge {
-    display: inline-flex; align-items: center; gap: 7px;
-    margin-bottom: 16px; padding: 6px 15px 6px 8px; border-radius: 999px;
-    background: color-mix(in srgb, var(--accent2) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--accent2) 45%, transparent);
-    color: var(--accent2); font-size: 12px; font-weight: bold;
-  }
-  .badge svg { flex: none; }
-
   .hero h1 {
     display: flex; align-items: center; justify-content: center; gap: 14px;
     font-size: clamp(27px, 6.4vw, 44px); font-weight: 900; letter-spacing: .01em;
@@ -113,26 +104,6 @@
   .il-accent { fill: var(--accent2); }
   .il-soft   { fill: var(--line); }
 
-  /* ══ つかいかた ════════════════════════════════════════ */
-  .how { margin-top: 46px; }
-  .how h2 { font-size: 18px; font-weight: bold; margin-bottom: 16px; }
-  .flow { display: grid; gap: 12px; grid-template-columns: 1fr; counter-reset: st; }
-  @media (min-width: 720px) { .flow { grid-template-columns: repeat(4, 1fr); } }
-  .flow div {
-    position: relative;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
-    padding: 34px 15px 15px; font-size: 13px; line-height: 1.8; color: var(--muted);
-  }
-  .flow div::before {
-    counter-increment: st; content: counter(st);
-    position: absolute; top: 13px; left: 15px;
-    display: grid; place-items: center;
-    width: 24px; height: 24px; border-radius: 50%;
-    background: color-mix(in srgb, var(--accent2) 18%, transparent);
-    color: var(--accent2); font-size: 12px; font-weight: bold;
-  }
-  .flow b { display: block; color: var(--text); font-size: 13.5px; margin-bottom: 3px; }
-
   footer {
     margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line);
     color: var(--muted); font-size: 12px; line-height: 2;
@@ -142,12 +113,6 @@
 <body>
 
 <div class="hero">
-  <span class="badge">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/>
-      <path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>
-    3Dプリンターよう・だれでもかんたんCAD
-  </span>
   <h1>
     <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3"
          stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
@@ -243,16 +208,6 @@
       </span>
     </a>
 
-  </div>
-
-  <div class="how">
-    <h2>つかいかた</h2>
-    <div class="flow">
-      <div><b>えらぶ</b>つくりたいものを うえからえらぶ</div>
-      <div><b>つくる</b>ステップにそって すすめるだけ。3Dですぐみえる</div>
-      <div><b>ほぞん</b>STL または 3MF でダウンロード</div>
-      <div><b>いんさつ</b>スライサー（Bambu Studio など）にいれて3Dプリント</div>
-    </div>
   </div>
 
   <footer>
