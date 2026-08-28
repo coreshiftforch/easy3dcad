@@ -1,8 +1,13 @@
 /* ══════════════════════════════════════════════════════════════
    つづきから再開（4ページ共通）
 
-   ページを読み直したとき、前の作業が残っていれば
-   「つづきから」か「さいしょから」かを聞く。
+   **同じタブで読み直したとき**だけ、「つづきから」か「さいしょから」かを聞く。
+
+   これは「作業のとちゅうで事故があったとき」のための仕組み。
+     ○ 聞く … ページの読み直し（F5）／戻る・進む／ブラウザが落ちて開き直したとき
+     ✕ 聞かない … タブを閉じてから開き直したとき／別のタブで開いたとき／
+                  トップから入り直したとき／しばらく（2時間）あいたとき
+   聞かないときは、覚えていたことを捨てて、その画面のはじめから始める。
 
    ── 使いかた ──────────────────────────────────────────
      // ① 起動のいちばん最初に。保存があれば聞いて、返す。
@@ -39,8 +44,46 @@
   var STORE   = 'files';
   var VER     = 1;                     // 形を変えたら上げる（古い保存は捨てられる）
   var HOME    = 'index.html';          // 「さいしょから」の行き先（3つから選ぶ画面）
-  var KEEP_MS = 14 * 24 * 60 * 60 * 1000;   // 2週間より古い保存は使わない
+  var KEEP_MS = 2 * 60 * 60 * 1000;    // 2時間より古い保存は使わない
   var WAIT_MS = 400;                   // これだけ何も起きなければ書く
+  var TAB     = 'easy3dcad:open:';     // sessionStorage。このタブでもう開いたか
+
+  /* ── 「同じタブで読み直したか」の見分け ─────────────────
+     sessionStorage は **タブごと**で、
+       ・読み直し（F5）  … 残る
+       ・ブラウザが落ちて開き直し … Chrome が戻してくれるので残る
+       ・タブを閉じて開き直し … 消える（＝新しいタブ）
+     という、ちょうど欲しい通りのふるまいをする。
+     ★localStorage で代わりにはできない。あちらはタブをまたいで残るので、
+       「閉じてから開き直した」と「読み直した」の区別がつかない。 */
+  function openedHere(page) {
+    try { return sessionStorage.getItem(TAB + page) === '1'; }
+    catch (e) { return false; }        // 使えない設定のブラウザ
+  }
+  function markHere(page) {
+    try { sessionStorage.setItem(TAB + page, '1'); } catch (e) { /* 何もしない */ }
+  }
+
+  /* 「つづきを聞いてよい来かた」かどうか。3つの手がかりを見る。
+
+     ① どうやってこのページに来たか（performance の navigation）
+        reload／back_forward なら、読み直しか 戻る・進む。まよわず聞く。
+     ② このタブで前に開いたか（上の目じるし）
+        初めてなら、タブを閉じて開き直したか、別のタブ。聞かない。
+     ③ どこから来たか（referrer）
+        ★②を通ったのに ①が「ふつうの行き来（navigate）」だった、という場合が残る。
+          ・サイトの中のページから来た → 自分でトップから入り直した。聞かない
+          ・どこからも来ていない → ブラウザが開き直した見こみが高い。聞く
+        ブラウザが落ちて開き直したときは referrer が付かないので、ここで拾える。 */
+  function fromReopen(page) {
+    var nav = null;
+    try { nav = performance.getEntriesByType('navigation')[0] || null; } catch (e) { /* 古いブラウザ */ }
+    var kind = nav ? nav.type : '';
+    if (kind === 'reload' || kind === 'back_forward') return true;
+    if (!openedHere(page)) return false;
+    var ref = document.referrer || '';
+    return ref.indexOf(location.origin) !== 0;
+  }
 
   /* ── localStorage（使えないブラウザでも落ちない）─────── */
   function get(page) {
@@ -149,9 +192,11 @@
         document.removeEventListener('keydown', onKey);
         done(yes);
       }
-      /* Esc は「さいしょから」。まちがえて消える心配がないほう…ではなく、
-         何も選ばずに閉じたときは、前の作業を消さずに残す（下の forget を呼ばない）。 */
-      function onKey(e) { if (e.key === 'Escape') close(false); }
+      /* ★Esc では何もしない。どちらかを必ず選んでもらう。
+           前は Esc を「さいしょから」にしていたが、それは **保存を消して
+           トップへ飛ぶ** 道なので、指がすべっただけで作業が消えてしまう
+           （実際に消えた）。閉じる手立てを用意しないのが、いちばん安全。 */
+      function onKey(e) { if (e.key === 'Escape') e.preventDefault(); }
       document.addEventListener('keydown', onKey);
       veil.querySelector('.rs-go').onclick  = function () { close(true); };
       veil.querySelector('.rs-new').onclick = function () { close(false); };
@@ -186,12 +231,22 @@
 
   var Resume = {
     /* 保存があれば聞く。「つづきから」なら { data, file, label } を返す。
-       「さいしょから」なら消して null。保存が無ければ聞かずに null。 */
+       「さいしょから」なら消して null。聞かないときも null。
+       ★呼ぶのは、そのページの **いちばん最初**（画面を組み立てる前）。 */
     check: function (page) {
       var rec = get(page);
+      var again = fromReopen(page);
+      markHere(page);                  // つぎの読み直しからは「同じタブ」になる
+
       if (!rec || rec.v !== VER || !rec.at || Date.now() - rec.at > KEEP_MS) {
         if (rec) Resume.forget(page);
         return Promise.resolve(null);
+      }
+      /* ★読み直しでも開き直しでもないなら聞かない。
+           トップから入り直した／タブを閉じて開き直した、ということなので、
+           覚えていたことは捨てて、はじめから始める。 */
+      if (!again) {
+        return Resume.forget(page).then(function () { return null; });
       }
       return ask(rec.label || '', ago(rec.at)).then(function (yes) {
         /* 「さいしょから」は、そのページの①ではなく **トップ（3つから選ぶ画面）** へ。
