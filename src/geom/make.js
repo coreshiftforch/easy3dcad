@@ -91,12 +91,12 @@ export const SHAPES = [
      漢字は入っていないので、漢字を打つと字が出ない。最後の「かんじ」だけは
      全部そろっているが 6MB あるので、選ばれたときにだけ読む。 */
 export const FONTS = [
-  { id: 'gothic', name: 'ゴシック',   file: '/fonts/gothic.ttf' },
-  { id: 'maru',   name: 'まる',       file: '/fonts/maru.ttf' },
-  { id: 'pop',    name: 'ふとポップ', file: '/fonts/pop.ttf' },
-  { id: 'mincho', name: 'みんちょう', file: '/fonts/mincho.ttf' },
-  { id: 'robo',   name: 'ドット',     file: '/fonts/robo.ttf' },
-  { id: 'kanji',  name: 'かんじ',     file: '/fonts/IPAexGothic.ttf', heavy: true },
+  { id: 'gothic', name: 'ゴシック',   file: './fonts/gothic.ttf' },
+  { id: 'maru',   name: 'まる',       file: './fonts/maru.ttf' },
+  { id: 'pop',    name: 'ふとポップ', file: './fonts/pop.ttf' },
+  { id: 'mincho', name: 'みんちょう', file: './fonts/mincho.ttf' },
+  { id: 'robo',   name: 'ドット',     file: './fonts/robo.ttf' },
+  { id: 'kanji',  name: 'かんじ',     file: './fonts/IPAexGothic.ttf', heavy: true },
 ];
 
 const fontCache = {};
