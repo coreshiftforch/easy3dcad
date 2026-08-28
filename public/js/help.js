@@ -17,6 +17,18 @@
 (function () {
   'use strict';
 
+  /* ヘッダーが無いページ用の、右上の帯（theme.js と同じもの）。
+     先に作られていれば それを使う。並ぶ順は order で決めている。 */
+  function floatBar() {
+    var bar = document.getElementById('e3c-floatbar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'e3c-floatbar';
+      document.body.appendChild(bar);
+    }
+    return bar;
+  }
+
   /* ── 見た目 ─────────────────────────────────────── */
   var CSS = [
     '.hp-veil{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.5);',
@@ -74,11 +86,14 @@
     '  .hp-foot{gap:14px;}}',
 
     /* 右上の「？」 */
-    '.help-btn{flex:none;width:34px;height:34px;border-radius:50%;',
+    '.help-btn{flex:none;width:37px;height:37px;border-radius:50%;',
     '  border:1px solid var(--c-line,#334155);background:var(--c-panel2,#0f172a);',
-    '  color:var(--c-muted,#94a3b8);font:inherit;font-size:15px;font-weight:bold;cursor:pointer;}',
+    '  color:var(--c-muted,#94a3b8);font:inherit;font-size:16px;font-weight:bold;cursor:pointer;}',
+    /* スタート画面（浮かせるとき）は ひとまわり大きく */
+    '#e3c-floatbar .help-btn{order:2;width:46px;height:46px;font-size:20px;}',
     '.help-btn:hover{color:var(--c-accent2,#3b82f6);border-color:var(--c-accent2,#3b82f6);}',
-    '.help-btn-float{position:fixed;top:14px;right:130px;z-index:20;}',
+    '#e3c-floatbar{position:fixed;top:14px;right:14px;z-index:20;',
+    '  display:flex;align-items:center;gap:10px;}',
   ].join('\n');
 
   /* ── 絵 ─────────────────────────────────────────
@@ -273,11 +288,11 @@
     btn.setAttribute('data-no-kana', '');
     btn.onclick = open;
 
-    /* ★ヘッダーがあれば その右はしへ。トップページには無いので浮かせる。
-         kana.js のボタンと ならぶので、浮かすときは その左に置く。 */
+    /* ★ヘッダーがあれば その右はしへ。スタート画面には無いので、
+         右上の帯（#e3c-floatbar）に入れる。並ぶ順は order まかせ。 */
     var head = document.querySelector('header');
     if (head) head.appendChild(btn);
-    else { btn.classList.add('help-btn-float'); document.body.appendChild(btn); }
+    else floatBar().appendChild(btn);
 
     document.addEventListener('keydown', function (e) {
       if (!sheet.classList.contains('open')) return;

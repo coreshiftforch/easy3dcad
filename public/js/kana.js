@@ -20,6 +20,18 @@
 (function () {
   'use strict';
 
+  /* ヘッダーが無いページ用の、右上の帯（theme.js・help.js と同じもの）。
+     先に作られていれば それを使う。並ぶ順は order で決めている。 */
+  function floatBar() {
+    var bar = document.getElementById('e3c-floatbar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'e3c-floatbar';
+      document.body.appendChild(bar);
+    }
+    return bar;
+  }
+
   var KEY = 'easy3dcad-kana';
 
   /* 読みの表。［漢字のかたまり, ひらがな］
@@ -283,7 +295,7 @@
       head.appendChild(btn);
     } else {
       btn.classList.add('kana-toggle-float');
-      document.body.appendChild(btn);
+      floatBar().appendChild(btn);
     }
 
     setMode(mode);

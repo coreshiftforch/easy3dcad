@@ -74,14 +74,14 @@ header {
   background: var(--panel);
   border-bottom: 1px solid var(--line);
 }
-header .title { font-size: 16px; font-weight: bold; }
+header .title { font-size: 17.5px; font-weight: bold; }
 /* トップへもどるリンク。3ページとも左上（タイトルより前に書く） */
 .home-link {
   flex: none;
   display: inline-flex; align-items: center; gap: 5px;
   background: var(--panel2); border: 1px solid var(--line); border-radius: 9px;
-  color: var(--muted); font-size: 12px; font-weight: bold;
-  padding: 7px 12px; text-decoration: none; cursor: pointer;
+  color: var(--muted); font-size: 13.5px; font-weight: bold;
+  padding: 8px 14px; text-decoration: none; cursor: pointer;
 }
 .home-link:hover { color: var(--text); border-color: var(--accent2); }
 
@@ -89,13 +89,15 @@ header .title { font-size: 16px; font-weight: bold; }
 .kana-toggle {
   margin-left: auto; flex: none;
   background: var(--panel2); border: 1px solid var(--line); border-radius: 9px;
-  color: var(--muted); font: inherit; font-size: 12px; font-weight: bold;
-  padding: 7px 12px; cursor: pointer; white-space: nowrap;
+  color: var(--muted); font: inherit; font-size: 13.5px; font-weight: bold;
+  padding: 8px 14px; cursor: pointer; white-space: nowrap;
 }
 .kana-toggle:hover { color: var(--text); border-color: var(--accent2); }
 .kana-toggle[aria-pressed="true"] { background: var(--accent); border-color: var(--accent2); color: #fff; }
 /* ヘッダーが無いページ（トップ）では右上に浮かせる */
-.kana-toggle-float { position: fixed; top: 14px; right: 14px; z-index: 20; margin-left: 0; }
+/* ★スタート画面では #e3c-floatbar（右上の帯）の中に入るので、
+     位置は帯が決める。ここでは大きさと並び順だけ。 */
+.kana-toggle-float { order: 3; margin-left: 0; font-size: 15.5px; padding: 11px 17px; border-radius: 11px; }
 
 /* ── 本体（スマホ：たて1列 ／ PC：左パネル＋3Dビュー）─────── */
 .main {

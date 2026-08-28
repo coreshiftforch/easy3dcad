@@ -17,6 +17,19 @@
 
   var KEY = 'easy3dcad-theme';
 
+  /* ヘッダーが無いページ用の、右上の帯。3ファイルとも同じものを作る
+     （先に作ったものがあれば それを使う）。並ぶ順は order で決めるので、
+     どのファイルが先に走っても 見た目は変わらない。 */
+  function floatBar() {
+    var bar = document.getElementById('e3c-floatbar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'e3c-floatbar';
+      document.body.appendChild(bar);
+    }
+    return bar;
+  }
+
   function get() {
     try { return localStorage.getItem(KEY) === 'dark' ? 'dark' : 'light'; }
     catch (e) { return 'light'; }        // 使えない設定のブラウザ
@@ -40,13 +53,18 @@
   function build() {
     var style = document.createElement('style');
     style.textContent = [
-      '.theme-btn{flex:none;width:34px;height:34px;border-radius:50%;display:grid;',
+      '.theme-btn{flex:none;width:37px;height:37px;border-radius:50%;display:grid;',
       '  place-items:center;border:1px solid var(--c-line,#cbd5e1);',
       '  background:var(--c-panel2,#f4f7fb);color:var(--c-muted,#5b6b80);',
       '  font:inherit;cursor:pointer;}',
-      '.theme-btn svg{width:17px;height:17px;}',
+      '.theme-btn svg{width:19px;height:19px;}',
+      /* スタート画面（浮かせるとき）は ひとまわり大きく */
+      '#e3c-floatbar .theme-btn{width:46px;height:46px;}',
+      '#e3c-floatbar .theme-btn svg{width:23px;height:23px;}',
       '.theme-btn:hover{color:var(--c-accent2,#1d4ed8);border-color:var(--c-accent2,#1d4ed8);}',
-      '.theme-btn-float{position:fixed;top:14px;right:174px;z-index:20;}',
+      '#e3c-floatbar{position:fixed;top:14px;right:14px;z-index:20;',
+      '  display:flex;align-items:center;gap:10px;}',
+      '#e3c-floatbar .theme-btn{order:1;}',
     ].join('\n');
     document.head.appendChild(style);
 
@@ -74,7 +92,7 @@
          ならぶ順は 左から「？」「あかるさ」「ひらがな」。 */
     var head = document.querySelector('header');
     if (head) head.appendChild(btn);
-    else { btn.classList.add('theme-btn-float'); document.body.appendChild(btn); }
+    else floatBar().appendChild(btn);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build);
