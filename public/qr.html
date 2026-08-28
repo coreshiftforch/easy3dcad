@@ -81,7 +81,7 @@ input[type=file] { width: 100%; font: inherit; font-size: 12px; color: var(--mut
   padding: 11px 10px; border: 2px solid var(--line); background: var(--panel2); border-radius: 10px;
   font: inherit; font-size: 12px; line-height: 1.4; cursor: pointer; text-align: left; color: var(--text);
 }
-.recipe-grid button:hover { border-color: var(--accent2); background: #17325e; }
+.recipe-grid button:hover { border-color: var(--accent2); background: var(--accent-bg); }
 .recipe-grid button small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
 
 /* かたちのカード */
@@ -91,7 +91,7 @@ input[type=file] { width: 100%; font: inherit; font-size: 12px; color: var(--mut
   font: inherit; cursor: pointer; text-align: center; color: var(--text);
 }
 .cards button svg { display: block; margin: 0 auto 6px; }
-.cards button[aria-pressed=true] { border-color: var(--accent2); background: #17325e; outline: 2px solid var(--accent); }
+.cards button[aria-pressed=true] { border-color: var(--accent2); background: var(--accent-bg); outline: 2px solid var(--accent); }
 .cards button small { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; }
 
 /* 色見本 */
@@ -145,7 +145,7 @@ details.adv[open] summary { margin-bottom: 8px; }
 
 #err {
   display: none; margin: 10px 0 0; padding: 10px 12px; border-radius: 10px;
-  background: #3f1414; border: 1px solid var(--danger); color: #fecaca; font-size: 12.5px;
+  background: var(--err-bg); border: 1px solid var(--err); color: var(--err3); font-size: 12.5px;
 }
 
 /* ── 3Dビューに重ねるもの ───────────────────────────── */

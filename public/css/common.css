@@ -25,20 +25,30 @@
 
 :root {
   /* 色は tokens.css から。ここでは このページで使う名前を付けるだけ */
-  --bg:      var(--c-bg);
-  --panel:   var(--c-panel);
-  --panel2:  var(--c-panel2);
-  --line:    var(--c-line);
-  --text:    var(--c-text);
-  --muted:   var(--c-muted);
-  --accent:  var(--c-accent);
-  --accent2: var(--c-accent2);
+  --bg:        var(--c-bg);
+  --panel:     var(--c-panel);
+  --panel2:    var(--c-panel2);
+  --line:      var(--c-line);
+  --text:      var(--c-text);
+  --muted:     var(--c-muted);
+  --accent:    var(--c-accent);
+  --accent2:   var(--c-accent2);
+  --accent-bg: var(--c-accent-bg);
+
+  /* 知らせの色。値は tokens.css の4段（地／こい／あかるい／うすい）から引く */
+  --ok-bg:   var(--c-ok-bg);
   --ok:      var(--c-ok);
   --ok2:     var(--c-ok2);
+  --ok3:     var(--c-ok3);
+  --warn-bg: var(--c-warn-bg);
   --warn:    var(--c-warn);
-  --danger:  var(--c-danger);
+  --warn3:   var(--c-warn3);
+  --err-bg:  var(--c-err-bg);
+  --err-bg2: var(--c-err-bg2);
+  --err:     var(--c-err);
+  --err3:    var(--c-err3);
 
-  --side-w:  380px;   /* PC幅のときの左パネルの幅（色ではないのでここに残す） */
+  --side-w:    380px;   /* PC幅のときの左パネルの幅（色ではないのでここに残す） */
 }
 
 html, body { height: 100%; }
@@ -107,7 +117,7 @@ header .title { font-size: 16px; font-weight: bold; }
 .stage-warn {
   position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
   max-width: calc(100% - 20px); text-align: center;
-  background: #7f1d1d; color: #fff; border: 1px solid var(--danger);
+  background: var(--err-bg2); color: #fff; border: 1px solid var(--err);
   font-size: 12px; font-weight: bold; line-height: 1.4;
   padding: 7px 12px; border-radius: 10px; pointer-events: none; z-index: 3;
 }
@@ -200,7 +210,7 @@ header .title { font-size: 16px; font-weight: bold; }
 }
 .shape-btn svg { width: 46px; height: 40px; }
 .shape-btn .nm { font-size: 12px; font-weight: bold; }
-.shape-btn.active { border-color: var(--accent2); background: #17325e; outline: 2px solid var(--accent); }
+.shape-btn.active { border-color: var(--accent2); background: var(--accent-bg); outline: 2px solid var(--accent); }
 .shape-btn svg .fill { fill: #cbd5e1; }
 .shape-btn.active svg .fill { fill: #93c5fd; }
 
@@ -223,8 +233,8 @@ header .title { font-size: 16px; font-weight: bold; }
   background: var(--panel2); border: 1px solid var(--line);
   border-radius: 10px; padding: 10px 12px; margin-top: 10px;
 }
-.note.warn { border-color: var(--warn); background: #251c0a; color: #fde68a; }
-.note.ok   { border-color: var(--ok);   background: #052e22; color: #a7f3d0; }
+.note.warn { border-color: var(--warn); background: var(--warn-bg); color: var(--warn3); }
+.note.ok   { border-color: var(--ok);   background: var(--ok-bg);   color: var(--ok3); }
 
 /* 小さいチップ（文字えらび・プリセット）*/
 .char-chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-bottom: 12px; }
@@ -275,7 +285,7 @@ input[type=range]::-moz-range-thumb {
   cursor: pointer; font-family: inherit;
 }
 .opt-btn small { display: block; font-weight: normal; color: var(--muted); font-size: 11px; margin-top: 2px; }
-.opt-btn.active { border-color: var(--accent2); background: #17325e; outline: 2px solid var(--accent); }
+.opt-btn.active { border-color: var(--accent2); background: var(--accent-bg); outline: 2px solid var(--accent); }
 .opt-btn:disabled { opacity: .35; cursor: default; }
 
 .seg { display: flex; gap: 6px; margin-bottom: 12px; }
@@ -326,7 +336,7 @@ input[type=range]::-moz-range-thumb {
   border: 2px dashed var(--line); border-radius: 12px; background: var(--panel2);
   padding: 20px 14px; text-align: center; cursor: pointer; color: var(--muted); font-size: 13px;
 }
-.drop:hover, .drop.over { border-color: var(--accent2); color: var(--text); background: #17325e; }
+.drop:hover, .drop.over { border-color: var(--accent2); color: var(--text); background: var(--accent-bg); }
 .drop b { display: block; color: var(--text); font-size: 14px; margin-bottom: 4px; }
 
 .status-msg { font-size: 12px; color: var(--muted); text-align: center; min-height: 16px; margin-top: 6px; }
@@ -348,7 +358,7 @@ input[type=range]::-moz-range-thumb {
   background: var(--panel2); border: 2px solid var(--line); border-radius: 12px;
   color: var(--text); font: inherit; padding: 12px 16px; cursor: pointer; text-align: left;
 }
-.font-btn.active { border-color: var(--accent2); background: #17325e; outline: 2px solid var(--accent); }
+.font-btn.active { border-color: var(--accent2); background: var(--accent-bg); outline: 2px solid var(--accent); }
 .font-btn .sample { font-size: 28px; line-height: 1; }
 .font-btn .nm { font-size: 13px; color: var(--muted); }
 .font-btn.active .nm { color: var(--text); font-weight: bold; }
