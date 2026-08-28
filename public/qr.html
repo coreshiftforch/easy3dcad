@@ -64,10 +64,20 @@ input[type=text] {
 }
 input[type=text]:focus { outline: none; border-color: var(--accent2); }
 select {
-  width: 100%; padding: 10px 12px; border: 2px solid var(--line); border-radius: 10px;
-  font: inherit; font-size: 13px; background: var(--panel2); color: var(--text); cursor: pointer;
+  /* ★ブラウザまかせ（appearance:auto）だと、押したときに白くピカッと光る。
+     自分で描くことにして、右はしの矢印だけ背景の絵で置く。 */
+  appearance: none; -webkit-appearance: none;
+  width: 100%; padding: 10px 34px 10px 12px; border: 2px solid var(--line); border-radius: 10px;
+  font: inherit; font-size: 13px; background-color: var(--panel2); color: var(--text); cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  -webkit-tap-highlight-color: transparent;
 }
-select:focus { outline: none; border-color: var(--accent2); }
+select:focus, select:active { outline: none; border-color: var(--accent2); background-color: var(--panel2); }
+select:hover { border-color: var(--accent2); }
+/* 開いたときの一覧は OS が描くので、色だけ合わせておく */
+select option { background: var(--panel); color: var(--text); }
 input[type=file] { width: 100%; font: inherit; font-size: 12px; color: var(--muted); margin-top: 5px; }
 
 /* 選択トグル（もとは aria-pressed で押した状態を表す） */
@@ -240,10 +250,8 @@ details.adv[open] summary { margin-bottom: 8px; }
 
     <div class="panel" id="panel">
 
-    <div class="sec" id="secUrl">
-      <h2><span class="n">1</span>なかみ</h2>
-
-      <label class="row" style="margin-top:0"><span>かたち</span></label>
+    <div class="sec" id="secKind">
+      <h2><span class="n">1</span>かたち</h2>
       <div class="cards" id="kind">
         <button data-v="key" aria-pressed="true">
           <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.6">
@@ -258,6 +266,12 @@ details.adv[open] summary { margin-bottom: 8px; }
           スタンド<small>店頭に置く</small>
         </button>
       </div>
+      <div class="note">えらんだ かたちで、つぎの「なかみ」に出る面が変わります。
+        キーホルダーは3面（おもて／うら／カバーのうら）、スタンドは2面。</div>
+    </div>
+
+    <div class="sec" id="secUrl">
+      <h2><span class="n">2</span>なかみ</h2>
 
       <div id="layKey">
         <label class="row" for="slotTileFront"><span>おもて面（QRタイル）</span></label>
@@ -377,7 +391,7 @@ details.adv[open] summary { margin-bottom: 8px; }
     </div>
 
     <div id="secSize" class="sec">
-      <h2><span class="n">2</span>大きさ</h2>
+      <h2><span class="n">3</span>大きさ</h2>
       <label class="row"><span id="sizeLabel">本体の一辺</span>
         <span class="rt"><button type="button" class="mini" id="sizeReset">既定に戻す</button><b id="sizeV">48 mm</b></span></label>
       <input type="range" id="size" min="36" max="120" step="1" value="48">
@@ -433,7 +447,7 @@ details.adv[open] summary { margin-bottom: 8px; }
     </div>
 
     <div id="secColor" class="sec">
-      <h2><span class="n">3</span>色</h2>
+      <h2><span class="n">4</span>色</h2>
       <label class="row" style="margin-top:0"><span>もようの色（おもて面）</span><b id="c1n"></b></label>
       <div class="swatches" id="cQr1"></div>
       <label class="row" style="margin-top:11px"><span>もようの色（うら面）</span><b id="c2n"></b></label>
@@ -448,7 +462,7 @@ details.adv[open] summary { margin-bottom: 8px; }
     </div>
 
     <div id="secOut" class="sec download-sec">
-      <h2><span class="n">4</span>ダウンロード</h2>
+      <h2><span class="n">5</span>ダウンロード</h2>
       <div class="dl">
         <button class="primary" id="dl3mf">3MF をダウンロード
           <small>色つき・スライサーはこちら推奨</small></button>
@@ -1254,6 +1268,14 @@ function iconGrid(id, n = 128) {
 
 const ITEMS = { none:'なし', qr:'QR', box:'ロゴ' };
 
+/* 面には並び順の番号を付ける。どの面のQRの話かが、名前だけで分かるように。
+   キーホルダー … おもて①／うら②／カバーのうら③　スタンド … おもて①／うら② */
+const SLOT_NO = { tileFront:0, tileBack:1, bodyBack:2, plateFront:0, plateBack:1 };
+const MARU_NO = '①②③④';
+const qrName = slot => 'QR' + (MARU_NO[SLOT_NO[slot]] || '');
+/* もようの名前（プルダウン・知らせ・部品表で同じものを使う） */
+const itemName = art => (art.item === 'qr' ? qrName(art.slot) : ITEMS[art.item]);
+
 /* 名前や「つづき」の見出しに使う、代表のURL（QRを乗せた最初の面のもの）*/
 function mainUrl() {
   for (const slot of Object.keys(state.url))
@@ -1369,7 +1391,7 @@ function rectPts(w, d, cy = 0) {
   const hw = w / 2, hd = d / 2;
   return [[-hw, cy - hd], [hw, cy - hd], [hw, cy + hd], [-hw, cy + hd]];
 }
-const artName = (art, where) => `${ITEMS[art.item]}（${where}）`;
+const artName = (art, where) => `${itemName(art)}（${where}）`;
 
 // 一辺 W の面に、もようをどれだけの大きさで置くか。QRは静穏帯4マスぶんを内側に取る
 function artFit(art, W) {
@@ -1457,7 +1479,7 @@ function buildFlatKey() {
       ['キーリング穴', `φ${state.ring.toFixed(1)}mm`],
       ...(boxMiss.length ? [['ロゴ',
         `<span class="bad">1枚ものでは はめ込み（ロゴ）を受けられません。磁石を「入れる」に戻すか、QRかなしを選んでください</span>`]] : []),
-      ...arts.map(a => [a.where, `${ITEMS[a.art.item]}：${a.fit.aw.toFixed(1)}×${a.fit.ah.toFixed(1)}mm` +
+      ...arts.map(a => [a.where, `${itemName(a.art)}：${a.fit.aw.toFixed(1)}×${a.fit.ah.toFixed(1)}mm` +
         `・1モジュール${a.fit.cell.toFixed(2)}mm`]),
     ],
     howto: [
@@ -1702,7 +1724,7 @@ function buildKeyholder() {
         `<span class="bad">${boxMiss.length}面は四角柱が入らないので受け口を開けていません` +
         `（大きさを上げるか、四角柱を小さくしてください）</span>`]] : []),
       ['はめ合い', `くぼみ深さ${rimH.toFixed(1)}mm・すきま片側${(K.recessFit / 2).toFixed(2)}mm → QRタイルが${(tPlate - rimH).toFixed(2)}mm 出る`],
-      ...arts.map(a => [a.where, `${ITEMS[a.art.item]}：${a.fit.aw.toFixed(1)}×${a.fit.ah.toFixed(1)}mm` +
+      ...arts.map(a => [a.where, `${itemName(a.art)}：${a.fit.aw.toFixed(1)}×${a.fit.ah.toFixed(1)}mm` +
         (a.art.kind === 'qr' ? `・1モジュール${a.fit.cell.toFixed(2)}mm` : `・1マス${a.fit.cell.toFixed(2)}mm`)]),
     ],
     howto: [
@@ -1922,7 +1944,7 @@ function buildStand() {
         [`はめ込み（${where}）`, `<span class="bad">入りません。` +
          `この面で取れる深さは <b>${room.toFixed(2)}mm</b> まで` +
          `（板の厚みを上げるか、四角柱を低く・小さくしてください）</span>`]),
-      ...arts.map(a => [a.where, `${ITEMS[a.art.item]}：${a.fit.aw.toFixed(1)}×${a.fit.ah.toFixed(1)}mm` +
+      ...arts.map(a => [a.where, `${itemName(a.art)}：${a.fit.aw.toFixed(1)}×${a.fit.ah.toFixed(1)}mm` +
         (a.art.kind === 'qr' ? `・1モジュール${a.fit.cell.toFixed(2)}mm` : `・1マス${a.fit.cell.toFixed(2)}mm`) +
         (a.where.includes('うら') ? `・彫りこみ${inlayT.toFixed(1)}mm` : '')]),
       ['倒れにくさ', com > MIN_COM
@@ -2570,7 +2592,7 @@ function updateInfo(info) {
     ? (info.boxes && info.boxes.length
         ? '<span class="good">QRは乗っていません（はめ込みだけ）</span>'
         : '<span class="bad">どの面にも何も乗っていません。URLを入れるか、レイアウトで割りあててください</span>')
-    : arts.map(a => `<b>${a.where}</b> ${ITEMS[a.art.item]}：` +
+    : arts.map(a => `<b>${a.where}</b> ${itemName(a.art)}：` +
         (a.art.kind === 'qr'
           ? `${a.art.qr.n}×${a.art.qr.n}（v${a.art.qr.version} / EC ${EC}） ` +
             `1モジュール <b>${a.fit.cell.toFixed(2)} mm</b>`
@@ -2685,7 +2707,7 @@ const syncBoxPanel = () =>
   boxPanel.style.display = boxSlotsOf().some(s => state.slots[s] === 'box') ? '' : 'none';
 document.querySelectorAll('select[data-slot]').forEach(sel => {
   sel.innerHTML = Object.entries(ITEMS)
-    .map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+    .map(([v, t]) => `<option value="${v}">${v === 'qr' ? qrName(sel.dataset.slot) : t}</option>`).join('');
   sel.value = state.slots[sel.dataset.slot];
   sel.addEventListener('change', () => {
     state.slots[sel.dataset.slot] = sel.value;
@@ -2995,6 +3017,7 @@ rebuild(true);
    同じ中身のまま、1画面ずつ出して［もどる／つぎへ］で進む形にしている。
    ══════════════════════════════════════════════════════════════ */
 const QR_STEPS = [
+  { id:'secKind',  short:'かたち' },
   { id:'secUrl',   short:'なかみ' },
   { id:'secSize',  short:'大きさ' },
   { id:'secColor', short:'いろ' },
