@@ -202,14 +202,14 @@ body {
 .notice .go { border-color: var(--accent); background: var(--accent-bg); }
 
 /* ── パソコン（横に広い画面）─────────────────────
-     インポート枠を大きく、「モデルを作る」は左に置く。
-     ★操作するものは左、見るものは右。4ページとも同じ並びにしてある
-       （なまえプレート／QR は common.css の .main が row-reverse）。 */
+     ★この画面だけは **インポート枠が左（大きく）・「モデルを作る」が右（小さく）**。
+       ほかの画面は「操作は左・3Dは右」だが、ここには3Dが無く、いちばんの用は
+       **読みこむこと**なので、大きいほうを先に目に入る左へ置く。 */
 @media (min-width: 760px) {
   .scene { padding: 24px; gap: 18px; }
   .stage { flex-direction: row; align-items: stretch; gap: 20px; }
-  .dropzone { min-height: 340px; order: 2; }
-  .stage > .side { flex-direction: column; justify-content: center; width: 220px; flex: none; order: 1; }
+  .dropzone { min-height: 340px; order: 1; }
+  .stage > .side { flex-direction: column; justify-content: center; width: 220px; flex: none; order: 2; }
   .make-btn { min-height: 92px; font-size: 20px; }
   .notice { max-width: 900px; }
 }
