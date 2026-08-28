@@ -264,10 +264,12 @@ details.adv[open] summary { margin-bottom: 8px; }
         <select data-slot="tileFront" id="slotTileFront"></select>
         <input class="slot-url" data-url="tileFront" type="text" spellcheck="false"
                placeholder="https://example.com" style="display:none">
-        <label class="row" for="slotTileBack"><span>うら面（QRタイル）</span></label>
-        <select data-slot="tileBack" id="slotTileBack"></select>
-        <input class="slot-url" data-url="tileBack" type="text" spellcheck="false"
-               placeholder="https://example.com" style="display:none">
+        <div id="rowTileBack">
+          <label class="row" for="slotTileBack"><span>うら面（QRタイル）</span></label>
+          <select data-slot="tileBack" id="slotTileBack"></select>
+          <input class="slot-url" data-url="tileBack" type="text" spellcheck="false"
+                 placeholder="https://example.com" style="display:none">
+        </div>
         <label class="row" for="slotBodyBack"><span>カバーパーツのうら面</span></label>
         <select data-slot="bodyBack" id="slotBodyBack"></select>
         <input class="slot-url" data-url="bodyBack" type="text" spellcheck="false"
@@ -399,6 +401,12 @@ details.adv[open] summary { margin-bottom: 8px; }
         <summary>くわしい設定</summary>
         <div id="advKey">
           <label class="row"><span>磁石</span><b></b></label>
+          <div class="seg" id="magOn">
+            <button data-v="on" aria-pressed="true">入れる（QRを外せる）</button>
+            <button data-v="off">入れない（1枚もの）</button>
+          </div>
+          <div class="note">入れないと、わくもタイルもやめて<b>板1枚</b>になります。
+            そのぶん うんと薄くできます（いちばん薄くて 1.6mm）。</div>
           <div class="seg" id="mag">
             <button data-v="6.5x3" aria-pressed="true">φ6.5×3</button>
             <button data-v="6x2">φ6×2</button>
@@ -564,6 +572,7 @@ const state = {
      ★増やしたぶんは **おもて側の肉** になる。QRの彫りこみはそこに掘るので、
        厚くするほど深く掘れる。 */
   thick:0,
+  magOn:'on',     // 'on'＝磁石でQRタイルを外せる／'off'＝べた一の1枚もの
   tilt:22, depth:55, sheet:5.0, bend:10,
   // 色は5つ：QR①／QR②／QRの本体（タイル・プレート）／本体（わく・中ぶた・脚）／ロゴ
   cQr1:0x1a1a1a, cQr2:0x8f959c, cTile:0xf2f2f2, cBody:0xf2f2f2, cLogo:0x2ea7e0,
@@ -1389,7 +1398,79 @@ function artGeom(art, fit, cy, z0, z1, mirror) {
   };
 }
 
+/* ══ 磁石なし＝べた一の1枚もの ═══════════════════════════
+   磁石が無ければ、QRタイルを外す理由がない。わくも中ぶたもダボもやめて
+   **板1枚**にする。いちばん薄いところは K.floor + K.ceil ＝ 1.6mm。
+   面は2つ。おもて（ベッドに接する側）と、うら。
+   ★もようの左右反転（mirror）は「どちらから見る面か」で決まる。
+     z=0 の面は下から見るので反転あり、z=T の面は上から見るので反転なし。 */
+function buildFlatKey() {
+  const bodyW = state.size;
+  const bodyR = Math.min(7, bodyW * 0.15);
+  const minT = K.floor + K.ceil;
+  const T = Math.max(state.thick || 0, minT);
+  const bodyOut = earPts(bodyW, bodyW, bodyR, K.earHW, K.earRise);
+  const ringH = circlePts(0, bodyW / 2 + K.earRise, state.ring / 2);
+
+  const aFront = slotArt('tileFront'), aBack = slotArt('bodyBack');
+  const fFront = aFront && artFit(aFront, bodyW);
+  const fBack  = aBack  && artFit(aBack,  bodyW);
+  /* 掘れる深さ。板1枚なので、おもてとうらで肉を取りあう。半分から0.4mm残す */
+  const inlayMax = Math.max(0.2, T / 2 - 0.4);
+  const dF = aFront ? Math.min(state.qrh, inlayMax) : 0;
+  const dB = aBack  ? Math.min(state.qrh, inlayMax) : 0;
+  const gF = aFront && artGeom(aFront, fFront, 0, 0, dF, true);
+  const gB = aBack  && artGeom(aBack,  fBack,  0, T - dB, T, false);
+
+  const parts = [];
+  /* ★おもて面は z=0（＝ベッドに接する面）に作って、組み立てのときに
+       ひっくり返して上に向ける。QRタイル上と同じやり方。
+       もようの左右反転（mirror=true）は、このひっくり返しとつり合っている。 */
+  parts.push({ name:'プレート', color:state.cTile, print:{ x:0, y:0 },
+    asm:() => mT(0, 0, T).multiply(mFlip()), lift:null,
+    geoms:[
+      ...(gF ? [slab(bodyOut, [ringH, gF.window], 0, dF), gF.fill] : []),
+      slab(bodyOut, [ringH], dF, T - dB),
+      ...(gB ? [slab(bodyOut, [ringH, gB.window], T - dB, T), gB.fill] : []),
+    ] });
+
+  const arts = [
+    ['おもて面（彫り）', aFront, fFront],
+    ['うら面（彫り）',   aBack,  fBack],
+  ].filter(a => a[1]).map(([where, art, fit]) => ({ where, art, fit, avail:bodyW, need:fit.minW }));
+  /* ロゴ（はめ込み）は1枚ものでは受けていない。えらばれていたら、そう知らせる */
+  const boxMiss = [['tileFront', 'おもて面'], ['bodyBack', 'うら面'], ['tileBack', 'うら面（QRタイル）']]
+    .filter(([sl]) => slotIsBox(sl)).map(x => x[1]);
+
+  const info = {
+    arts, boxes:[], boxMiss, box:null,
+    plateT:T, lowT:0, upT:T, rimH:0, bodyW, tileW:bodyW,
+    minT, inlayMax, qrhCut:(aFront || aBack) && state.qrh > inlayMax,
+    magnet:null,
+    minSize: Math.ceil(Math.max(0, ...arts.filter(a => a.art.kind === 'qr').map(a => a.need))),
+    sizeMax: 90,
+    thickness: T, exploded: 0, liftMax: 0,
+    pivot: new THREE.Vector3(0, 0, T / 2),
+    spinAxis: new THREE.Vector3(0, 1, 0),
+    dims: [
+      ['プレート', `${bodyW}×${bodyW}mm 角丸R${bodyR.toFixed(0)} / 厚み${T.toFixed(2)}mm（板1枚・磁石なし）`],
+      ['キーリング穴', `φ${state.ring.toFixed(1)}mm`],
+      ...(boxMiss.length ? [['ロゴ',
+        `<span class="bad">1枚ものでは はめ込み（ロゴ）を受けられません。磁石を「入れる」に戻すか、QRかなしを選んでください</span>`]] : []),
+      ...arts.map(a => [a.where, `${ITEMS[a.art.item]}：${a.fit.aw.toFixed(1)}×${a.fit.ah.toFixed(1)}mm` +
+        `・1モジュール${a.fit.cell.toFixed(2)}mm`]),
+    ],
+    howto: [
+      '① そのまま平置きで印刷（サポート不要）',
+      '★もようは、ベッドに接する面への彫りこみ＋詰め物です。色を変えて刷ると（AMS等）ツライチのまま2色になり、いちばん読み取りやすくなります',
+      '② 磁石は使いません。キーリング穴にリングを通せば できあがり',
+    ],
+  };
+  return { parts, info };
+}
+
 function buildKeyholder() {
+  if (state.magOn !== 'on') return buildFlatKey();
   const bodyW = state.size, tileW = bodyW - K.tileGap;
   const bodyR = Math.min(7, bodyW * 0.15), tileR = Math.max(2, bodyR - 2);
   const [md, mt] = MAGNETS[state.mag];
@@ -2514,8 +2595,8 @@ function updateThickInfo(info) {
   const t = document.getElementById('thickNote');
   const q = document.getElementById('qrhNote');
   if (info.minT == null) { t.textContent = ''; q.textContent = ''; return; }
-  t.innerHTML = `いま <b>${info.plateT.toFixed(1)} mm</b>` +
-    `（いちばん薄いときで ${info.minT.toFixed(1)} mm。磁石 ${state.mag} が入るぶん）`;
+  t.innerHTML = `いま <b>${info.plateT.toFixed(1)} mm</b>（いちばん薄いときで ${info.minT.toFixed(1)} mm。` +
+    (info.magnet ? `磁石 ${state.mag} が入るぶん）` : `磁石なしの1枚もの）`);
   q.innerHTML = info.qrhCut
     ? `<span class="bad">⚠ おもて面は <b>${info.inlayMax.toFixed(1)} mm</b> までしか掘れません。` +
       `厚みを増やすと、もっと深くできます</span>`
@@ -2610,6 +2691,7 @@ document.querySelectorAll('select[data-slot]').forEach(sel => {
     state.slots[sel.dataset.slot] = sel.value;
     syncBoxPanel();
     syncSlotUrls();
+syncMagnet();
     requestRebuild(false);          // 面の割りあてでは大きさが変わらない＝カメラはそのまま
   });
 });
@@ -2790,6 +2872,15 @@ segment('mag', 'mag');
 
 slider('size', 'size', v => v + ' mm', 'sizeV');
 slider('qrh', 'qrh', v => v.toFixed(1) + ' mm', 'qrhV');
+
+/* 磁石を入れるかどうか。入れないと **べた一の1枚もの** になるので、
+   磁石の大きさと「うら面（QRタイル）」は出しても意味がない＝隠す。 */
+function syncMagnet() {
+  const on = state.magOn === 'on';
+  document.getElementById('mag').style.display = on ? '' : 'none';
+  document.getElementById('rowTileBack').style.display = on ? '' : 'none';
+}
+segment('magOn', 'magOn', syncMagnet);
 slider('thick', 'thick', v => (v > 0 ? v.toFixed(1) + ' mm' : 'いちばん薄く'), 'thickV');
 document.getElementById('thickMin').addEventListener('click', () => {
   state.thick = 0;
