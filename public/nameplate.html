@@ -122,9 +122,10 @@
       <div id="sizeHint" style="font-size:12px;color:#fbbf24;margin-top:6px;"></div>
     </div>
     <div class="slider-row">
-      <div class="lab"><span>文字の はば</span><b id="wideVal">100 %</b></div>
-      <input type="range" id="sliderWide" min="55" max="160" step="5" value="100">
-      <div id="wideHint" style="font-size:12px;color:#fbbf24;margin-top:6px;"></div>
+      <div class="lab"><span>線の ふとさ</span><b id="boldVal">そのまま</b></div>
+      <input type="range" id="sliderBold" min="0" max="100" step="5" value="0">
+      <div id="boldHint" style="font-size:12px;color:var(--muted);margin-top:6px;">
+        細い線は 印刷で 消えないよう じどうで ふとらせています。ここは そこから さらに ふとくします</div>
     </div>
   </div>
 
@@ -239,8 +240,9 @@ import { STLExporter }   from 'three/addons/exporters/STLExporter.js';
 
 // ── 定数 (1 unit = 1 mm) ─────────────────────────────────────────
 const MAX_CHARS = 12;
-const WIDE_MIN  = 0.55; // 文字の よこ幅の いちばん細いところ（これ以上は字の形がくずれる）
-const WIDE_MAX  = 1.60; // いちばん太いところ
+const MAX_BOLD_RATIO = 0.022; // em比: 本人が「ふとく」するときの上限（片側）。
+                              // ★大きくしすぎないこと。0.075 で試したら「あ」の中の
+                              //   穴がぜんぶ埋まって、ただのかたまりになった
 const CHAR_MIN  = 10;   // mm(前スケール): 文字の大きさの最小（表示 約3.3mm）
 const CHAR_MAX  = 56;   // mm: 文字の大きさの最大
 const CHAR_DEFAULT = 26;// mm: 文字の大きさの初期値（全文字共通）
@@ -365,7 +367,7 @@ const state = {
   subRot: 0,            // 2つ目の形の かたむき（ラジアン）
   hole: 'top',          // ボールチェーン穴の位置：'none' | 'top' | 'left' | 'right'
   fontId: 'gothic',     // フォント：'gothic' | 'maru' | 'pop'
-  charWide: 1.0,                // 文字の よこ幅の倍率（1.0＝そのまま。細くしすぎない下限つき）
+  charBold: 0,                  // 文字の線を どれだけ ふとくするか（0＝そのまま〜1＝いちばんふとい）
   charSize: CHAR_DEFAULT,       // mm: 実際に使う文字の大きさ（土台に収まるよう自動で抑える）
   charSizeWanted: CHAR_DEFAULT, // mm: ④で本人が選んだ大きさ。土台が広がればここまで戻す
   chars: [],            // { char, depth, x, y, rot, moved }
@@ -388,23 +390,23 @@ function fontDef(id) { return FONTS.find(f => f.id === id) || FONTS[0]; }
 
 // この書体・この大きさで、輪郭を片側どれだけ太らせるか（内部単位）。
 // 目標の太さに足りないぶんだけ膨らませ、字が つぶれない上限で止める。
+/* 輪郭を片側どれだけ太らせるか（内部単位）。**2つのうち大きいほう**を使う。
+     じどう … 印刷で線が消えないための下限。これは必ず効く（＝下限つき）
+     本人   … ④の「線のふとさ」で足すぶん。じどうより細くはできない */
 function dilateFor(size) {
   const want = MIN_STROKE_MM / MODEL_SCALE_XY;          // 内部単位に直した目標の太さ
-  /* ★よこに縮めると たて線が細くなる（たて線の太さ＝よこ方向の寸法）。
-       ふとらせは たて・よこ同じだけ効くので、細いほうに合わせて決める。 */
-  const now  = fontDef(state.fontId).stroke * size * Math.min(state.charWide, 1);
-  return Math.min(Math.max(0, (want - now) / 2), size * MAX_DILATE_RATIO);
+  const now  = fontDef(state.fontId).stroke * size;     // いまの いちばん細い線
+  const auto = Math.min(Math.max(0, (want - now) / 2), size * MAX_DILATE_RATIO);
+  const bold = state.charBold * size * MAX_BOLD_RATIO;
+  return Math.max(auto, bold);
 }
 
-/* この書体・この大きさで、よこ幅をどこまで細くしてよいか。
-   ★ふとらせの上限（片側 size*MAX_DILATE_RATIO）まで使っても、
-     いちばん細い線が MIN_STROKE_MM に届かない細さは許さない。
-     ここを外すと、刷ったときに たて線がごっそり消える。 */
-function minWideFor(size, fontId) {
+/* 「線のふとさ」で、線が実際に何mm ふとくなるか（両側ぶん・表示用） */
+function boldMM(size) {
   const want = MIN_STROKE_MM / MODEL_SCALE_XY;
-  const st   = fontDef(fontId).stroke;
-  const w    = (want - 2 * size * MAX_DILATE_RATIO) / (st * size);
-  return Math.min(1, Math.max(WIDE_MIN, w));
+  const now  = fontDef(state.fontId).stroke * size;
+  const auto = Math.min(Math.max(0, (want - now) / 2), size * MAX_DILATE_RATIO);
+  return Math.max(0, dilateFor(size) - auto) * 2 * MODEL_SCALE_XY;
 }
 
 // この書体で「太らせても線が消えない」最小の大きさ（内部単位）
@@ -921,12 +923,6 @@ function stripDegenerate(geo) {
 
 function makeCharMesh(ch, depth) {
   const opPath = font.getPath(ch, 0, 0, state.charSize);
-  /* ★よこ幅は、ふとらせる前にかける（順が逆だと、ふとらせたぶんまで縮む）。
-       道のりの x をぜんぶ倍率にかけるだけ。 */
-  const w = state.charWide;
-  if (Math.abs(w - 1) > 1e-6)
-    for (const c of opPath.commands)
-      for (const k of ['x', 'x1', 'x2']) if (c[k] != null) c[k] *= w;
   const shapes = pathToShapes(opPath);
   if (!shapes.length) return null;
   // bevelThickness/Size を0にした bevelOffset は「輪郭だけを外へ膨らませる」。
@@ -1391,7 +1387,6 @@ let sizeRebuildQueued = false;
 sliderSize.max = CHAR_MAX;
 // 細い書体ほど下限を上げる（下げても線が消えて印刷できないため）
 function updateSizeRange() {
-  if (typeof updateWideRange === 'function') updateWideRange();   // 書体が変わると はばの下限も動く
   const lo = minSizeForFont(state.fontId);
   sliderSize.min = lo;
   if (state.charSizeWanted < lo) state.charSizeWanted = lo;
@@ -1400,41 +1395,31 @@ function updateSizeRange() {
     ? `「${f.name}」は 線が 細いので ${(lo * MODEL_SCALE_XY).toFixed(1)}mm より 大きくするよ`
     : '';
 }
-/* ── 文字の はば ────────────────────────────────────
-   よこに縮めると たて線が細くなるので、**書体と大きさで下限が動く**。
-   つまみの左はしを、そのつど下限まで持ち上げる。 */
-const sliderWide = document.getElementById('sliderWide');
-const wideVal    = document.getElementById('wideVal');
-const wideHint   = document.getElementById('wideHint');
-sliderWide.max = Math.round(WIDE_MAX * 100);
-function updateWideRange() {
-  const lo = minWideFor(state.charSize, state.fontId);
-  sliderWide.min = Math.ceil(lo * 100 / 5) * 5;
-  if (state.charWide < lo) {
-    state.charWide = +sliderWide.min / 100;
-    sliderWide.value = sliderWide.min;
-  }
-  wideVal.textContent = Math.round(state.charWide * 100) + ' %';
-  wideHint.textContent = lo > WIDE_MIN + 1e-6
-    ? `いまの 書体と 大きさだと ${sliderWide.min}% より 細くすると 線が 消えるよ`
-    : '';
+/* ── 線の ふとさ ────────────────────────────────────
+   ★細くする向きは付けない。細い線は印刷で消えるので、**じどうの下限**が
+     いつも効いている。ここは「そこから さらに ふとくする」だけ。 */
+const sliderBold = document.getElementById('sliderBold');
+const boldVal    = document.getElementById('boldVal');
+function updateBoldLabel() {
+  const mm = boldMM(state.charSize);
+  boldVal.textContent = mm < 0.01 ? 'そのまま' : '＋' + mm.toFixed(2) + ' mm';
 }
 
 updateSizeRange();
 sliderSize.value = state.charSize;
 sizeVal.textContent = (state.charSize * MODEL_SCALE_XY).toFixed(1) + ' mm';
-sliderWide.value = Math.round(state.charWide * 100);
-updateWideRange();
+sliderBold.value = Math.round(state.charBold * 100);
+updateBoldLabel();
 
-let wideRebuildQueued = false;
-sliderWide.addEventListener('input', () => {
-  state.charWide = parseInt(sliderWide.value) / 100;
-  wideVal.textContent = sliderWide.value + ' %';
-  if (wideRebuildQueued) return;   // 1フレームに1回だけ作り直す
-  wideRebuildQueued = true;
+let boldRebuildQueued = false;
+sliderBold.addEventListener('input', () => {
+  state.charBold = parseInt(sliderBold.value) / 100;
+  updateBoldLabel();
+  if (boldRebuildQueued) return;   // 1フレームに1回だけ作り直す
+  boldRebuildQueued = true;
   requestAnimationFrame(() => {
-    wideRebuildQueued = false;
-    autoLayout();       // はばが変わると並びも変わる
+    boldRebuildQueued = false;
+    autoLayout();       // 線が太ると字の幅も変わるので、並べ直す
     rebuildChars();
     updateColors();
   });
@@ -1446,7 +1431,7 @@ sliderSize.addEventListener('input', () => {
   sizeRebuildQueued = true;
   requestAnimationFrame(() => {
     sizeRebuildQueued = false;
-    updateWideRange();  // 大きさが変わると、はばの下限も動く
+    updateBoldLabel();  // 大きさが変わると、ふとくなる量も変わる
     autoLayout();       // 手で動かしていない文字は再整列
     rebuildChars();     // 大きさが変わるのでジオメトリを作り直す
     updateColors();
