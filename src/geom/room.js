@@ -190,7 +190,11 @@ function wallPoly(edges, w, vTop) {
     if (Math.abs(A[2] - vTop) < 1e-4 && Math.abs(B[2] - vTop) < 1e-4) continue;
     segs.push([[A[u], A[2]], [B[u], B[2]]]);
   }
-  if (segs.length < 2) return null;
+  /* ★1本でよい。まっすぐな面（板の底など）に四角い穴があくと、その辺は
+       **1本の線分**になる。2本以上を求めていたので、4つの壁のうち
+       たまたま三角形が割れなかった側だけ作られず、そこが口を開けていた
+       （切り口が低くて部屋が底を突きぬけるときに出る。実測6本）。 */
+  if (!segs.length) return null;
   const chains = chainUp(segs).sort((a, b) => b.length - a.length);
   let ch = chains[0];
   if (!ch || ch.length < 2) return null;

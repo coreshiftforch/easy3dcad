@@ -22,6 +22,7 @@ npm run check:kana # ひらがな切替の取りこぼし検査
 npm run check:split # 上パーツが割れたときの切り分け検査
 npm run check:colors # 色の出どころが1か所のままか検査
 npm run check:make # 「モデルを作る」でできる形の検査
+npm run check:room # 部屋を抜いた下パーツが閉じているかの検査
 ```
 
 `起動.bat` をダブルクリックすれば、初回セットアップ（`npm install`）から
@@ -54,7 +55,8 @@ easy3dcad/
 │  ├ kana-check.mjs   … ひらがな切替の取りこぼし検査
 │  ├ split-shells.mjs … 上パーツが2つ以上に割れたときの切り分け検査
 │  ├ colors.mjs       … 色の出どころが1か所のままか検査
-│  └ make-shapes.mjs  … 「モデルを作る」でできる形の検査
+│  ├ make-shapes.mjs  … 「モデルを作る」でできる形の検査
+│  └ room-through.mjs … 部屋を抜いた下パーツが閉じているかの検査
 ├ vite.config.js
 └ 起動.bat
 ```

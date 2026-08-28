@@ -10,7 +10,8 @@
     "check:kana": "node 検算/kana-check.mjs",
     "check:split": "node 検算/split-shells.mjs",
     "check:colors": "node 検算/colors.mjs",
-    "check:make": "node 検算/make-shapes.mjs"
+    "check:make": "node 検算/make-shapes.mjs",
+    "check:room": "node 検算/room-through.mjs"
   },
   "devDependencies": {
     "vite": "^8.2.2"
