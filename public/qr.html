@@ -382,10 +382,19 @@ details.adv[open] summary { margin-bottom: 8px; }
       <div class="note">QRの誤り訂正は <b>H（30%まで欠けても読める）で固定</b>。
         3Dプリントは色や影のコントラストが弱く誤読しやすいので、
         下げると（実機で試したとおり）読めなくなります。</div>
-        <label class="row"><span>QRの凸の高さ</span><b id="qrhV">0.6 mm</b></label>
-        <input type="range" id="qrh" min="0.4" max="1.6" step="0.1" value="0.6">
-        <label class="row"><span>QRのまわりの余白</span><b id="marV">2.5 mm</b></label>
-        <input type="range" id="mar" min="1.5" max="6" step="0.5" value="2.5">
+      <div id="thickKey">
+        <label class="row"><span>厚み</span>
+          <span class="rt"><button type="button" class="mini" id="thickMin">いちばん薄く</button>
+          <b id="thickV">いちばん薄く</b></span></label>
+        <input type="range" id="thick" min="0" max="12" step="0.2" value="0">
+        <div class="note" id="thickNote"></div>
+      </div>
+
+      <label class="row"><span>QRの深さ（うら面は高さ）</span><b id="qrhV">0.6 mm</b></label>
+      <input type="range" id="qrh" min="0.4" max="3" step="0.1" value="0.6">
+      <div class="note" id="qrhNote"></div>
+      <label class="row"><span>QRのまわりの余白</span><b id="marV">2.5 mm</b></label>
+      <input type="range" id="mar" min="1.5" max="6" step="0.5" value="2.5">
       <details class="adv">
         <summary>くわしい設定</summary>
         <div id="advKey">
@@ -551,6 +560,10 @@ const state = {
     map:[],            // 読みこんだ色 → 使うフィラメント（null＝もとの色のまま）
   },
   qrh:0.6, margin:2.5, mag:'6.5x3', rim:2.0, ring:4.0,
+  /* QRタイルの厚み（mm）。0＝いちばん薄く（磁石がちょうど入るだけ）。
+     ★増やしたぶんは **おもて側の肉** になる。QRの彫りこみはそこに掘るので、
+       厚くするほど深く掘れる。 */
+  thick:0,
   tilt:22, depth:55, sheet:5.0, bend:10,
   // 色は5つ：QR①／QR②／QRの本体（タイル・プレート）／本体（わく・中ぶた・脚）／ロゴ
   cQr1:0x1a1a1a, cQr2:0x8f959c, cTile:0xf2f2f2, cBody:0xf2f2f2, cLogo:0x2ea7e0,
@@ -1381,7 +1394,13 @@ function buildKeyholder() {
   const bodyR = Math.min(7, bodyW * 0.15), tileR = Math.max(2, bodyR - 2);
   const [md, mt] = MAGNETS[state.mag];
   const pocketT = mt + K.lift, half = pocketT / 2;
-  const plateT = K.floor + pocketT + K.ceil;
+  /* ★厚みは「これより薄くはできない」を下限にして、余ったぶんは
+       ぜんぶ おもて側の肉（ceilT）に足す。QRの彫りこみはそこに掘るので、
+       厚くすれば深く掘れる（前は K.ceil の 1.0mm に縛られていて、
+       「QRの凸の高さ」を動かしても 0.6mm より深くならなかった）。 */
+  const minT   = K.floor + pocketT + K.ceil;
+  const plateT = Math.max(state.thick || 0, minT);
+  const ceilT  = plateT - K.floor - pocketT;
   const lowT = K.floor + half, upT = plateT - lowT;
   const magX = Math.min(bodyW / 2 - md / 2 - 3, tileW / 2 - md / 2 - 2.5);
   const rimH = Math.min(state.rim, plateT - 1.0);
@@ -1420,9 +1439,12 @@ function buildKeyholder() {
        肉のなかに収まらないぶんは、はめ込みと同じく**その部品を厚くして**逃がす
        （磁石までの肉やダボの層は削らない）。
      QRは2色のインレイなので、これまでどおり肉のなかに収める。 */
-  const inlayTile  = aTile  ? Math.min(state.qrh, 0.6) : 0;
-  const inlayFront = aFront ? Math.min(state.qrh, K.ceil - 0.4) : 0;
-  const inlayBody  = aBody  ? Math.min(state.qrh, K.ceil - 0.4) : 0;
+  /* ★うら面は肉を削らず **下へ足す**（baseTile）ので、いくら深くしてもよい。
+     ★おもて面と本体のうらは、おもて側の肉のなかに掘る。0.4mm は残す。 */
+  const inlayMax   = Math.max(0.2, ceilT - 0.4);
+  const inlayTile  = aTile  ? state.qrh : 0;
+  const inlayFront = aFront ? Math.min(state.qrh, inlayMax) : 0;
+  const inlayBody  = aBody  ? Math.min(state.qrh, inlayMax) : 0;
 
   /* ── はめ込み（四角柱・円柱）。もようと違って mm で決まった大きさなので、
      ★入る面にだけ受け口を開ける（入らないまま開けると輪郭や磁石の穴と交わって
@@ -1437,9 +1459,9 @@ function buildKeyholder() {
   const bTile  = useBox('tileBack',  tileW);
   const bBody  = useBox('bodyBack',  bodyW);
   // 受け口のぶんだけ厚くする量（おもて板・タイル上は肉のなかに収まらなければ足す）
-  const growBody  = bBody  ? Math.max(0, bBody.h  - (K.ceil - BOX.keep)) : 0;
+  const growBody  = bBody  ? Math.max(0, bBody.h  - (ceilT - BOX.keep)) : 0;
   const growFront = bFront ? Math.max(0, bFront.h - (upT - half - BOX.keep)) : 0;
-  const ceilB = K.ceil + growBody;                   // 本体のおもて板の厚み
+  const ceilB = ceilT + growBody;                    // 本体のおもて板の厚み
   const upTB  = upT + growFront;                     // QRタイル上の厚み
   const baseTile = inlayTile + (bTile ? bTile.h : 0);   // タイル下に足す層
   const tLow = lowT + baseTile;                      // QRタイル下の厚み
@@ -1568,6 +1590,7 @@ function buildKeyholder() {
 
   const info = {
     arts, boxes, boxMiss, box:bx, plateT:tPlate, lowT:tLow, upT:upTB, rimH, bodyW, tileW,
+    minT, inlayMax, qrhCut: (aFront || aBody) && state.qrh > inlayMax,
     magnet:[md, mt],
     minSize: Math.ceil(Math.max(0, ...arts.filter(a => a.art.kind === 'qr').map(a => a.need))),
     sizeMax: 90,
@@ -2476,6 +2499,7 @@ function updateInfo(info) {
         ? `<span class="good">✓ 0.4mmノズルで印刷できる大きさです</span>`
         : `<span class="bad">⚠ ${MIN_MODULE}mm未満です。読み取れないおそれ → ${fix}</span>`);
   document.getElementById('qrinfo').innerHTML = html;
+  updateThickInfo(info);
   document.getElementById('partinfo').innerHTML =
     info.dims.map(([k, v]) => `${k}：<b>${v}</b>`).join('<br>');
   document.getElementById('howto').innerHTML = info.howto.join('<br>');
@@ -2483,6 +2507,21 @@ function updateInfo(info) {
 }
 
 /* はめ込みの案内。「作るべき寸法」と「どの面に入ったか」をはっきり出す */
+/* 厚みと、QRをどこまで深く掘れるかの知らせ。
+   ★掘れる深さは「おもて側の肉 − 0.4mm」で決まる。厚くすれば増える。
+     前はここが 1.0mm 固定で、つまみを動かしても 0.6mm より深くならなかった。 */
+function updateThickInfo(info) {
+  const t = document.getElementById('thickNote');
+  const q = document.getElementById('qrhNote');
+  if (info.minT == null) { t.textContent = ''; q.textContent = ''; return; }
+  t.innerHTML = `いま <b>${info.plateT.toFixed(1)} mm</b>` +
+    `（いちばん薄いときで ${info.minT.toFixed(1)} mm。磁石 ${state.mag} が入るぶん）`;
+  q.innerHTML = info.qrhCut
+    ? `<span class="bad">⚠ おもて面は <b>${info.inlayMax.toFixed(1)} mm</b> までしか掘れません。` +
+      `厚みを増やすと、もっと深くできます</span>`
+    : `おもて面は <b>${info.inlayMax.toFixed(1)} mm</b> まで掘れます（うら面は上に足すので制限なし）`;
+}
+
 function updateBoxInfo(info) {
   const el = document.getElementById('boxinfo');
   const b = info.box;
@@ -2738,6 +2777,7 @@ segment('kind', 'kind', () => {
   document.getElementById('advKey').style.display = key ? '' : 'none';
   document.getElementById('advStand').style.display = key ? 'none' : '';
   document.getElementById('layKey').style.display = key ? '' : 'none';
+  document.getElementById('thickKey').style.display = key ? '' : 'none';
   document.getElementById('layStand').style.display = key ? 'none' : '';
   document.getElementById('sizeLabel').textContent = key ? '本体の一辺' : 'プレートの幅';
   syncBoxPanel();
@@ -2750,6 +2790,13 @@ segment('mag', 'mag');
 
 slider('size', 'size', v => v + ' mm', 'sizeV');
 slider('qrh', 'qrh', v => v.toFixed(1) + ' mm', 'qrhV');
+slider('thick', 'thick', v => (v > 0 ? v.toFixed(1) + ' mm' : 'いちばん薄く'), 'thickV');
+document.getElementById('thickMin').addEventListener('click', () => {
+  state.thick = 0;
+  document.getElementById('thick').value = 0;
+  document.getElementById('thickV').textContent = 'いちばん薄く';
+  requestRebuild(false);
+});
 slider('mar', 'margin', v => v.toFixed(1) + ' mm', 'marV');
 slider('rim', 'rim', v => v.toFixed(1) + ' mm', 'rimV');
 slider('ring', 'ring', v => v.toFixed(1) + ' mm', 'ringV');
