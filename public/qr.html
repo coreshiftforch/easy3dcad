@@ -241,23 +241,9 @@ details.adv[open] summary { margin-bottom: 8px; }
     <div class="panel" id="panel">
 
     <div class="sec" id="secUrl">
-      <h2><span class="n">1</span>URL・テキスト</h2>
-      <label class="row" for="url" style="margin-top:0"><span>おもて面</span></label>
-      <input type="text" id="url" value="https://google.com" spellcheck="false"
-             placeholder="https://example.com">
-      <label class="row" for="url2"><span>うら面<small style="opacity:.8">（空なら片面だけ）</small></span></label>
-      <input type="text" id="url2" value="" spellcheck="false"
-             placeholder="入れると、うら面にも別のQRが付きます">
-      <div class="quick-row">
-        <button type="button" class="mini" data-sample-url="https://google.com">サンプルURL</button>
-        <button type="button" class="mini" data-sample-url="">空にする</button>
-      </div>
-      <div id="err"></div>
-      <div class="info" id="qrinfo" style="margin-top:9px"></div>
-    </div>
+      <h2><span class="n">1</span>なかみ</h2>
 
-    <div id="secShape" class="sec">
-      <h2><span class="n">2</span>かたち</h2>
+      <label class="row" style="margin-top:0"><span>かたち</span></label>
       <div class="cards" id="kind">
         <button data-v="key" aria-pressed="true">
           <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.6">
@@ -272,50 +258,33 @@ details.adv[open] summary { margin-bottom: 8px; }
           スタンド<small>店頭に置く</small>
         </button>
       </div>
-      <div class="note">下のプリセットで、大きさと形をまとめて決められます。</div>
-      <div class="recipe-grid" id="recipes">
-        <button type="button" data-kind="key" data-size="42" data-url="https://google.com">
-          小さめキーホルダー<small>配布しやすい軽いサイズ</small>
-        </button>
-        <button type="button" data-kind="key" data-size="56" data-url="https://google.com">
-          読み取り安定<small>余白とQRを大きめに確認</small>
-        </button>
-        <button type="button" data-kind="stand" data-size="90" data-url="https://google.com">
-          店頭スタンド<small>机や受付に置くサイズ</small>
-        </button>
-        <button type="button" data-kind="key" data-size="48" data-url="https://google.com">
-          イベント配布<small>まとめ刷り前提の標準</small>
-        </button>
-      </div>
-    </div>
 
-    <div id="secSize" class="sec">
-      <h2><span class="n">3</span>大きさ</h2>
-      <label class="row"><span id="sizeLabel">本体の一辺</span>
-        <span class="rt"><button type="button" class="mini" id="sizeReset">既定に戻す</button><b id="sizeV">48 mm</b></span></label>
-      <input type="range" id="size" min="36" max="120" step="1" value="48">
-      <div class="note">QRの誤り訂正は <b>H（30%まで欠けても読める）で固定</b>。
-        3Dプリントは色や影のコントラストが弱く誤読しやすいので、
-        下げると（実機で試したとおり）読めなくなります。</div>
-    </div>
-
-    <div id="secLayout" class="sec">
-      <h2><span class="n">4</span>レイアウト</h2>
       <div id="layKey">
-        <label class="row" for="slotTileFront"><span>QRタイルのおもて（凸）</span></label>
+        <label class="row" for="slotTileFront"><span>おもて面（QRタイル）</span></label>
         <select data-slot="tileFront" id="slotTileFront"></select>
-        <label class="row" for="slotTileBack"><span>QRタイルのうら（彫りこみ）</span></label>
+        <input class="slot-url" data-url="tileFront" type="text" spellcheck="false"
+               placeholder="https://example.com" style="display:none">
+        <label class="row" for="slotTileBack"><span>うら面（QRタイル）</span></label>
         <select data-slot="tileBack" id="slotTileBack"></select>
-        <label class="row" for="slotBodyBack"><span>ぜんたいのうら（彫りこみ）</span></label>
+        <input class="slot-url" data-url="tileBack" type="text" spellcheck="false"
+               placeholder="https://example.com" style="display:none">
+        <label class="row" for="slotBodyBack"><span>カバーパーツのうら面</span></label>
         <select data-slot="bodyBack" id="slotBodyBack"></select>
+        <input class="slot-url" data-url="bodyBack" type="text" spellcheck="false"
+               placeholder="https://example.com" style="display:none">
       </div>
       <div id="layStand" style="display:none">
-        <label class="row" for="slotPlateFront"><span>プレートのおもて（凸）</span></label>
+        <label class="row" for="slotPlateFront"><span>おもて面</span></label>
         <select data-slot="plateFront" id="slotPlateFront"></select>
-        <label class="row" for="slotPlateBack"><span>プレートのうら（彫りこみ）</span></label>
+        <input class="slot-url" data-url="plateFront" type="text" spellcheck="false"
+               placeholder="https://example.com" style="display:none">
+        <label class="row" for="slotPlateBack"><span>うら面</span></label>
         <select data-slot="plateBack" id="slotPlateBack"></select>
+        <input class="slot-url" data-url="plateBack" type="text" spellcheck="false"
+               placeholder="https://example.com" style="display:none">
       </div>
-      <div class="note">URLが空の面は素のままになります。</div>
+      <div class="note">「なし」の面は素のままになります。
+        QRをえらんだ面だけ、URLを入れる欄が出ます。</div>
 
       <div id="boxPanel" style="display:none; margin-top:12px; border-top:1px dashed var(--line); padding-top:10px">
         <label class="row"><span>入れかた</span></label>
@@ -400,31 +369,25 @@ details.adv[open] summary { margin-bottom: 8px; }
         <button id="loadbox">3Dモデルを読みこむ<small>もう作ってあるものをはめる（STL / OBJ / 3MF）</small></button>
         </div>
       </div>
+
+      <div id="err"></div>
+      <div class="info" id="qrinfo" style="margin-top:9px"></div>
     </div>
 
-    <div id="secColor" class="sec">
-      <h2><span class="n">5</span>色</h2>
-      <label class="row" style="margin-top:0"><span>QR①（アイコン①も）</span><b id="c1n"></b></label>
-      <div class="swatches" id="cQr1"></div>
-      <label class="row" style="margin-top:11px"><span>QR②（アイコン②も）</span><b id="c2n"></b></label>
-      <div class="swatches" id="cQr2"></div>
-      <label class="row" style="margin-top:11px"><span>QRの本体（タイル／プレート）</span><b id="c3n"></b></label>
-      <div class="swatches" id="cTile"></div>
-      <label class="row" style="margin-top:11px"><span>本体（わく・中ぶた／脚）</span><b id="c4n"></b></label>
-      <div class="swatches" id="cBody"></div>
-      <label class="row" style="margin-top:11px"><span>ロゴ（はめ込み）</span><b id="c5n"></b></label>
-      <div class="swatches" id="cLogo"></div>
-      <div class="note">読みこんだ3MFに色が付いていれば、<b>その色がそのまま残ります</b>。</div>
-    </div>
-
-    <div id="secAdv" class="sec">
-      <details class="adv">
-        <summary>くわしい設定</summary>
+    <div id="secSize" class="sec">
+      <h2><span class="n">2</span>大きさ</h2>
+      <label class="row"><span id="sizeLabel">本体の一辺</span>
+        <span class="rt"><button type="button" class="mini" id="sizeReset">既定に戻す</button><b id="sizeV">48 mm</b></span></label>
+      <input type="range" id="size" min="36" max="120" step="1" value="48">
+      <div class="note">QRの誤り訂正は <b>H（30%まで欠けても読める）で固定</b>。
+        3Dプリントは色や影のコントラストが弱く誤読しやすいので、
+        下げると（実機で試したとおり）読めなくなります。</div>
         <label class="row"><span>QRの凸の高さ</span><b id="qrhV">0.6 mm</b></label>
         <input type="range" id="qrh" min="0.4" max="1.6" step="0.1" value="0.6">
         <label class="row"><span>QRのまわりの余白</span><b id="marV">2.5 mm</b></label>
         <input type="range" id="mar" min="1.5" max="6" step="0.5" value="2.5">
-
+      <details class="adv">
+        <summary>くわしい設定</summary>
         <div id="advKey">
           <label class="row"><span>磁石</span><b></b></label>
           <div class="seg" id="mag">
@@ -452,8 +415,23 @@ details.adv[open] summary { margin-bottom: 8px; }
       </details>
     </div>
 
+    <div id="secColor" class="sec">
+      <h2><span class="n">3</span>色</h2>
+      <label class="row" style="margin-top:0"><span>もようの色（おもて面）</span><b id="c1n"></b></label>
+      <div class="swatches" id="cQr1"></div>
+      <label class="row" style="margin-top:11px"><span>もようの色（うら面）</span><b id="c2n"></b></label>
+      <div class="swatches" id="cQr2"></div>
+      <label class="row" style="margin-top:11px"><span>QRの本体（タイル／プレート）</span><b id="c3n"></b></label>
+      <div class="swatches" id="cTile"></div>
+      <label class="row" style="margin-top:11px"><span>本体（わく・中ぶた／脚）</span><b id="c4n"></b></label>
+      <div class="swatches" id="cBody"></div>
+      <label class="row" style="margin-top:11px"><span>ロゴ（はめ込み）</span><b id="c5n"></b></label>
+      <div class="swatches" id="cLogo"></div>
+      <div class="note">読みこんだ3MFに色が付いていれば、<b>その色がそのまま残ります</b>。</div>
+    </div>
+
     <div id="secOut" class="sec download-sec">
-      <h2><span class="n">6</span>ダウンロード</h2>
+      <h2><span class="n">4</span>ダウンロード</h2>
       <div class="dl">
         <button class="primary" id="dl3mf">3MF をダウンロード
           <small>色つき・スライサーはこちら推奨</small></button>
@@ -462,23 +440,6 @@ details.adv[open] summary { margin-bottom: 8px; }
       </div>
       <div class="info" id="partinfo" style="margin-top:10px"></div>
       <div class="info" id="howto" style="margin-top:10px"></div>
-    </div>
-
-    <div id="secPlate" class="sec">
-      <h2><span class="n">7</span>まとめ刷り</h2>
-      <label class="row" for="plate"><span>プレート（ベッド）の大きさ</span></label>
-      <select id="plate"></select>
-      <label class="row"><span>セット数</span>
-        <span class="rt"><button type="button" class="mini" id="setsMax">いっぱいまで</button>
-        <b id="setsV">1 セット</b></span></label>
-      <input type="range" id="sets" min="1" max="24" step="1" value="1">
-      <div class="info" id="plateinfo" style="margin-top:9px"></div>
-      <div class="dl" style="margin-top:9px">
-        <button class="primary" id="dlplate3mf">プレートの3MF
-          <small>色つき・これ1枚で刷れます</small></button>
-        <button id="dlplatestl">プレートのSTL<small>単色・全部で1ファイル</small></button>
-      </div>
-      <div class="note">部品どうしは <b>4mm</b>、ふちからは <b>5mm</b> 空けて詰めています。</div>
     </div>
 
     </div><!-- /.panel -->
@@ -563,10 +524,14 @@ const PL = {
   density: 1.24, // PLAの比重 g/cm³（材料のめやすを出すのに使う）
 };
 
+const HOME_URL = 'https://google.com';
 const state = {
-  text:'https://google.com', text2:'', kind:'key', size:48,
-  // 面ごとに「何を乗せるか」。もとのURLが空ならその面は素のまま
-  slots:{ tileFront:'qr1', tileBack:'qr2', bodyBack:'none', plateFront:'qr1', plateBack:'qr2' },
+  kind:'key', size:48,
+  /* 面ごとに「何を乗せるか」と「そのURL」。
+     ★URLは **面ごと**に持つ。同じQRを両面に出したいときは、両方に同じものを入れる。
+       （前は QR①／QR② の2本を面に割りあてていたが、面が3つになって足りなくなった） */
+  slots:{ tileFront:'qr', tileBack:'none', bodyBack:'none', plateFront:'qr', plateBack:'none' },
+  url:{ tileFront:HOME_URL, tileBack:'', bodyBack:'', plateFront:HOME_URL, plateBack:'' },
   // はめ込み（四角柱／円柱）。どの面に置いても同じものが入る
   box:{
     kind:'rect',       // 'rect'＝四角柱／'round'＝円柱
@@ -1265,21 +1230,30 @@ function iconGrid(id, n = 128) {
   return out;
 }
 
-const ITEMS = { none:'なし', qr1:'QR①', qr2:'QR②', box:'はめ込み（ロゴ）' };
+const ITEMS = { none:'なし', qr:'QR', box:'ロゴ' };
+
+/* 名前や「つづき」の見出しに使う、代表のURL（QRを乗せた最初の面のもの）*/
+function mainUrl() {
+  for (const slot of Object.keys(state.url))
+    if (state.slots[slot] === 'qr' && (state.url[slot] || '').trim()) return state.url[slot].trim();
+  return '';
+}
 
 function slotArt(slot) {
   const item = state.slots[slot];
-  if (item === 'qr1' || item === 'qr2') {
-    const text = (item === 'qr1' ? state.text : state.text2).trim();
+  if (item === 'qr') {
+    const text = (state.url[slot] || '').trim();
     if (!text) return null;                       // URLが空なら、その面には何も乗らない
     const qr = makeQR(text, EC);
-    return { item, kind:'qr', qr, rows:qr.rows, w:qr.n, h:qr.n, quiet:8 };
+    return { item, slot, kind:'qr', qr, rows:qr.rows, w:qr.n, h:qr.n, quiet:8 };
   }
   return null;
 }
 const slotIsBox = slot => state.slots[slot] === 'box';
-// もようの色。①系はcQr1・②系はcQr2
-const markColor = art => (art.item === 'qr2' || art.item === 'icon2') ? state.cQr2 : state.cQr1;
+/* もようの色。**おもての面はcQr1・うらの面はcQr2**。
+   ★面ごとにURLを持つようにしたので、色も「どの面か」で決める。
+     2色で刷るとき、おもてとうらを別の色にできる。 */
+const markColor = art => (/Back$/.test(art.slot || '') ? state.cQr2 : state.cQr1);
 
 /* ── はめ込み（自分で作った四角柱・円柱を受け口に落としこむ）─────────────
    ★もようと違って mm で決まった大きさなので、面に合わせて縮んだりしない。
@@ -2173,7 +2147,7 @@ function safeName(s) {
     .slice(0, 60) || 'qr';
 }
 function fileBase() {
-  const host = state.text.replace(/^https?:\/\//i, '').replace(/[\/\?#].*$/, '').slice(0, 40);
+  const host = mainUrl().replace(/^https?:\/\//i, '').replace(/[\/\?#].*$/, '').slice(0, 40);
   return safeName((state.kind === 'key' ? 'QR-keyholder_' : 'QR-stand_') + host);
 }
 
@@ -2463,7 +2437,6 @@ function rebuild(refit) {
   applyView(built.show, built.info, refit);
   drawQRPreview(built.info);
   updateInfo(built.info);
-  updatePlateInfo(built);
 }
 
 // スライダーは1フレームに何度も input を投げてくるので、描画1回ぶんにまとめる
@@ -2549,25 +2522,6 @@ function updateBoxInfo(info) {
       ? `<br><span class="bad">⚠ ${info.boxMiss.join('・')} には入りませんでした</span>` : '');
 }
 
-function updatePlateInfo(built) {
-  const pl = built.plate, [W, H] = pl.plate, el = document.getElementById('plateinfo');
-  if (!pl.sets) {
-    el.innerHTML = `<span class="bad">⚠ このプレート（${W}×${H}mm）には1セットも入りません。` +
-      `大きさを小さくするか、大きいプレートを選んでください</span>`;
-    return;
-  }
-  const g = pl.vol * pl.sets / 1000 * PL.density;
-  el.innerHTML =
-    `<b>${pl.sets}セット</b>＝ ${pl.per}個 × ${pl.sets} ＝ <b>${pl.per * pl.sets}個</b><br>` +
-    `使う範囲 <b>${pl.used[0].toFixed(0)}×${pl.used[1].toFixed(0)} mm</b>` +
-    `（プレート ${W}×${H}mm・ふちの余白 ${PL.margin}mm）<br>` +
-    `材料 およそ <b>${g.toFixed(0)} g</b>（PLA・すき間なしの体積から。実際は充填率のぶん少なくなります）<br>` +
-    (pl.want > pl.sets
-      ? `<span class="bad">⚠ ${pl.want}セットは入らないので ${pl.sets}セットにしました` +
-        `（このプレートには最大 ${built.max}セット）</span>`
-      : `<span class="good">✓ このプレートには最大 ${built.max}セット入ります</span>`);
-}
-
 /* ══════════════════════════════════════════════════════════════
    UI
    ══════════════════════════════════════════════════════════════ */
@@ -2588,20 +2542,19 @@ function slider(id, key, fmt, labelId) {
   show();
 }
 
-document.getElementById('url').addEventListener('input', e => {
-  state.text = e.target.value; requestRebuild(false);
-});
-// うら面：空にすると、うら面のQRごと消える（＝片面にもどる）
-document.getElementById('url2').addEventListener('input', e => {
-  state.text2 = e.target.value; requestRebuild(false);
-});
-document.querySelectorAll('[data-sample-url]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const input = document.getElementById('url');
-    input.value = btn.dataset.sampleUrl;
-    input.dispatchEvent(new Event('input', { bubbles:true }));
+/* 面ごとのURL欄。★「QR」をえらんだ面にだけ出す */
+document.querySelectorAll('input.slot-url').forEach(inp => {
+  inp.value = state.url[inp.dataset.url] || '';
+  inp.addEventListener('input', () => {
+    state.url[inp.dataset.url] = inp.value;
+    requestRebuild(false);
   });
 });
+function syncSlotUrls() {
+  document.querySelectorAll('input.slot-url').forEach(inp => {
+    inp.style.display = state.slots[inp.dataset.url] === 'qr' ? '' : 'none';
+  });
+}
 
 // レイアウト：面ごとに「なし／QR①／QR②／はめ込み（ロゴ）」を選ぶ
 const boxPanel = document.getElementById('boxPanel');
@@ -2617,6 +2570,7 @@ document.querySelectorAll('select[data-slot]').forEach(sel => {
   sel.addEventListener('change', () => {
     state.slots[sel.dataset.slot] = sel.value;
     syncBoxPanel();
+    syncSlotUrls();
     requestRebuild(false);          // 面の割りあてでは大きさが変わらない＝カメラはそのまま
   });
 });
@@ -2792,22 +2746,6 @@ segment('kind', 'kind', () => {
   state.size = SIZE_DEF[state.kind]; s.value = state.size;
   document.getElementById('sizeV').textContent = state.size + ' mm';
 });
-document.getElementById('recipes').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  const kindBtn = document.querySelector(`#kind button[data-v="${b.dataset.kind}"]`);
-  if (kindBtn && state.kind !== b.dataset.kind) kindBtn.click();
-  const url = document.getElementById('url');
-  url.value = b.dataset.url;
-  url.dispatchEvent(new Event('input', { bubbles:true }));
-  const back = document.getElementById('url2');
-  back.value = '';
-  back.dispatchEvent(new Event('input', { bubbles:true }));
-  const size = document.getElementById('size');
-  state.size = parseFloat(b.dataset.size);
-  size.value = state.size;
-  document.getElementById('sizeV').textContent = state.size + ' mm';
-  requestRebuild(true);
-});
 segment('mag', 'mag');
 
 slider('size', 'size', v => v + ' mm', 'sizeV');
@@ -2819,26 +2757,6 @@ slider('tilt', 'tilt', v => v + '°', 'tiltV');
 slider('depth', 'depth', v => v + ' mm', 'depthV');
 slider('bend', 'bend', v => v + ' mm', 'bendV');
 slider('sheet', 'sheet', v => v.toFixed(1) + ' mm', 'sheetV');
-slider('sets', 'sets', v => v + ' セット', 'setsV');
-
-// まとめ刷りのプレート選び
-const plateSel = document.getElementById('plate');
-plateSel.innerHTML = Object.entries(PLATES)
-  .map(([v, [t]]) => `<option value="${v}">${t}</option>`).join('');
-plateSel.value = state.plate;
-plateSel.addEventListener('change', () => {
-  state.plate = plateSel.value; requestRebuild(true);
-});
-// 入るだけ詰める
-document.getElementById('setsMax').addEventListener('click', () => {
-  if (!current) return;
-  const s = document.getElementById('sets');
-  state.sets = Math.max(1, current.max);
-  s.value = state.sets;
-  document.getElementById('setsV').textContent = state.sets + ' セット';
-  requestRebuild(false);
-});
-
 function swatches(id, key, nameId) {
   const el = document.getElementById(id);
   FILAMENTS.forEach(f => {
@@ -2883,13 +2801,6 @@ document.getElementById('dl3mf').onclick = () =>
   current && save(export3MF(current.parts), fileBase() + '.3mf', 'model/3mf');
 document.getElementById('dlstl').onclick = () =>
   current && save(exportSTL(current.parts), fileBase() + '.stl', 'model/stl');
-const plateName = () => `${fileBase()}_x${current.plate.sets}set`;
-document.getElementById('dlplate3mf').onclick = () =>
-  current && current.plate.sets &&
-  save(export3MF(current.plate.parts), plateName() + '.3mf', 'model/3mf');
-document.getElementById('dlplatestl').onclick = () =>
-  current && current.plate.sets &&
-  save(exportSTL(current.plate.parts), plateName() + '.stl', 'model/stl');
 
 document.getElementById('dlpng').onclick = () => {
   if (!current) return;
@@ -2906,11 +2817,14 @@ document.getElementById('dlpng').onclick = () => {
   };
   const done = new Set();
   for (const a of current.info.arts) {
-    if (a.art.kind !== 'qr' || done.has(a.art.item)) continue;
-    done.add(a.art.item);
-    // ★ファイル名は半角のみ。ITEMS は「QR①」なので使わない
-    pngOf(a.art.qr, done.size === 1 && current.info.arts.length === 1
-      ? '_QR' : (a.art.item === 'qr2' ? '_QR2' : '_QR1'));
+    if (a.art.kind !== 'qr') continue;
+    /* ★同じURLのQRは1枚でよい。面ごとにURLを持つようになったので、
+         「どの面か」ではなく **中身** で重なりを見る。 */
+    const url = (state.url[a.art.slot] || '').trim();
+    if (done.has(url)) continue;
+    done.add(url);
+    // ★ファイル名は半角のみ。面の名前（tileFront など）をそのまま使う
+    pngOf(a.art.qr, current.info.arts.length === 1 ? '_QR' : '_' + a.art.slot);
   }
 };
 
@@ -2943,14 +2857,10 @@ rebuild(true);
    同じ中身のまま、1画面ずつ出して［もどる／つぎへ］で進む形にしている。
    ══════════════════════════════════════════════════════════════ */
 const QR_STEPS = [
-  { id:'secUrl',    short:'URL' },
-  { id:'secShape',  short:'かたち' },
-  { id:'secSize',   short:'大きさ' },
-  { id:'secLayout', short:'ならべ方' },
-  { id:'secColor',  short:'いろ' },
-  { id:'secAdv',    short:'調整' },
-  { id:'secOut',    short:'ほぞん' },
-  { id:'secPlate',  short:'まとめ刷り' },
+  { id:'secUrl',   short:'なかみ' },
+  { id:'secSize',  short:'大きさ' },
+  { id:'secColor', short:'いろ' },
+  { id:'secOut',   short:'ほぞん' },
 ];
 let qrStep = 0;
 
@@ -3013,7 +2923,7 @@ function keepResume(file) {
     return;
   }
   Resume.keep(RESUME, {
-    label: MARU[qrStep] + ' ' + QR_STEPS[qrStep].short + '　' + (state.text || ''),
+    label: MARU[qrStep] + ' ' + QR_STEPS[qrStep].short + '　' + mainUrl(),
     data: { step: qrStep, form, map: state.box.map },
     file,
   });
@@ -3044,6 +2954,9 @@ if (back && back.data) {
 } else {
   goQrStep(0);
 }
+/* ★URL欄の出し入れは、つづきから でも まっさらでも いちど通す。
+     つづきの中だけに置いていて、ふつうに開いたとき欄が出なかった。 */
+syncSlotUrls();
 </script>
 
 <!-- ひらがな切替（ヘッダー右上にボタンを足す） -->
