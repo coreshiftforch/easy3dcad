@@ -14,23 +14,27 @@ three.js  v0.185.1 / v0.160.0
   Copyright (c) 2010-2025 three.js authors
   https://github.com/mrdoob/three.js
   → three-LICENSE.txt
-  ※クリッカーメーカーは npm の 0.185.1、なまえプレートとQRキーホルダーは
-    CDN の 0.160.0 を読んでいる（2系統ある）。
+  ※クリッカーメーカーは npm の 0.185.1（ビルドで assets/ に埋めこまれる）、
+    なまえプレートとQRキーホルダーは vendor/three-0.160.0/ を読む（2系統ある）。
+    ライブラリは外のサーバー（CDN）からは読まず、すべて同梱している。
 
 opentype.js  v1.3.4
   書体ファイル(.ttf)から文字の輪郭を取り出すのに使用。MITライセンス。
+  vendor/opentype-1.3.4.min.js
   Copyright (c) 2020 Frederik De Bleser
   https://github.com/opentypejs/opentype.js
   → opentypejs-LICENSE.txt
 
 qrcode-generator  v1.4.4
   QRコードの黒白の並びを計算するのに使用。MITライセンス。
+  vendor/qrcode-generator-1.4.4.js
   Copyright (c) 2009 Kazuhiko Arase
   http://www.d-project.com/
   ※「QRコード」は株式会社デンソーウェーブの登録商標です。
 
 qrcodejs  v1.0.0
   なまえプレートで「スマホで開く」QRを画面に出すのに使用。MITライセンス。
+  vendor/qrcodejs-1.0.0.min.js
   Copyright (c) 2012 davidshimjs
   https://github.com/davidshimjs/qrcodejs
 

@@ -1,0 +1,67 @@
+# かんたん3D CAD を GitHub Pages へ出す。
+#
+# master に push すると、検算をぜんぶ走らせて、通ったときだけ公開する。
+# 通らなければ公開はされない（＝こわれたものが表に出ない）。
+#
+# ★出先は https://coreshiftforch.github.io/easy3dcad/ のように
+#   「リポジトリ名の下」になる。ルートから書いた道（/js/… など）は
+#   そこでは必ず404になるので、npm run check:paths で見張っている。
+
+name: 公開
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:        # 画面のボタンからも出せるように
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時に2つ走らせない。あとから来たほうを待たせる
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: 検算
+        run: |
+          npm run check:kana
+          npm run check:colors
+          npm run check:make
+          npm run check:split
+          npm run check:room
+
+      - run: npm run build
+
+      # ★paths だけは build のあと。dist を見る検算なので
+      - name: 検算（公開したときの道）
+        run: npm run check:paths
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
