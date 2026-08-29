@@ -1,0 +1,165 @@
+════════════════════════════════════════════════════════════════════
+ZEROモデリング ― 使用OSS・アセット一覧（U-22プログラミング・コンテスト提出用）
+════════════════════════════════════════════════════════════════════
+
+作品名   ZEROモデリング
+種別     Webアプリケーション（ブラウザのみで動作。サーバー側処理なし）
+公開URL  https://coreshiftforch.github.io/easy3dcad/
+リポジトリ https://github.com/coreshiftforch/easy3dcad
+作成日   2026-08-29
+
+このファイルは、エントリーフォームの「OSSや使用アセットなどの著作物」欄に
+記載する内容の別添です。ライセンス全文は、提出する作品データ一式の
+ public/licenses/ フォルダに同梱しています。
+
+
+────────────────────────────────────────────────────────────────────
+1. ソフトウェアライブラリ（すべて同梱。外部CDNからの読み込みなし）
+────────────────────────────────────────────────────────────────────
+
+(1) three.js  v0.185.1 および v0.160.0
+    用途     3D表示（WebGL）。ジオメトリ生成の一部（ShapeUtils・BufferGeometry）
+    ライセンス MIT License
+    著作権   Copyright (c) 2010-2025 three.js authors
+    入手元   https://github.com/mrdoob/three.js
+    同梱先   node_modules（v0.185.1／ビルド時に dist/assets へ埋め込み）
+             public/vendor/three-0.160.0/（v0.160.0／そのまま配信）
+    備考     クリッカーメーカーは npm 版 0.185.1、なまえプレートとQRキーホルダーは
+             vendor の 0.160.0 を読む2系統構成（ページが別なので競合しない）。
+    全文     public/licenses/three-LICENSE.txt
+
+(2) opentype.js  v1.3.4
+    用途     TTFフォントファイルから文字のアウトライン（輪郭ベジェ）を取り出す
+    ライセンス MIT License
+    著作権   Copyright (c) 2020 Frederik De Bleser
+    入手元   https://github.com/opentypejs/opentype.js
+    同梱先   public/vendor/opentype-1.3.4.min.js
+    全文     public/licenses/opentypejs-LICENSE.txt
+
+(3) qrcode-generator  v1.4.4
+    用途     QRコードの白黒セル配列の計算
+    ライセンス MIT License
+    著作権   Copyright (c) 2009 Kazuhiko Arase
+    入手元   https://github.com/kazuhikoarase/qrcode-generator
+    同梱先   public/vendor/qrcode-generator-1.4.4.js
+    備考     「QRコード」は株式会社デンソーウェーブの登録商標です。
+             （規格自体は特許権が行使されないことが表明されています）
+
+(4) Vite  v8.2.2
+    用途     開発サーバー／ビルドツール（開発時のみ。成果物には含まれない）
+    ライセンス MIT License
+    入手元   https://github.com/vitejs/vite
+    全文     public/licenses/vite-LICENSE.txt
+
+※ 上記以外の外部ライブラリ・フレームワークは使用していません
+   （UIフレームワーク、CSSフレームワーク、状態管理ライブラリ等は不使用）。
+
+
+────────────────────────────────────────────────────────────────────
+2. フォント（6書体）
+────────────────────────────────────────────────────────────────────
+
+★「サブセット化」＝アプリで使う文字だけを残してファイルを小さくしたもの。
+  もとの書体を改変した派生物にあたるため、その旨を明記しています。
+
+(1) public/fonts/IPAexGothic.ttf   ―― アプリ内の表示名「かんじ」
+    書体名   IPAexゴシック Ver.004.01（12,239字。改変なしの原本）
+    著作権   Copyright(c) Information-technology Promotion Agency, Japan (IPA),
+             2003-2019
+    ライセンス IPAフォントライセンス v1.0
+    入手元   https://moji.or.jp/ipafont/
+    全文     public/licenses/IPA_Font_License_Agreement_v1.0.txt
+
+(2) public/fonts/gothic.ttf        ―― アプリ内の表示名「ゴシック」
+    書体名   E3C Gothic（IPAexゴシック Ver.004.01 を 328字にサブセット化した派生物）
+    著作権   Copyright(c) Information-technology Promotion Agency, Japan (IPA),
+             2003-2019
+    ライセンス IPAフォントライセンス v1.0
+    ★遵守事項
+      ・同ライセンス第3条1項(4)（派生プログラムの名称に「IPA」を含めない）に従い、
+        フォント名を「E3C Gothic」に変更しています。
+      ・同項(2)（オリジナルへの置き換え可能性の確保）は、改変していない
+        IPAexGothic.ttf を同じフォルダに同梱することで満たしています。
+    全文     public/licenses/IPA_Font_License_Agreement_v1.0.txt
+
+(3) public/fonts/maru.ttf          ―― アプリ内の表示名「まる」
+    書体名   Zen Maru Gothic Bold（309字にサブセット化）
+    著作権   Copyright 2021 The Zen Maru Gothic Project Authors
+    ライセンス SIL Open Font License 1.1（Reserved Font Name の指定なし）
+    入手元   https://github.com/googlefonts/zen-marugothic
+    全文     public/licenses/OFL-1.1.txt
+
+(4) public/fonts/mincho.ttf        ―― アプリ内の表示名「みんちょう」
+    書体名   Shippori Mincho Bold（751字にサブセット化）
+    著作権   Copyright 2021 The Shippori Mincho Project Authors
+    ライセンス SIL Open Font License 1.1（Reserved Font Name の指定なし）
+    入手元   https://github.com/fontdasu/ShipporiMincho
+    全文     public/licenses/OFL-1.1.txt
+
+(5) public/fonts/pop.ttf           ―― アプリ内の表示名「ふとポップ」
+    書体名   Dela Gothic One（323字にサブセット化）
+    著作権   Copyright 2020 The Dela Gothic Project Authors
+    ライセンス SIL Open Font License 1.1（Reserved Font Name の指定なし）
+    入手元   https://github.com/syakuzen/DelaGothic
+    全文     public/licenses/OFL-1.1.txt
+
+(6) public/fonts/robo.ttf          ―― アプリ内の表示名「ドット」
+    書体名   DotGothic16（406字にサブセット化）
+    著作権   Copyright 2020 The DotGothic16 Project Authors
+    ライセンス SIL Open Font License 1.1（Reserved Font Name の指定なし）
+    入手元   https://github.com/fontworks-fonts/DotGothic16
+    全文     public/licenses/OFL-1.1.txt
+
+※ (3)～(6)は、いずれも著作権表記に "with Reserved Font Name" の記載がなく、
+  予約フォント名の指定はありません。OFL 1.1 は改変・再配布を認めており、
+  著作権表記とライセンス全文を同梱することで条件を満たしています。
+※ フォントは「文字の輪郭を取り出して3D形状に変換する」目的で使用しています
+  （画面表示用のWebフォントとしては使用していません）。
+
+
+────────────────────────────────────────────────────────────────────
+3. 画像・音声・3Dモデル素材
+────────────────────────────────────────────────────────────────────
+
+使用していません。
+
+・アイコン、イラスト、説明図はすべて手書きのインラインSVG（HTML/JSに直接記述）。
+  画像ファイル（png/jpg/svg）は1点も含みません。
+・効果音・BGMなし。
+・3Dモデルの素材データなし。画面に出る立体はすべて実行時に計算で生成しています
+  （キースイッチの見本も、実測寸法から組み立てた自作ジオメトリ）。
+
+
+────────────────────────────────────────────────────────────────────
+4. 参照した規格・実測値（著作物ではないが出典として明記）
+────────────────────────────────────────────────────────────────────
+
+(1) Cherry MX互換キースイッチの寸法
+    ノギスによる実測値（上ハウジング15.6mm角、押下時の背18.0mm、
+    十字ステムの穴の深さ2.5mm、ストローク4.0mm など）。
+    出典  自分で測定。src/geom/switch-mock.js の冒頭コメントに記録。
+
+(2) フィラメントの色見本（8色）
+    Bambu Lab PLA Basic の色名と近似色を、色の選択肢として参照。
+    「Bambu Lab」は Bambu Lab（拓竹科技）の商標です。
+    アプリ内では色名と16進カラーコードのみを使用しており、
+    同社の画像・データは使用していません。
+
+(3) 3MFファイル形式
+    3MF Consortium が公開する仕様（オープン規格）に基づき、
+    書き出し処理を自前で実装（src/io/saveModel.js）。ライブラリ不使用。
+
+(4) STLファイル形式（バイナリ）
+    公知のフォーマット。書き出し処理は自前で実装。
+
+
+────────────────────────────────────────────────────────────────────
+5. 生成AIの利用について
+────────────────────────────────────────────────────────────────────
+
+本作品の実装には、対話型のAIコーディング支援（Anthropic Claude / Claude Code）を
+利用しています。仕様の決定、機能の指示、動作確認、採否の判断はすべて制作者本人が
+行い、AIは指示にもとづくコード記述の支援として使用しました。
+制作者本人が出した指示の全記録は「開発の指示ログ（機能別）.txt」に添付しています。
+
+════════════════════════════════════════════════════════════════════
