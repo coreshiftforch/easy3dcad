@@ -36,7 +36,7 @@ import * as THREE from 'three';
 import { buildGeometry, transformed } from '../geom/model.js';
 import { makeSwitchMock, SWITCH_H, SWITCH_W, BELOW_PLATE, CAP_PRESSED, HOLE_DEPTH, TRAVEL }
   from '../geom/switch-mock.js';
-import { makeLoop, USES_SIZE } from '../geom/loop.js';
+import { makeLoop, USES_SIZE, smoothLoop } from '../geom/loop.js';
 import { buildProfile } from '../geom/profile.js';
 import { pointInPoly } from '../geom/section.js';
 import { bowlSolid, digPocket } from '../geom/bowl.js';
@@ -1026,6 +1026,11 @@ export function mountScene3Lower(root, { model, onBack, onDone } = {}) {
     drawing = false;
     topView.host.releasePointerCapture?.(ev.pointerId);
     if (freePts.length < 3) freePts = null;
+    /* ★描きおわりに ならす。指はどうしても ぶれるので、そのままだと
+         ぎざぎざの輪になり、溝もぎざぎざになる。
+       ★なぞっている最中はかけない。ならすたびに形が動いて、
+         狙ったところへ線を持っていけなくなる。 */
+    else freePts = smoothLoop(freePts);
     repaint();
   };
   topView.host.addEventListener('pointerdown', onDown);

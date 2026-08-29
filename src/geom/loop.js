@@ -85,3 +85,53 @@ export function scaleLoop(pts, k) {
   cx /= pts.length; cy /= pts.length;
   return pts.map(p => [cx + (p[0] - cx) * k, cy + (p[1] - cy) * k]);
 }
+
+/* なぞった輪を なめらかにする（手ブレのぎざぎざを取る）。
+
+   ── やりかた ────────────────────────────────────────
+   ① 等間かくに 打ちなおす（リサンプル）
+      指の速さで点の間かくがバラバラだと、次のならしが かたよる。
+      ゆっくり描いたところだけ 強くならされて、形がゆがむ。
+   ② となりと平均をとる（移動平均）を n 回くり返す
+      1回ごとに [0.25, 0.5, 0.25] で混ぜる。輪なので 端は反対がわへ回す。
+
+   ★点の数は増やさない。あとで earcut にかけるので、増やすと重くなる。
+   ★角のある形（四角く描いたつもり）も まるくなる。それは承知のうえで、
+     手ブレのぎざぎざのほうが目につく、という判断。 */
+export function smoothLoop(pts, passes = 4) {
+  const n = pts.length;
+  if (n < 6) return pts;
+
+  /* ① 等間かく。まわりの長さを 点の数で割った間かくで 打ちなおす */
+  let total = 0;
+  const seg = [];
+  for (let i = 0; i < n; i++) {
+    const a = pts[i], b = pts[(i + 1) % n];
+    const d = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    seg.push(d);
+    total += d;
+  }
+  if (!(total > 0)) return pts;
+  const step = total / n;
+  const even = [];
+  let i = 0, acc = 0;
+  for (let k = 0; k < n; k++) {
+    const want = k * step;
+    while (i < n - 1 && acc + seg[i] < want) { acc += seg[i]; i++; }
+    const t = seg[i] > 0 ? (want - acc) / seg[i] : 0;
+    const a = pts[i], b = pts[(i + 1) % n];
+    even.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+  }
+
+  /* ② となりと平均をとる */
+  let cur = even;
+  for (let pass = 0; pass < passes; pass++) {
+    const out = new Array(n);
+    for (let k = 0; k < n; k++) {
+      const a = cur[(k - 1 + n) % n], b = cur[k], c = cur[(k + 1) % n];
+      out[k] = [(a[0] + 2 * b[0] + c[0]) / 4, (a[1] + 2 * b[1] + c[1]) / 4];
+    }
+    cur = out;
+  }
+  return cur;
+}

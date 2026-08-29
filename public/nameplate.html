@@ -98,7 +98,7 @@
   <div class="step-page" data-page="1">
     <div class="panel-title">② 名前を入れよう <small>12文字まで</small></div>
     <input type="text" id="charsInput" class="chars-input" maxlength="12" placeholder="なまえ">
-    <div class="hint-line" id="charsHint">ひらがな・カタカナ・英語・数字・記号（ ( ) _ - ! ? & @ など）が使えるよ</div>
+    <div class="hint-line" id="charsHint">英数字・ひらがな・カタカナ・記号（ ( ) _ - ! ? & @ など）が使えるよ。漢字はまだ入れられません</div>
     <div class="hint-line" data-keep id="fontStatus" style="color:#64748b;">フォント読みこみ中…</div>
   </div>
 
@@ -1855,7 +1855,16 @@ const fontStatusEl = document.getElementById('fontStatus');
     } catch (e) { console.error('font load fail:', f.id, e); }
   }));
   font = fontCache[state.fontId] || Object.values(fontCache)[0] || null;
-  fontStatusEl.textContent = font ? '✓ フォント OK' : '⚠ フォントを よみこめません（サーバー経由で ひらいてください）';
+  /* ★読めたときは 何も出さない。「✓ フォント OK」は 打つ人には
+       意味が分からないうえ、使える字の話は すぐ上の案内が出している。
+       ここは **困ったときだけ** 出す欄にする。 */
+  if (font) {
+    fontStatusEl.textContent = '';
+    fontStatusEl.style.display = 'none';
+  } else {
+    fontStatusEl.textContent = '⚠ フォントを よみこめません（サーバー経由で ひらいてください）';
+    fontStatusEl.style.display = '';
+  }
   renderFontPanel();
   refreshSaveButtons();
   if (state.chars.length) rebuildChars();

@@ -16,7 +16,7 @@
 import * as THREE from 'three';
 import { buildGeometry, transformed } from '../geom/model.js';
 import { findNecks } from '../geom/necks.js';
-import { SHAPES, USES_SIZE, makeLoop, scaleLoop } from '../geom/loop.js';
+import { SHAPES, USES_SIZE, makeLoop, smoothLoop } from '../geom/loop.js';
 import { thin, sectionSegs, sectionSegsY, buildLoops, nestLoops, safeZ, pointInPoly } from '../geom/section.js';
 import { grooveGeometry, offsetLoop, DEFAULT_SIDE, DEFAULT_FLOOR } from '../geom/groove.js';
 import { splitByStep, pickShellAt } from '../geom/split.js';
@@ -395,6 +395,7 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
     if (zTop == null) return;
     bossGroup = makeBoss(bossType, bossDim, zTop, bossMats);
     bossGroup.position.set(cx, cy, 0);
+    bossGroup.traverse(o => o.layers.set(L_BOSS));
     scene.add(bossGroup);
   }
 
@@ -410,7 +411,9 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
 
   /* ★モデルと「輪切り」は、窓ごとに出し分けたい。ひとつの場面を3つの窓で描いているので、
        レイヤーで分ける。0＝どの窓にも出すもの、1＝モデル、2＝輪切り。 */
-  const L_MODEL = 1, L_SLICE = 2, L_UP = 3, L_LOW = 4;
+  /* ★L_BOSS … 十字穴のついた柱。⑤で「柱を下から」だけを見せる窓があるので、
+       スイッチの見本や部屋（0番）と分けてある。 */
+  const L_MODEL = 1, L_SLICE = 2, L_UP = 3, L_LOW = 4, L_BOSS = 5;
   mesh.layers.set(L_MODEL);
   const sliceFill = new THREE.MeshBasicMaterial({ color: 0xc9d2dc, side: THREE.DoubleSide });
   /* 断面に出す溝の切り口。重ならないので、はっきりした青でよい */
@@ -646,6 +649,8 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
     top:   { eye: [0, 0, 1],  up: [0, 1, 0], tag: '上から'   },
     x:     { eye: [1, 0, 0],  up: [0, 0, 1], tag: 'X軸から'  },
     y:     { eye: [0, 1, 0],  up: [0, 0, 1], tag: 'Y軸から'  },
+    /* ⑤で柱を まっすぐ下から見る向き。まるか四角かは この向きでしか分からない */
+    under: { eye: [0, 0, -1], up: [0, 1, 0], tag: '柱を下から（XY）' },
   };
 
   function makeView(host, kind) {
@@ -755,7 +760,13 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
            parts … 分けた2つのパーツ（⑥。0番のものも出る） */
       setLayers(mode) {
         if (mode === 'up') return cam.layers.set(L_UP);
+        /* ★boss … ⑤で「柱を下から」見る窓。**柱だけ**。
+             上パーツも出すと、同じ色の面が うしろいっぱいに広がって
+             柱の輪郭が消える（実際に 四角い上パーツしか見えなかった）。
+             スイッチの見本と部屋（どちらも0番）も出さない。 */
+        if (mode === 'boss') return cam.layers.set(L_BOSS);
         cam.layers.set(0);
+        cam.layers.enable(L_BOSS);          /* 柱は どの窓でも出す（up をのぞく） */
         if (mode === 'slice') cam.layers.enable(L_SLICE);
         else if (mode === 'parts') { cam.layers.enable(L_UP); cam.layers.enable(L_LOW); }
         else cam.layers.enable(L_MODEL);
@@ -892,6 +903,18 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
   /* 離れていれば「組み立てる」、組んでいれば「分解」 */
   function paintSplitBtn() {
     splitBtn.textContent = lift > TRAVEL + 0.05 ? '組み立てる' : '分解';
+  }
+
+  /* 柱がぴったり入る箱。⑤の「柱を下から」の窓の寄りに使う。
+     ★柱ぴったりだと 寄りすぎて どこに付いているか分からないので、
+       まわりを 柱の0.7倍ずつ足す（柱の およそ2.4倍のはば）。
+     ★まるも四角も 外まわりの大きさは同じなので、切りかえても寄りは変わらない。 */
+  function bossBox() {
+    if (!bossGroup) return null;
+    const b = new THREE.Box3().setFromObject(bossGroup);
+    if (b.isEmpty()) return null;
+    b.expandByVector(b.getSize(new THREE.Vector3()).multiplyScalar(0.7));
+    return b;
   }
 
   /* 上パーツ＋柱がぴったり入る箱。⑤の「上パーツだけ」の窓の寄りに使う */
@@ -1077,7 +1100,20 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
       if (d > m) m = d;
       if (d < n) n = d;
     }
-    cache = { z, outers, outline: pts, maxR: m, minR: pts ? n : 0 };
+    /* ★穴（切り口の中の空どう）も持っておく。輪がここを通ると、
+         見た目は内がわでも 肉が無い。 */
+    const holes = best ? best.holes : [];
+    /* 輪郭そのものの大きさ。まん中からの距離（minR）は、原点が形の外に
+       あると あてにならないので、内へ寄せる量は こちらを目安にする。 */
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    if (pts) for (const p of pts) {
+      if (p[0] < x0) x0 = p[0];
+      if (p[0] > x1) x1 = p[0];
+      if (p[1] < y0) y0 = p[1];
+      if (p[1] > y1) y1 = p[1];
+    }
+    const thinR = pts ? Math.min(x1 - x0, y1 - y0) / 2 : 0;
+    cache = { z, outers, outline: pts, holes, maxR: m, minR: pts ? n : 0, thinR };
     return cache;
   }
 
@@ -1099,17 +1135,31 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
     return d;
   }
 
-  /* 輪がまるごと切り口の内がわにいるか */
-  function inside(loopPts, outline) {
-    if (!outline || !loopPts) return true;
-    for (const p of loopPts) if (!pointInPoly(p, outline)) return false;
+  /* 輪がまるごと「肉の上」にいるか。
+     ★外まわりの内がわ かつ、切り口の穴の中でないこと。
+       外まわりだけ見ていると、ドーナツのような形で 穴の上を通っても
+       「内がわ」と数えてしまう。 */
+  function inside(loopPts, sec) {
+    if (!sec || !sec.outline || !loopPts) return true;
+    for (const p of loopPts) {
+      if (!pointInPoly(p, sec.outline)) return false;
+      for (const h of (sec.holes || [])) if (pointInPoly(p, h)) return false;
+    }
     return true;
   }
 
   function currentPts(sec, r) {
     if (shape === 'along') {
       if (!sec.outline) return null;
-      return scaleLoop(sec.outline, +rInset.value / 100);
+      /* ★まん中に向けて縮める（scaleLoop）のは まちがい。
+           へこみのある形（ねこの耳のあいだ など）だと、線が肉の外へ出る。
+           実際に「28mmあたりで 何も無いところを赤い線が通る」と出た。
+         ★内へ寄せるのは **辺に垂直な向きへのオフセット**。どんな形でも
+           縁からの距離が一定になるので、はみ出しにくい。
+         ★寄せる量は 輪郭の細いほうの半分を目安にする。原点からの距離
+           （minR）は、原点が形の外にあると あてにならない。 */
+      const d = (sec.thinR || 0) * (1 - (+rInset.value) / 100);
+      return d > 0.05 ? offsetLoop(sec.outline, -d) : sec.outline;
     }
     if (shape === 'free')  return freePts;
     return makeLoop(shape, r, 96, +rCorner.value / 100);
@@ -1339,8 +1389,10 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
           msgs.push('この高さでは切り口の輪が取れなかった。高さを少し変えて');
         /* ★輪は切り口の内がわにいること。外へ出ると、外がわに縁が残らないので
              上パーツを受ける壁ができない（ただのZgでの水平カットになる）。
-             「沿った形」は輪郭そのものなので、外へふくらませたときだけ見る。 */
-        else if (pts && (shape !== 'along' || +rInset.value > 100) && !inside(pts, sec.outline))
+           ★「沿った形」も見ること。前は「輪郭そのものだから外へは出ない」と
+             思って除けていたが、へこみのある形や 切り口に穴のある形では
+             内へ寄せても 肉の外へ出る。実際にそうなった。 */
+        else if (pts && !inside(pts, sec))
           msgs.push('輪がオブジェクトの外にはみ出している。'
                   + '外がわに縁が残らないので、上パーツを受ける壁ができない');
         /* ★スイッチは上パーツの底より下へ 19.5mm 出る。そのぶん肉がないと底から突き出る。
@@ -1354,6 +1406,10 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
         const gap  = +rFloor.value;
         const zBot = z - depth + gap;
         drawBoss(zBot, swPos.x, swPos.y);
+        /* ★柱を作り直したら、寄る箱も取り直す。
+             paintViews のほうが先に走ることがあり、そのときは まだ柱が無くて
+             箱が null になる（＝モデル全体に寄って 柱が点にしか見えない）。 */
+        if (step === 5) thirdView.setBox(bossBox());
         /* ★溝の底の板は、柱が通るところを抜く。抜かないと板が柱を突きぬける */
         const foot = bossFoot();
         drawGroove(pts, z, +rWidth.value, gap, depth, foot);
@@ -1562,11 +1618,15 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
       topView.setOrbit(0.55, -0.95);
       topView.setTag('上パーツだけ（下から）');
       topView.setBox(upBox());
-      thirdView.setDir('front');
-      thirdView.setTag('十字を通る断面（XZ）');
+      /* ★右下は **柱を まっすぐ下から**。前は「十字を通る断面（XZ）」に
+           していたが、横から切った図では まるか四角かが分からない。 */
+      thirdView.setDir('under');
+      thirdView.setTag('柱を下から（まる／四角）');
+      thirdView.setBox(bossBox());
     } else {
       topView.clearOrbit();
       topView.setBox(null);
+      thirdView.setBox(null);
       /* ★向きが同じだと setDir は何もしないので、⑤のラベルが残る。ここで戻す */
       if (!solo) topView.setTag(DIRS[right].tag);
       clearVSlice();
@@ -1583,7 +1643,7 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
     /* ②は輪切り、⑤は縦の断面。どちらもモデルの代わりに切り口だけを見せる */
     topView.setLayers(step === 2 ? 'slice' : cut ? 'up' : 'model');
     sideView.setLayers(step === 6 ? 'parts' : 'model');
-    thirdView.setLayers(cut ? 'slice' : 'model');
+    thirdView.setLayers(cut ? 'boss' : 'model');
     moveBtn.classList.toggle('on', moving);
     sideView.host.classList.toggle('clickable', canOrbit());
     if (canOrbit()) {
@@ -1821,6 +1881,11 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
     drawing = false;
     topView.host.releasePointerCapture?.(ev.pointerId);
     if (freePts.length < 3) freePts = null;
+    /* ★描きおわりに ならす。指はどうしても ぶれるので、そのままだと
+         ぎざぎざの輪になり、溝もぎざぎざになる。
+       ★なぞっている最中はかけない。ならすたびに形が動いて、
+         狙ったところへ線を持っていけなくなる。 */
+    else freePts = smoothLoop(freePts);
     repaint();
   };
   topView.host.addEventListener('pointerdown', onDown);
