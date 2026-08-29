@@ -51,6 +51,10 @@
   var WAIT_MS = 400;                   // これだけ何も起きなければ書く
   var TAB     = 'easy3dcad:open:';     // sessionStorage。このタブでもう開いたか
 
+  /* 聞くときに「どれのつづきか」を出す。check に渡す合いことば → 画面に出す名前。
+     ★ここに無い合いことばでも動く（名前を出さないだけ）。 */
+  var APPS = { nameplate: 'なまえプレート', qr: 'QRキーホルダー', clicker: 'クリッカーメーカー' };
+
   /* ── 「同じタブで読み直したか」の見分け ─────────────────
      sessionStorage は **タブごと**で、
        ・読み直し（F5）  … 残る
@@ -153,6 +157,11 @@
     '  background:var(--c-panel,#1e293b);border:1px solid var(--c-line,#334155);',
     '  color:var(--c-text,#f1f5f9);box-shadow:0 18px 50px rgba(0,0,0,.5);}',
     '.rs-box h2{margin:0 0 10px;font-size:18px;}',
+    /* どのアプリのつづきか。ひと目で分かるように ふだの形にする */
+    '.rs-app{display:inline-block;margin:0 0 8px;padding:4px 11px;border-radius:999px;',
+    '  background:var(--c-accent-bg,#17325e);color:var(--c-accent2,#3b82f6);',
+    '  font-size:12.5px;font-weight:700;}',
+    '.rs-app[hidden]{display:none;}',
     '.rs-where{margin:0 0 4px;font-size:15px;font-weight:700;color:var(--c-accent2,#3b82f6);',
     '  overflow-wrap:anywhere;}',
     '.rs-when{margin:0 0 18px;font-size:12px;color:var(--c-muted,#94a3b8);}',
@@ -168,7 +177,7 @@
     '@media (min-width:420px){.rs-row{flex-direction:row-reverse;}.rs-row button{flex:1 1 0;}}',
   ].join('\n');
 
-  function ask(where, when) {
+  function ask(app, where, when) {
     return new Promise(function (done) {
       var style = document.createElement('style');
       style.textContent = CSS;
@@ -180,12 +189,16 @@
       veil.setAttribute('aria-modal', 'true');
       veil.innerHTML = '<div class="rs-box">'
         + '<h2>前のつづきがあります</h2>'
+        + '<p class="rs-app" hidden></p>'
         + '<p class="rs-where"></p>'
         + '<p class="rs-when"></p>'
         + '<div class="rs-row">'
         + '<button class="rs-go" type="button">つづきから</button>'
         + '<button class="rs-new" type="button">さいしょから</button>'
         + '</div></div>';
+      var appEl = veil.querySelector('.rs-app');
+      appEl.textContent = app || '';
+      appEl.toggleAttribute('hidden', !app);
       veil.querySelector('.rs-where').textContent = where;
       veil.querySelector('.rs-when').textContent  = when;
       document.body.appendChild(veil);
@@ -251,7 +264,7 @@
       if (!again) {
         return Resume.forget(page).then(function () { return null; });
       }
-      return ask(rec.label || '', ago(rec.at)).then(function (yes) {
+      return ask(APPS[page] || '', rec.label || '', ago(rec.at)).then(function (yes) {
         /* 「さいしょから」は、そのページの①ではなく **トップ（3つから選ぶ画面）** へ。
            作り直すなら、まず何を作るかから選びたいため。
            ★消しおわってから移ること。IndexedDB の削除は非同期なので、

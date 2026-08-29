@@ -10,8 +10,6 @@
 
   <!-- opentype.js: フォント解析 -->
   <script src="./vendor/opentype-1.3.4.min.js"></script>
-  <!-- qrcodejs: スマホアクセス用 QR コード生成 -->
-  <script src="./vendor/qrcodejs-1.0.0.min.js"></script>
 
   <!-- Three.js ES Module (importmap) ※HTTPサーバー経由で使用（file:// 不可） -->
   <script type="importmap">
@@ -26,10 +24,6 @@
   <link rel="stylesheet" href="css/common.css">
   <!-- つづきから再開（window.Resume を作る。モジュールより先に読む） -->
   <script src="./js/resume.js"></script>
-  <style>
-    /* このページだけの調整 */
-    .qr-wrap #qrCode { display: inline-block; background:#fff; padding:6px; border-radius:8px; line-height:0; }
-  </style>
 </head>
 <body>
 
@@ -94,11 +88,6 @@
       <div id="joinMsg" class="hint-line" style="display:none;"></div>
     </div>
 
-    <div class="qr-wrap">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">📱 スマホで開く（QRを読みとってね）</div>
-      <div id="qrCode"></div>
-      <div id="qrUrl" class="qr-url"></div>
-    </div>
   </div>
 
   <!-- ② 文字 -->
@@ -1522,6 +1511,16 @@ function resetCompletion() {
   celEl.className = ''; celEl.innerHTML = '';
   document.getElementById('holeEdit').style.display = '';
   if (window.SaveScreen) SaveScreen.close();
+  stageBack();
+}
+
+/* さいごの画面へ貸していた3Dの窓を、台へ返す。
+   ★SaveScreen.close() は窓を外すだけで、どこへ戻すかは知らない。
+     この関数は resetCompletion から必ず呼ばれるので、
+     「戻る」でも 途中でステップを変えても 台が空にならない。 */
+function stageBack() {
+  const st = document.querySelector('.stage');
+  if (st && canvas.parentNode !== st) st.insertBefore(canvas, st.firstChild);
 }
 
 // ポケポケGET風の演出（放射光・キラキラ・紙吹雪・できた！）
@@ -1575,6 +1574,12 @@ function openSaveScreen() {
   SaveScreen.open({
     title: 'なまえプレート',
     name: plateFileBase(),
+    /* ★3Dの窓（canvas）を さいごの画面に **貸す**。作りなおすのではなく
+         そのまま持っていくので、見えているものと ぴったり同じ。
+         返すのは stageBack()（resetCompletion から必ず呼ばれる）。
+       ★canvas は ResizeObserver で自分の大きさを見ているので、
+         移した先の大きさに ひとりでに合う。 */
+    preview: canvas,
     files: [
       { id:'3mf', ext:'3mf', label:'3MF でダウンロード',
         note:'色つき。2色プリントできる（スライサーはこちら推奨）',
@@ -1822,45 +1827,6 @@ const fontStatusEl = document.getElementById('fontStatus');
   if (state.chars.length) rebuildChars();
 })();
 
-// ── スマホアクセス用 QR コード ───────────────────────────────────
-function renderQR(url) {
-  document.getElementById('qrCode').innerHTML = '';
-  new QRCode(document.getElementById('qrCode'), {
-    text: url, width: 128, height: 128, colorDark: '#0f172a', colorLight: '#ffffff',
-  });
-  document.getElementById('qrUrl').textContent = url;
-}
-function urlWithHost(ip) { const u = new URL(location.href); u.hostname = ip; return u.href; }
-function detectLocalIP(cb) {
-  try {
-    const pc = new RTCPeerConnection({ iceServers: [] });
-    let done = false;
-    const fin = ip => { if (done) return; done = true; pc.close(); cb(ip); };
-    pc.createDataChannel('');
-    pc.onicecandidate = e => {
-      if (!e.candidate) { fin(null); return; }
-      const m = /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/.exec(e.candidate.candidate);
-      if (m && !m[1].startsWith('0.')) fin(m[1]);
-    };
-    pc.createOffer().then(o => pc.setLocalDescription(o)).catch(() => fin(null));
-    setTimeout(() => fin(null), 1000);
-  } catch { cb(null); }
-}
-(function accessQR() {
-  if (!['localhost', '127.0.0.1', ''].includes(location.hostname)) { renderQR(location.href); return; }
-  fetch('/server-ip')
-    .then(r => { if (!r.ok) throw 0; return r.text(); })
-    .then(ip => renderQR(urlWithHost(ip.trim())))
-    .catch(() => detectLocalIP(ip => {
-      if (ip) { renderQR(urlWithHost(ip)); return; }
-      renderQR(location.href);
-      const h = document.createElement('div');
-      h.className = 'qr-hint';
-      h.textContent = '⚠ localhost では スマホから ひらけません。PCの IPアドレスで ひらきなおしてください';
-      document.getElementById('qrUrl').after(h);
-    }));
-})();
-
 // ── 初期化 ────────────────────────────────────────────────────────
 modelGroup = new THREE.Group();
 modelGroup.scale.set(MODEL_SCALE_XY, MODEL_SCALE_XY, MODEL_SCALE_Z);   // 平面65%・厚み据え置き
@@ -1945,5 +1911,7 @@ goStep(state.step || 0);
 <script src="./js/save.js"></script>
 <script src="./js/help.js"></script>
 <script src="./js/kana.js"></script>
+<!-- 右上のボタンを、スマホでは しまう（いちばん後ろに読む） -->
+<script src="./js/topbar.js"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════════════════════════════
    使いかた（4ページ共通）
 
-   右上の「？」を押すと、上から すべりこんでくる。
+   右上の「？」を押すと、画面のまん中に 掲示板が降りてくる。
      1ページ目 … アプリ全体
      2〜4ページ目 … なまえプレート／QRキーホルダー／クリッカーメーカー
    左右の三角で ページをめくる。
@@ -31,59 +31,84 @@
 
   /* ── 見た目 ─────────────────────────────────────── */
   var CSS = [
-    '.hp-veil{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.5);',
+    '.hp-veil{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);',
     '  opacity:0;pointer-events:none;transition:opacity .25s;}',
     '.hp-veil.open{opacity:1;pointer-events:auto;}',
-    '.hp-sheet{position:fixed;left:0;right:0;top:0;z-index:61;',
-    '  max-height:92dvh;overflow:auto;overscroll-behavior:contain;',
-    '  background:var(--c-panel,#1e293b);border-bottom:1px solid var(--c-line,#334155);',
-    '  border-radius:0 0 22px 22px;box-shadow:0 24px 60px rgba(0,0,0,.45);',
+
+    /* ── 掲示板 ────────────────────────────────
+       画面のまん中に、上から降りてくる。板のわく → 板の面（つぶつぶ）→
+       画びょうでとめた名ふだ と 紙、の重ねで できている。
+       ★大きさは 画面の8わり。ころがるのは紙の中だけで、
+         名ふだと下の列は いつも見えている。 */
+    '.hp-sheet{position:fixed;left:50%;top:50%;z-index:61;box-sizing:border-box;',
+    '  width:min(80vw,1120px);height:80dvh;padding:16px;',
+    '  display:flex;flex-direction:column;gap:12px;',
+    '  background:var(--c-panel2,#0f172a);',
+    '  background-image:radial-gradient(rgba(0,0,0,.10) 1px,transparent 1px);',
+    '  background-size:13px 13px;',
+    /* ★わくは --c-muted。--c-line だと あかるい方で 板の面と見わけがつかない */
+    '  border:9px solid var(--c-muted,#94a3b8);border-radius:20px;',
+    '  box-shadow:0 30px 70px rgba(0,0,0,.45),inset 0 0 22px rgba(0,0,0,.18);',
     '  color:var(--c-text,#f1f5f9);',
     '  font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Meiryo",system-ui,sans-serif;',
-    '  transform:translateY(-102%);transition:transform .32s cubic-bezier(.22,.9,.3,1);}',
-    '.hp-sheet.open{transform:none;}',
-    '.hp-wrap{max-width:940px;margin:0 auto;padding:20px 58px 18px;}',
-    '@media (max-width:700px){.hp-wrap{padding:16px 14px 14px;}}',
+    '  transform:translate(-50%,-50%) translateY(-150vh);',
+    '  transition:transform .42s cubic-bezier(.22,.9,.3,1);}',
+    '.hp-sheet.open{transform:translate(-50%,-50%);}',
+    '@media (max-width:700px){.hp-sheet{width:92vw;height:88dvh;padding:10px;',
+    '  border-width:7px;border-radius:16px;gap:9px;}}',
 
-    '.hp-top{display:flex;align-items:center;gap:10px;margin-bottom:14px;}',
-    '.hp-top b{font-size:17px;}',
+    /* 板にとめた名ふだ。上のまん中の丸が 画びょう */
+    '.hp-top{position:relative;flex:none;display:flex;align-items:center;gap:10px;',
+    '  background:var(--c-panel,#1e293b);border:1px solid var(--c-line,#334155);',
+    '  border-radius:12px;padding:9px 10px 9px 18px;',
+    '  box-shadow:0 3px 8px rgba(0,0,0,.22);}',
+    '.hp-top::before{content:"";position:absolute;left:50%;top:-7px;',
+    '  width:13px;height:13px;margin-left:-6.5px;border-radius:50%;',
+    '  background:var(--c-accent2,#3b82f6);box-shadow:0 2px 4px rgba(0,0,0,.4);}',
+    '.hp-top b{font-size:18px;}',
     '.hp-x{margin-left:auto;width:38px;height:38px;border-radius:50%;',
     '  border:1px solid var(--c-line,#334155);background:var(--c-panel2,#0f172a);',
     '  color:var(--c-muted,#94a3b8);font:inherit;font-size:17px;cursor:pointer;}',
     '.hp-x:hover{color:var(--c-text,#f1f5f9);border-color:var(--c-accent2,#3b82f6);}',
 
+    /* 板にはった紙。ころがるのは ここだけ */
+    /* safe center … 中身が短いときは まん中、はみ出すときは上ぞろえ。
+       ただの center だと はみ出した上のほうへ ころがせなくなる */
+    '.hp-wrap{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;',
+    '  display:grid;align-content:safe center;',
+    '  background:var(--c-panel,#1e293b);border:1px solid var(--c-line,#334155);',
+    '  border-radius:12px;padding:24px 28px;',
+    '  box-shadow:0 6px 18px rgba(0,0,0,.22);}',
+    '@media (max-width:700px){.hp-wrap{padding:14px;}}',
+
     '.hp-body{display:grid;gap:18px;grid-template-columns:1fr;align-items:center;}',
-    '@media (min-width:720px){.hp-body{grid-template-columns:300px 1fr;gap:26px;}}',
+    '@media (min-width:720px){.hp-body{grid-template-columns:320px 1fr;gap:28px;}}',
     '.hp-art{background:var(--c-panel2,#0f172a);border:1px solid var(--c-line,#334155);',
     '  border-radius:16px;padding:14px;display:grid;place-items:center;}',
-    '.hp-art svg{width:100%;height:auto;max-height:190px;}',
-    '.hp-h{font-size:19px;font-weight:bold;margin:0 0 6px;}',
-    '.hp-lead{color:var(--c-muted,#94a3b8);font-size:13.5px;line-height:1.9;margin:0 0 12px;}',
-    '.hp-list{margin:0;padding:0;list-style:none;display:grid;gap:9px;}',
+    '.hp-art svg{width:100%;height:auto;max-height:220px;}',
+    '.hp-h{font-size:20px;font-weight:bold;margin:0 0 6px;}',
+    '.hp-lead{color:var(--c-muted,#94a3b8);font-size:14px;line-height:1.9;margin:0 0 12px;}',
+    '.hp-list{margin:0;padding:0;list-style:none;display:grid;gap:10px;}',
     '.hp-list li{display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:start;',
-    '  font-size:13.5px;line-height:1.8;}',
+    '  font-size:14px;line-height:1.8;}',
     '.hp-list i{font-style:normal;display:grid;place-items:center;width:26px;height:26px;',
     '  border-radius:50%;background:var(--c-accent-bg,#17325e);color:var(--c-accent2,#3b82f6);',
     '  font-size:12px;font-weight:bold;}',
     '.hp-list b{display:block;}',
     '.hp-list span{color:var(--c-muted,#94a3b8);}',
 
-    '.hp-foot{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;}',
+    /* 板の下の列。三角も点も ここにならべる（画面のひろさで動かさない） */
+    '.hp-foot{flex:none;display:flex;align-items:center;justify-content:center;gap:10px;}',
     '.hp-dot{width:9px;height:9px;border-radius:50%;border:0;padding:0;cursor:pointer;',
     '  background:var(--c-line,#334155);}',
     '.hp-dot.on{background:var(--c-accent2,#3b82f6);width:22px;border-radius:5px;}',
-
-    /* 左右の三角。ひろい画面では紙の両はし、せまい画面では下にならべる */
-    '.hp-arrow{position:absolute;top:50%;transform:translateY(-50%);',
-    '  width:44px;height:44px;border-radius:50%;border:1px solid var(--c-line,#334155);',
-    '  background:var(--c-panel2,#0f172a);color:var(--c-text,#f1f5f9);',
+    '.hp-arrow{width:42px;height:42px;border-radius:50%;flex:none;',
+    '  border:1px solid var(--c-line,#334155);background:var(--c-panel,#1e293b);',
+    '  color:var(--c-text,#f1f5f9);',
     '  font:inherit;font-size:15px;cursor:pointer;display:grid;place-items:center;}',
     '.hp-arrow:hover:not(:disabled){border-color:var(--c-accent2,#3b82f6);color:var(--c-accent2,#3b82f6);}',
     '.hp-arrow:disabled{opacity:.3;cursor:default;}',
-    '.hp-prev{left:8px;} .hp-next{right:8px;}',
-    '@media (max-width:700px){',
-    '  .hp-arrow{position:static;transform:none;}',
-    '  .hp-foot{gap:14px;}}',
+    '.hp-prev{margin-right:6px;} .hp-next{margin-left:6px;}',
 
     /* 右上の「？」 */
     '.help-btn{flex:none;width:37px;height:37px;border-radius:50%;',
@@ -91,6 +116,9 @@
     '  color:var(--c-muted,#94a3b8);font:inherit;font-size:16px;font-weight:bold;cursor:pointer;}',
     /* スタート画面（浮かせるとき）は ひとまわり大きく */
     '#e3c-floatbar .help-btn{order:2;width:46px;height:46px;font-size:20px;}',
+    /* ★スマホでは ひとまわり小さく（帯が題と重なるため） */
+    '@media (max-width:720px){#e3c-floatbar .help-btn{width:40px;height:40px;',
+    '  font-size:17px;}}',
     '.help-btn:hover{color:var(--c-accent2,#3b82f6);border-color:var(--c-accent2,#3b82f6);}',
     '#e3c-floatbar{position:fixed;top:14px;right:14px;z-index:20;',
     '  display:flex;align-items:center;gap:10px;}',
@@ -153,15 +181,17 @@
     + '<path d="M140 90h18m-6-6 6 6-6 6"/>');
 
   /* クリッカー：上下2つに分かれて、スイッチが入る */
+  /* クリッカー：キャップをはめた形。スタート画面の絵と同じ形にそろえてある
+     （まん中の青い棒が スイッチの軸。ここで上下がつながっている）
+     ★十字は上から見たときの形。横から見た絵なので、軸は角柱で描く */
   var ART_CLICK = svg(
-    '<path d="M74 62h112a14 14 0 0 1 14 14v14H60V76a14 14 0 0 1 14-14z" fill="' + F + '"/>'
-    + '<rect x="60" y="104" width="140" height="40" rx="12" fill="' + F + '"/>'
+    '<path d="M82.4 83.6L89.4 33.2Q90.1 29 94.3 29Q130 37.4 165.7 29Q169.9 29 170.6 33.2'
+    + 'L177.6 83.6Q178.2 87.8 174 87.8H86Q81.8 87.8 82.4 83.6Z" fill="' + F + '"/>'
+    + '<rect x="88" y="107.4" width="84" height="33.6" rx="8.4" fill="' + F + '"/>'
     + '<g fill="' + A + '" stroke="none">'
-    + '<rect x="122" y="112" width="14" height="24" rx="3"/>'
-    + '<rect x="115" y="119" width="28" height="10" rx="3"/></g>'
-    + '<path d="M130 24v16m-16-10 6 10m26-10-6 10" opacity=".55"/>'
-    + '<path d="M40 90h-16m6-6-6 6 6 6" opacity=".55"/>'
-    + '<path d="M220 104h16m-6-6 6 6-6 6" opacity=".55"/>');
+    + '<rect x="120.2" y="89.2" width="19.6" height="21" rx="1.4"/></g>'
+    + '<rect x="76.8" y="104.6" width="106.4" height="12.6" rx="5.6" fill="' + F + '"/>'
+    + '<path d="M130 8v13m-15-9 5 9m25-9-5 9" opacity=".55"/>');
 
   /* ── 中身 ───────────────────────────────────────
      ★もとの文は **漢字で書く**。ひらがなに開くのは kana.js の仕事なので、
@@ -222,7 +252,7 @@
     for (var i = 0; i < dots.length; i++) dots[i].classList.toggle('on', i === at);
     sheet.querySelector('.hp-prev').disabled = at === 0;
     sheet.querySelector('.hp-next').disabled = at === PAGES.length - 1;
-    sheet.scrollTop = 0;
+    sheet.querySelector('.hp-wrap').scrollTop = 0;
   }
 
   function go(n) {
@@ -247,20 +277,21 @@
     sheet.setAttribute('role', 'dialog');
     sheet.setAttribute('aria-modal', 'true');
     sheet.innerHTML =
-      '<button class="hp-arrow hp-prev" type="button" aria-label="前のページ">◀</button>'
-      + '<button class="hp-arrow hp-next" type="button" aria-label="次のページ">▶</button>'
+      '<div class="hp-top"><b class="hp-title"></b>'
+      + '  <button class="hp-x" type="button" aria-label="とじる">✕</button></div>'
       + '<div class="hp-wrap">'
-      + '  <div class="hp-top"><b class="hp-title"></b>'
-      + '    <button class="hp-x" type="button" aria-label="とじる">✕</button></div>'
       + '  <div class="hp-body">'
       + '    <div class="hp-art"></div>'
       + '    <div><p class="hp-h"></p><p class="hp-lead"></p><ul class="hp-list"></ul></div>'
       + '  </div>'
-      + '  <div class="hp-foot"></div>'
+      + '</div>'
+      + '<div class="hp-foot">'
+      + '  <button class="hp-arrow hp-prev" type="button" aria-label="前のページ">◀</button>'
+      + '  <button class="hp-arrow hp-next" type="button" aria-label="次のページ">▶</button>'
       + '</div>';
     document.body.appendChild(sheet);
 
-    /* せまい画面では、三角も下の列にならべる（CSSで position:static になる） */
+    /* 三角と点は いつも板の下の列。ひろい画面でも動かさない */
     var foot = sheet.querySelector('.hp-foot');
     foot.appendChild(sheet.querySelector('.hp-prev'));
     for (var i = 0; i < PAGES.length; i++) {
@@ -272,8 +303,7 @@
       foot.appendChild(d);
     }
     foot.appendChild(sheet.querySelector('.hp-next'));
-    /* ★ひろい画面では紙の両はしに置きたいので、位置だけ CSS で絶対配置に戻す。
-         DOM は下の列に入れたままでよい（読む順は 前 → 点 → 次 のほうが自然）。 */
+    /* 読む順も この並び（前 → 点 → 次）。 */
 
     sheet.querySelector('.hp-x').onclick = close;
     sheet.querySelector('.hp-prev').onclick = function () { go(at - 1); };

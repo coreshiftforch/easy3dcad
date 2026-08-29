@@ -220,6 +220,26 @@ details.adv[open] summary { margin-bottom: 8px; }
   .maprow .swatches { flex: 1 1 100%; }
   .recipe-grid { grid-template-columns: 1fr; }
 }
+
+/* ── たたんでおく情報（⑤ダウンロードの下）────────────────────
+   ★寸法と印刷のこつは、同じものが さいごのダウンロード画面にも出る。
+     ここで最初から広げると、肝心の「ダウンロードへ」が押しづらい。
+     はじめは閉じておいて、見たい人だけ開く。 */
+.foldinfo {
+  margin-top: 10px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--panel2);
+}
+.foldinfo > summary {
+  list-style: none; cursor: pointer; user-select: none;
+  display: flex; align-items: center; gap: 7px;
+  padding: 10px 12px; font-size: 13.5px; font-weight: bold; color: var(--muted);
+}
+.foldinfo > summary::-webkit-details-marker { display: none; }
+.foldinfo > summary::before { content: '▶'; font-size: 10px; transition: transform .15s; }
+.foldinfo[open] > summary::before { transform: rotate(90deg); }
+.foldinfo > summary:hover { color: var(--text); }
+.foldinfo .info { margin: 0; padding: 0 12px 12px; }
+.foldinfo .info + .info { padding-top: 10px; }
 </style>
 </head>
 <body>
@@ -468,8 +488,11 @@ details.adv[open] summary { margin-bottom: 8px; }
         <button class="primary" id="toSave">ダウンロードへ ▶
           <small>ファイルの形と名前を えらべます</small></button>
       </div>
-      <div class="info" id="partinfo" style="margin-top:10px"></div>
-      <div class="info" id="howto" style="margin-top:10px"></div>
+      <details class="foldinfo">
+        <summary>情報</summary>
+        <div class="info" id="partinfo"></div>
+        <div class="info" id="howto"></div>
+      </details>
     </div>
 
     </div><!-- /.panel -->
@@ -2405,11 +2428,18 @@ function placeCoin(parts) {
    まとめ刷り自体（buildPlate と書き出し）はそのまま残っている。 */
 
 function resize() {
-  const w = view.clientWidth, h = view.clientHeight;
+  /* ★さいごの画面へ窓を貸しているあいだは、貸した先の大きさで測る。
+       view で測ると、台の形のまま引きのばされて ゆがむ。 */
+  const box = renderer.domElement.parentElement || view;
+  const w = box.clientWidth, h = box.clientHeight;
+  if (!w || !h) return;
   renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.updateProjectionMatrix();
 }
 new ResizeObserver(resize).observe(view);
+/* ★窓そのものも見る。貸し借りで入れものが変わったときは
+     view の大きさは変わらないので、こちらでないと気づけない。 */
+new ResizeObserver(resize).observe(renderer.domElement);
 
 (function loop() {
   requestAnimationFrame(loop);
@@ -3018,6 +3048,10 @@ document.getElementById('toSave').onclick = () => {
   SaveScreen.open({
     title: 'QRキーホルダー',
     name: fileBase(),
+    /* ★3Dの窓を さいごの画面に **貸す**（なまえプレートと同じやり方）。
+         返すのは onBack。貸すのは canvas 1枚だけなので、
+         台の上の 案内・QRの絵・見かたのボタンは 持っていかない。 */
+    preview: renderer.domElement,
     files: [
       { id:'3mf', ext:'3mf', label:'3MF でダウンロード',
         note:'色つき。多色でそのまま刷れる（スライサーはこちら推奨）',
@@ -3032,7 +3066,12 @@ document.getElementById('toSave').onclick = () => {
     parts: current.parts.map(pt => ({ name: pt.name, note: '' })),
     info: i.dims.map(d => [d[0], String(d[1]).replace(/<[^>]+>/g, '')]),
     howto: i.howto.map(h => String(h).replace(/<[^>]+>/g, '')),
-    onBack: () => {},
+    onBack: () => {
+      /* 貸していた窓を台へ返す。SaveScreen は外すだけで、
+         どこへ戻すかは知らない */
+      if (renderer.domElement.parentNode !== view) view.appendChild(renderer.domElement);
+      resize();
+    },
   });
 };
 
@@ -3202,5 +3241,7 @@ syncQrEach();
 <script src="./js/save.js"></script>
 <script src="./js/help.js"></script>
 <script src="./js/kana.js"></script>
+<!-- 右上のボタンを、スマホでは しまう（いちばん後ろに読む） -->
+<script src="./js/topbar.js"></script>
 </body>
 </html>

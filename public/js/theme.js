@@ -65,6 +65,9 @@
       '#e3c-floatbar{position:fixed;top:14px;right:14px;z-index:20;',
       '  display:flex;align-items:center;gap:10px;}',
       '#e3c-floatbar .theme-btn{order:1;}',
+      /* ★スマホでは 帯を細くする。QRのボタンが増えて、題と重なったため */
+      '@media (max-width:720px){#e3c-floatbar .theme-btn{width:40px;height:40px;}',
+      '  #e3c-floatbar .theme-btn svg{width:20px;height:20px;}}',
     ].join('\n');
     document.head.appendChild(style);
 

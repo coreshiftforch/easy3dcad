@@ -10,7 +10,7 @@
      （@media 900px の order がそのまま効く）。 */
 
 import * as THREE from 'three';
-import { SHAPES, FONTS, KEEP, buildMake } from '../geom/make.js';
+import { SHAPES, FONTS, KEEP, buildMake, NGON_MIN, NGON_MAX, NGON_DEF } from '../geom/make.js';
 import { stlBinary } from '../io/saveModel.js';
 import { readModelFile } from '../io/loadModel.js';
 import { SWITCH_W } from '../geom/switch-mock.js';
@@ -23,7 +23,7 @@ const WALL = 1.6;
 const MIN_THICK = SWITCH_W + WALL * 2;      // 18.8
 
 const DEF = {
-  shape: 'keycap', width: 60, thick: 22,
+  shape: 'keycap', width: 60, thick: 22, sides: NGON_DEF,
   deco: 'text', how: 'carve', depth: 1.2,
   text: 'ぽち', fontId: 'gothic', textPct: 80,
   url: 'https://example.com', ec: 'M', qrPct: 85,
@@ -56,6 +56,11 @@ export function mountScene0(root, { onBack, onMade } = {}) {
         <div class="panel">
           <p class="panel-h">かたち（上へのばして柱にする）</p>
           <div class="shapes many k-shape">${btns('shape-btn', SHAPES, DEF.shape)}</div>
+          <div class="sec-ngon" hidden>
+            <label class="slabel">角の数<output class="o-sides"></output></label>
+            <input class="r-sides" type="range" min="${NGON_MIN}" max="${NGON_MAX}" step="1"
+                   value="${DEF.sides}">
+          </div>
           <label class="slabel">よこ幅<output class="o-width"></output></label>
           <input class="r-width" type="range" min="25" max="120" step="1" value="${DEF.width}">
           <label class="slabel">厚み<output class="o-thick"></output></label>
@@ -111,6 +116,7 @@ export function mountScene0(root, { onBack, onMade } = {}) {
   const q = s => root.querySelector(s);
   const host = q('.view');
   const secText = q('.sec-text'), secQr = q('.sec-qr'), secHow = q('.sec-how');
+  const secNgon = q('.sec-ngon');
   const hSize = q('.h-size'), hWarn = q('.h-warn'), goBtn = q('.make-go');
 
   /* えらんだもの。ボタンの組は aria-pressed で持つ（resume.js がそれを見る） */
@@ -129,6 +135,7 @@ export function mountScene0(root, { onBack, onMade } = {}) {
 
   const opts = () => ({
     shape: pickOf('.k-shape'),
+    sides: +q('.r-sides').value,
     width: +q('.r-width').value,
     thick: +q('.r-thick').value,
     deco:  pickOf('.k-deco'),
@@ -263,6 +270,8 @@ export function mountScene0(root, { onBack, onMade } = {}) {
   let wait = 0;
   function paint() {
     const o = opts();
+    /* ★「8角」と書くと ひらがなで「8かど」と読ませてしまう。数だけ出す */
+    q('.o-sides').textContent = `${o.sides}つ`;
     q('.o-width').textContent = `${o.width} mm`;
     q('.o-thick').textContent = `${o.thick.toFixed(1)} mm`;
     q('.o-tpct').textContent  = `${o.textPct} %`;
@@ -270,6 +279,8 @@ export function mountScene0(root, { onBack, onMade } = {}) {
     q('.o-depth').textContent = `${o.depth.toFixed(1)} mm`;
     q('.n-thick').textContent = o.thick < MIN_THICK
       ? `スイッチが入るには ${MIN_THICK}mm 要る` : '';
+    /* 角の数のバーは、多角形をえらんだときだけ出す */
+    secNgon.toggleAttribute('hidden', o.shape !== 'ngon');
     secText.toggleAttribute('hidden', o.deco !== 'text');
     secQr.toggleAttribute('hidden', o.deco !== 'qr');
     secHow.toggleAttribute('hidden', o.deco === 'none');

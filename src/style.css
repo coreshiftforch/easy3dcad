@@ -260,12 +260,20 @@ body {
 .viewer {
   flex: 1 1 auto;
   min-height: 160px;
+  /* ★position: relative を忘れると、中に浮かせる「視点」ボタンが
+       この窓ではなく **画面のすみ** に貼りつく。スマホでは そこに
+       タイプ選択のボタンがあるので、重なって押せなくなっていた。 */
+  position: relative;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--sunk);
   overflow: hidden;
 }
 .viewer canvas { display: block; width: 100%; height: 100%; }
+/* ★フロー②だけ、「視点」は窓の右下に置く。左下だと まわす指と
+     ぶつかりやすく、下のタイプ選択とも近い。ほかの窓（.view）は
+     左下のまま（右下には 虫めがねが出ることがある）。 */
+.viewer .view-reset { left: auto; right: 10px; bottom: 10px; }
 
 /* 作りの選択肢。3つ横並び */
 .choices { display: flex; gap: 10px; flex: none; }

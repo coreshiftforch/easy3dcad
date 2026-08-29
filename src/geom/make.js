@@ -67,7 +67,9 @@ export const SHAPES = [
   { id: 'circle',  name: 'まる',       inner: 0.68 },
   { id: 'ellipse', name: 'たまご',     inner: 0.70 },
   { id: 'hexagon', name: '六角',       inner: 0.74 },
-  { id: 'octagon', name: '八角',       inner: 0.74 },
+  /* ★角の数を 3〜16 で選べる。inner（文字を置ける広さ）は角の数で変わるので、
+     ここには置かず innerOf() で出す（三角は 0.50、五角より多いと 0.74 で頭打ち） */
+  { id: 'ngon',    name: '多角形',     inner: 0.74 },
   { id: 'triangle',name: '三角',       inner: 0.50 },
   { id: 'diamond', name: 'ひしがた',   inner: 0.52 },
   { id: 'star',    name: '星',         inner: 0.44 },
@@ -175,7 +177,22 @@ const ell = (cx, cy, rx, ry) => {
   return s;
 };
 
-/* とがりの数だけ角のある多角形（六角・八角） */
+/* 多角形の角の数。画面のバーと同じ範囲にそろえる */
+export const NGON_MIN = 3, NGON_MAX = 16, NGON_DEF = 8;
+const sidesOf = n => {
+  const v = Math.round(Number(n));
+  /* ★数でないとき（undefined など）だけ 既定へ。0 や 99 は「範囲外の数」なので
+     いちばん近い端へ寄せる。`+n || 既定` と書くと 0 が既定に化ける */
+  return Number.isFinite(v) ? Math.max(NGON_MIN, Math.min(NGON_MAX, v)) : NGON_DEF;
+};
+
+/* 文字やQRを置ける広さ。多角形は 角が少ないほど てっぺんがせまい。
+   ★内接円の半径の割合 cos(π/n) が目安。三角で 0.50、五角から先は
+     0.74 で止める（ほかの形と同じ上限）。 */
+const innerOf = (sh, sides) =>
+  sh.id === 'ngon' ? Math.min(0.74, Math.cos(Math.PI / sidesOf(sides))) : sh.inner;
+
+/* とがりの数だけ角のある多角形 */
 const ngon = (n, r, round, turn = 0) => roundedPoly(
   Array.from({ length: n }, (_, i) => {
     const a = turn + i * Math.PI * 2 / n;
@@ -183,14 +200,19 @@ const ngon = (n, r, round, turn = 0) => roundedPoly(
   }), round);
 
 /* かたちを返す。face＝文字やQRを置く「顔」。extras＝そこに足すだけのもの */
-function shapeParts(id) {
+function shapeParts(id, sides) {
   switch (id) {
     case 'square':   return [rect(112, 112, 18)];
     case 'longrect': return [rect(170, 52, 16)];
     case 'circle':   return [ell(0, 0, 56, 56)];
     case 'ellipse':  return [ell(0, 0, 84, 58)];
     case 'hexagon':  return [ngon(6, 62, 12)];
-    case 'octagon':  return [ngon(8, 62, 12, Math.PI / 8)];
+    /* ★下が平らになる向きにそろえる。奇数はとがりが上（三角と同じ見え方）、
+         偶数は上下が平ら。turn を足さないと 角の数ごとに傾きがばらつく */
+    case 'ngon': {
+      const n = sidesOf(sides);
+      return [ngon(n, 62, 12, Math.PI / 2 + (n % 2 === 0 ? Math.PI / n : 0))];
+    }
     case 'triangle': return [roundedPoly([[0, 62], [-58, -40], [58, -40]], 16)];
     case 'diamond':  return [roundedPoly([[0, 66], [56, 0], [0, -66], [-56, 0]], 14)];
     case 'onigiri':  return [roundedPoly([[0, 60], [-64, -44], [64, -44]], 22)];
@@ -262,8 +284,8 @@ function shapeParts(id) {
 
 /* えらんだ形を、よこ幅 width mm にそろえて返す。
    face … 文字やQRを置く「顔」（はじめの1つ）／extras … 足すだけのもの */
-function baseOf(id, width) {
-  const parts = shapeParts(id).map(polyOf);
+function baseOf(id, width, sides) {
+  const parts = shapeParts(id, sides).map(polyOf);
   const b = bboxOf(parts);
   const k = width / b.w;
   const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
@@ -434,14 +456,15 @@ const post = (poly, z0, z1) => stack(poly, [{ s: 1, z: z0 }, { s: 1, z: z1 }]);
    （面積が分かれば、彫ったあとの体積を紙の上で出せる）。 */
 export async function decoPolys(opt) {
   const sh = SHAPES.find(s => s.id === opt.shape) || SHAPES[0];
-  const base = baseOf(sh.id, opt.width);
+  const base = baseOf(sh.id, opt.width, opt.sides);
   const fb = bboxOf([base.face]);
   const info = { warn: [] };
 
   /* 文字やQRは **てっぺんの面**に乗る。先すぼまりの形では、その面のぶんだけ
      置ける場所がせまい。いちばん上のリングの縮めぐあいをかけておく。 */
   const top = ringsFor(opt.thick, sh, Math.max(fb.w, fb.h) / 2).at(-1).s;
-  const room = k => ({ w: fb.w * sh.inner * top * k, h: fb.h * sh.inner * top * k });
+  const inner = innerOf(sh, opt.sides);
+  const room = k => ({ w: fb.w * inner * top * k, h: fb.h * inner * top * k });
 
   if (opt.deco === 'text' && opt.text.trim()) {
     const font = await loadFont(opt.fontId);

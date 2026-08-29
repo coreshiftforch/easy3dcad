@@ -28,12 +28,17 @@ export function mountScene1(root, { onLoaded, onCreate } = {}) {
         </div>
       </div>
       <div class="notice" hidden></div>
-      <input class="picker" type="file" hidden>
+      <input class="picker" type="file" accept="application/octet-stream" hidden>
     </div>`;
-  /* ★input に accept を付けない。
-       iPhone の「ファイル」アプリは拡張子ではなく UTI で絞りこむので、
-       .stl や .3mf を書くと全部グレーアウトして1つも選べなくなる。
-       選ばせてから、先頭の数バイトで中身を見て判断する。 */
+  /* ★accept は **拡張子で書かない**。iPhone の「ファイル」アプリは
+       拡張子ではなく UTI で絞りこむので、.stl や .3mf と書くと
+       ぜんぶグレーアウトして1つも選べなくなる（前にそうなった）。
+     ★かといって accept を付けないと、iPhone は
+       「写真またはビデオを撮る／フォトライブラリ／ファイルを選択」の
+       3つを出す。3Dモデルに写真は関係ないので まぎらわしい。
+     ★application/octet-stream は UTI の public.data に当たる。
+       ファイルアプリの中身は そのまま選べて、写真の欄だけが消える。
+     どちらにしても、選ばれたあと 先頭の数バイトで中身を見て判断する。 */
 
   const scene   = root.querySelector('.scene1');
   const zone    = root.querySelector('.dropzone');

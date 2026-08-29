@@ -32,12 +32,6 @@ qrcode-generator  v1.4.4
   http://www.d-project.com/
   ※「QRコード」は株式会社デンソーウェーブの登録商標です。
 
-qrcodejs  v1.0.0
-  なまえプレートで「スマホで開く」QRを画面に出すのに使用。MITライセンス。
-  vendor/qrcodejs-1.0.0.min.js
-  Copyright (c) 2012 davidshimjs
-  https://github.com/davidshimjs/qrcodejs
-
 Vite  v8.2.2
   組み立て（ビルド）に使う道具。MITライセンス。作ったものの中には入らない。
   https://github.com/vitejs/vite

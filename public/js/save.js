@@ -51,11 +51,13 @@
     '.sv-back:hover{border-color:var(--c-accent2,#1d4ed8);}',
 
     '.sv-body{flex:1;min-height:0;overflow:auto;padding:18px 16px 26px;}',
-    '.sv-wrap{max-width:1000px;margin:0 auto;display:grid;gap:16px;grid-template-columns:1fr;}',
-    '@media (min-width:900px){.sv-wrap.has-view{grid-template-columns:1fr 380px;align-items:start;}}',
+    /* ★1列。3Dの窓が名前の下に入ったので、横に割らない */
+    '.sv-wrap{max-width:680px;margin:0 auto;display:grid;gap:16px;grid-template-columns:1fr;}',
 
     '.sv-view{background:var(--c-stage,#29384c);border:1px solid var(--c-line,#cbd5e1);',
-    '  border-radius:16px;min-height:320px;position:relative;overflow:hidden;}',
+    '  border-radius:16px;height:300px;position:relative;overflow:hidden;}',
+    /* 借りてきた窓（canvas でも div でも）を いっぱいに広げる */
+    '.sv-view > *{display:block;width:100%;height:100%;}',
     '.sv-col{display:grid;gap:14px;align-content:start;}',
     '.sv-card{background:var(--c-panel,#fff);border:1px solid var(--c-line,#cbd5e1);',
     '  border-radius:16px;padding:14px 16px;}',
@@ -92,7 +94,7 @@
     '  color:var(--c-ok2,#15803d);}',
     '.sv-msg.bad{color:var(--c-err2,#b91c1c);}',
     '@media (max-width:899px){',
-    '  .sv-view{min-height:210px;}',
+    '  .sv-view{height:230px;}',
     '  .sv-file{font-size:16px;} .sv-h{font-size:14px;}}',
   ].join('\n');
 
@@ -140,7 +142,6 @@
       + '  <b class="sv-title"></b>'
       + '</div>'
       + '<div class="sv-body"><div class="sv-wrap">'
-      + '  <div class="sv-view" hidden></div>'
       + '  <div class="sv-col"></div>'
       + '</div></div>';
     document.body.appendChild(sheet);
@@ -162,14 +163,7 @@
 
   function render() {
     var col = sheet.querySelector('.sv-col');
-    var view = sheet.querySelector('.sv-view');
     sheet.querySelector('.sv-title').textContent = opt.title || '';
-
-    /* 3Dの窓は、渡されたときだけ出す */
-    view.innerHTML = '';
-    view.toggleAttribute('hidden', !opt.preview);
-    sheet.querySelector('.sv-wrap').classList.toggle('has-view', !!opt.preview);
-    if (opt.preview) view.appendChild(opt.preview);
 
     var html = '';
 
@@ -184,6 +178,11 @@
 
     html += card('名前', '<input class="sv-name" type="text" spellcheck="false">'
       + '<p class="sv-note">日付を後ろに足して保存します</p>');
+
+    /* ★3Dの窓は **名前のすぐ下**。以前は いちばん上（ひろい画面では左半分）に
+         置いていたが、押すところ（ダウンロード）から遠くて目に入らなかった。
+         渡されたときだけ出す。 */
+    if (opt.preview) html += '<div class="sv-view"></div>';
 
     html += card('ダウンロード', '<div class="sv-files">'
       + (opt.files || []).map(function (f, i) {
@@ -210,6 +209,8 @@
 
     col.innerHTML = html;
     col.querySelector('.sv-name').value = opt.name || '';
+    /* ★借りものなので、書きかえのたびに 入れ直す（update でも消えないように） */
+    if (opt.preview) col.querySelector('.sv-view').appendChild(opt.preview);
 
     col.querySelectorAll('.sv-seg').forEach(function (seg) {
       var o = opt.options[+seg.dataset.opt];
@@ -260,7 +261,7 @@
     sheet.classList.remove('open');
     /* 3Dの窓は、渡してくれたアプリに返す（こちらでは捨てない） */
     var view = sheet.querySelector('.sv-view');
-    if (opt && opt.preview && view.contains(opt.preview)) view.removeChild(opt.preview);
+    if (view && opt && opt.preview && view.contains(opt.preview)) view.removeChild(opt.preview);
     cur = null;
   }
 

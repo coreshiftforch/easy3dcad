@@ -25,7 +25,7 @@ globalThis.fetch = async (p) => {
   return { ok: true, arrayBuffer: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length) };
 };
 
-const { buildMake, decoPolys, qrPolys, inkArea, FUSE, SHAPES, FONTS } =
+const { buildMake, decoPolys, qrPolys, inkArea, FUSE, SHAPES, FONTS, NGON_MIN, NGON_MAX } =
   await import('../src/geom/make.js');
 
 /* ── 道具 ───────────────────────────────────── */
@@ -84,6 +84,37 @@ for (const s of SHAPES) {
      `${s.name.padEnd(7, '　')} ${b.size[0].toFixed(1)} × ${b.size[1].toFixed(1)} × ${b.size[2].toFixed(1)}mm`
      + `　${(v / 1000).toFixed(1)}cm³`
      + (m.info.parts > 1 ? `（${m.info.parts}つのかたちが重なっている）` : ''));
+}
+
+/* ── ②b 多角形：角の数を 3〜16 まで動かしても壊れないか ─────
+   ★角が少ないと てっぺんがせまい。文字を置ける広さ（inner）を
+     角の数から出しているので、両はしと まん中を通しておく。
+   ★正n角形の面積は (1/2)n R² sin(2π/n)。横幅60mmにそろえたあとの
+     体積が、その式と合うかを見る（角が増えるほど まるに近づく）。 */
+console.log(`
+②b 多角形（${NGON_MIN}〜${NGON_MAX}角）が、角の数どおりに作れているか`);
+for (let n = NGON_MIN; n <= NGON_MAX; n++) {
+  const m = await buildMake({ ...BASE, shape: 'ngon', sides: n });
+  const b = boxOf(m.positions);
+  const v = volumeOf(m.positions);
+  const wOK = Math.abs(b.size[0] - 60) < 0.6;
+  const zOK = Math.abs(b.size[2] - 22) < 1e-3;
+  /* ★体積が箱の半分より大きく、箱より小さいこと。面が裏返っていたり
+       ふたが抜けていたりすると、0以下や 箱ごえの数字が出る。
+     ★「角がふえるほど体積もふえる」は **成り立たない**。横幅60mmに
+       そろえているので、四角（箱いっぱい）が いちばん大きくなる。 */
+  const box = 60 * b.size[1] * 22;
+  const vOK = v > box * 0.45 && v < box;
+  ok(wOK && zOK && vOK,
+     `${String(n).padStart(2)}角　${b.size[0].toFixed(1)} × ${b.size[1].toFixed(1)} × ${b.size[2].toFixed(1)}mm`
+     + `　${(v / 1000).toFixed(1)}cm³　箱の${(v / box * 100).toFixed(0)}%`);
+}
+/* 角の数を外れた数を渡しても、止まらずに近い値へ寄せるか */
+for (const [bad, want] of [[0, NGON_MIN], [99, NGON_MAX], [undefined, 8]]) {
+  const m = await buildMake({ ...BASE, shape: 'ngon', sides: bad });
+  const same = await buildMake({ ...BASE, shape: 'ngon', sides: want });
+  ok(Math.abs(volumeOf(m.positions) - volumeOf(same.positions)) < 1,
+     `角の数に ${bad} を渡しても ${want}角として作る`);
 }
 
 /* ── ③ 彫った量が、字の面積ぴったりか ─────────────

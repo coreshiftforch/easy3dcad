@@ -97,7 +97,7 @@ header .title { font-size: 17.5px; font-weight: bold; }
 /* ヘッダーが無いページ（トップ）では右上に浮かせる */
 /* ★スタート画面では #e3c-floatbar（右上の帯）の中に入るので、
      位置は帯が決める。ここでは大きさと並び順だけ。 */
-.kana-toggle-float { order: 3; margin-left: 0; font-size: 15.5px; padding: 11px 17px; border-radius: 11px; }
+.kana-toggle-float { order: 4; margin-left: 0; font-size: 15.5px; padding: 11px 17px; border-radius: 11px; }
 
 /* ── 本体（スマホ：たて1列 ／ PC：左パネル＋3Dビュー）─────── */
 .main {
@@ -345,10 +345,7 @@ input[type=range]::-moz-range-thumb {
 
 .status-msg { font-size: 12px; color: var(--muted); text-align: center; min-height: 16px; margin-top: 6px; }
 
-/* できあがり（QR・保存）*/
-.qr-wrap { text-align: center; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
-.qr-box { display: inline-block; background: #fff; padding: 6px; border-radius: 8px; line-height: 0; }
-.qr-url { margin-top: 6px; font-size: 10px; color: #64748b; word-break: break-all; user-select: text; }
+/* できあがり（保存）*/
 
 /* ── フォント（ネームプレートで使う）─────────────────────── */
 @font-face { font-family: 'f-gothic'; src: url('../fonts/gothic.ttf'); font-display: swap; }
@@ -427,6 +424,26 @@ input[type=range]::-moz-range-thumb {
   .font-btn .nm      { font-size: 14px; }
   .stage-warn        { font-size: 13px; }
   .stage-hint        { font-size: 11px; }
-  .qr-url            { font-size: 11px; }
   input[type=text], input[type=url], input[type=number], textarea { font-size: 16px; }
+}
+
+/* ── スタート画面の右上の帯（スマホ）────────────────────────
+   ★QRのボタンが増えて4つになったので、せまい画面では ひとまわり
+     小さくする。そうしないと「ZEROモデリング」の題と重なる。
+     ボタンの大きさは それぞれの js が持っているので、ここは
+     ひらがなのボタンだけ。 */
+@media (max-width: 720px) {
+  .kana-toggle-float { font-size: 13.5px; padding: 9px 12px; border-radius: 9px; }
+}
+
+/* ── スマホ：3Dの窓と 操作を およそ半分ずつ ──────────────────
+   ★以前は .panel だけを max-height:48dvh で止めていた。steps と nav は
+     そのぶん **外に足される** ので、操作がわが 画面の7割ちかくを占め、
+     3Dの窓が3割しか残らなかった（QRで 252px / 533px）。
+     .side ぜんたいを半分で止めて、あまりを .panel が使う形にする。
+     steps と nav は flex-shrink:0 なので縮まず、panel だけが縮んで
+     中でころがる。 */
+@media (max-width: 899px) {
+  .side  { max-height: 50dvh; }
+  .panel { flex: 1 1 auto; min-height: 0; max-height: none; }
 }

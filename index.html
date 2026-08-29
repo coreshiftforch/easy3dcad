@@ -119,6 +119,7 @@
     .deck-arrow { width: 38px; height: 38px; font-size: 13px; opacity: .92; }
     .deck-arrow.prev { left: 2px; }
     .deck-arrow.next { right: 2px; }
+
   }
 
   .card {
@@ -170,6 +171,58 @@
   .il-accent { fill: var(--accent2); }
   .il-soft   { fill: var(--line); }
   .il-ink    { fill: var(--text); opacity: .88; }
+
+  /* ══ スマホ：1画面に収める ══════════════════════════════
+     ★このブロックは **いちばん後ろ** に置くこと。
+       上の @media（カードの幅・矢印）は .card の定義より前にあるので、
+       同じ強さの素の定義（padding・place-items・絵の大きさ）に
+       あとから上書きされてしまう。ここなら勝つ。 */
+  @media (max-width: 720px) {
+    /* ★スマホでは たてに転がさず、1画面に収める。
+         ひょうし・カード・点を つめて 100dvh に入れる。
+         ★上のあきは 右上のボタンの帯より下に 題を置くための寸法。
+           帯は top:14 + 高さ40（スマホ用）＝ 54 まで。ここを削ると重なる。 */
+    .hero { padding: 60px 16px 18px; }
+    .hero .lead { margin-top: 9px; line-height: 1.7; font-size: 12.5px; }
+    .wrap { padding: 12px 12px 10px; }
+
+    .deck { padding: 6px 0 2px; }
+    .deck-dots { margin-top: 10px; }
+
+    /* ══ たてに転がさないための骨組み ═══════════════════════
+       ★数字を削って合わせるやり方だと、画面の高さがちがうと また
+         はみ出す。そうではなく **のこりの高さを配る** 形にする。
+           ひょうし … 中身なりの高さ（動かさない）
+           カードの段 … のこり全部
+           カード … その段いっぱい。**絵のところが縮んで**収まる
+       ★文字のところ（.body）は縮めない。縮むのは絵だけ。
+         絵が つぶれきらないように 下限をつけてある。 */
+    body { height: 100dvh; min-height: 0; overflow: hidden;
+           display: flex; flex-direction: column; }
+    .hero { flex: none; }
+    .wrap { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+    /* ★点（deck-dots）は deck の**中**にある。rail に 100% を与えると
+         点のぶんが はみ出すので、deck を たてに割って配る */
+    .deck { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+    .deck-rail { flex: 1 1 auto; min-height: 0; grid-template-rows: 100%; }
+    .deck-rail .card { height: 100%; }
+    .card .body { flex: none; }
+    .deck-dots { flex: none; }
+
+    /* ★絵は **わくいっぱいに広げて、中で縮める**。
+         ★place-items は center ではなく stretch。center のままだと
+           svg の高さが決まらず、もとの大きさ（172x125）に戻って
+           カードからはみ出す。stretch なら わくの高さがそのまま入り、
+           viewBox が中で ちょうどよく縮む（まん中ぞろえは viewBox まかせ）。 */
+    .card .art { flex: 1 1 auto; min-height: 56px; overflow: hidden;
+                 padding: 14px 16px 10px; place-items: stretch; }
+    .card .art svg { width: 100%; height: 100%; min-width: 0; min-height: 0; }
+    .card .body { gap: 8px; padding: 14px 16px 16px; }
+    .card .nm { font-size: 20px; }
+    .card .de { font-size: 13px; line-height: 1.7; }
+    .card .tag { font-size: 11.5px; padding: 4px 11px; }
+    .card .go { margin-top: 3px; padding: 10px 18px; font-size: 14.5px; }
+  }
 
 </style>
 </head>
@@ -240,16 +293,19 @@
       <span class="art">
         <svg viewBox="0 0 168 122" role="img" aria-label="クリッカーメーカーの絵">
           <!-- 上＝キーキャップ（てっぺんは指が乗るように へこませてある）、
-               下＝キースイッチ。はめこんだ状態で描いているので、軸の十字は
-               キャップの中に隠れて見えない -->
-          <g transform="translate(0 -8)">
-            <g transform="translate(0 21)">
+               下＝キースイッチ。まん中の青い棒が スイッチの軸で、
+               キャップと本体は これでつながっている。
+               ★十字なのは **上から見たとき**。この絵は横から見ているので
+                 軸は ただの角柱にしか見えない -->
+          <g transform="translate(0 -5)">
+            <g transform="translate(0 9)">
               <path class="il-soft" d="M50 60L55 24Q55.5 21 58.5 21Q84 27 109.5 21Q112.5 21 113 24L118 60Q118.4 63 115.4 63H52.6Q49.6 63 50 60Z" transform="translate(0 6)"/>
               <path class="il-fill" d="M50 60L55 24Q55.5 21 58.5 21Q84 27 109.5 21Q112.5 21 113 24L118 60Q118.4 63 115.4 63H52.6Q49.6 63 50 60Z"/>
               <path class="il-line" d="M50 60L55 24Q55.5 21 58.5 21Q84 27 109.5 21Q112.5 21 113 24L118 60Q118.4 63 115.4 63H52.6Q49.6 63 50 60Z"/>
             </g>
             <rect class="il-fill" x="54" y="86" width="60" height="24" rx="6"/>
             <rect class="il-line" x="54" y="86" width="60" height="24" rx="6"/>
+            <rect class="il-accent" x="77" y="73" width="14" height="15" rx="1"/>
             <rect class="il-fill" x="46" y="84" width="76" height="9" rx="4"/>
             <rect class="il-line" x="46" y="84" width="76" height="9" rx="4"/>
           </g>
@@ -373,6 +429,9 @@
 
 <script src="/js/save.js"></script>
 <script src="/js/help.js"></script>
+<!-- このページのQR（右上のボタン）。vendor を先に読む -->
+<script src="/vendor/qrcode-generator-1.4.4.js"></script>
+<script src="/js/pageqr.js"></script>
 <script src="/js/kana.js"></script>
 </body>
 </html>
