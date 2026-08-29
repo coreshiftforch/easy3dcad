@@ -675,7 +675,9 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
     };
     /* fixedBase > 0 のあいだは「1画素＝何mm」を固定する。
        ★これがないと、モデルを小さくしてもカメラが寄りなおすので、
-         画面上の見た目がまったく変わらない（大きさを決めているのに分からない）。 */
+         画面上の見た目がまったく変わらない（大きさを決めているのに分からない）。
+       ★①に入るたびに **そのときの窓** で決め直す（下の autoBase）。
+         窓の広さは機械でちがうので、決め打ちの値だと スマホで小さく見える。 */
     let fixedBase = 0, zoom = 1;
 
     function fit() {
@@ -778,7 +780,18 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
       /* 大きさを固定するか、モデルに合わせるか */
       setFixed(base) { fixedBase = base; zoomer.toggleAttribute('hidden', false); paintPct(); sized = false; },
       setAuto() { fixedBase = 0; zoomer.toggleAttribute('hidden', true); sized = false; },
-      autoMmPerPx() { return mmPerPx; },
+      /* いまの窓・いまのモデルで「自動なら いくつになるか」を返す。
+         ★①で固定する値を決めるのに使う。式を書きうつさなくて済むよう、
+           いったん自動に戻して fit() をやり直し、出た値だけ受けとる。 */
+      autoBase() {
+        const keep = fixedBase;
+        fixedBase = 0;
+        fit();
+        const v = mmPerPx;
+        fixedBase = keep;
+        sized = false;                    /* つぎの描画で 正しい寄せかたに直す */
+        return v;
+      },
       setDir(k) { if (k !== kind) { kind = k; tagEl.textContent = DIRS[k].tag; sized = false; } },
       setTag(t) { tagEl.textContent = t; },
       /* ★切って中を見せる。平面はレンダラごとに持てるので、窓ごとに切りかえられる */
@@ -800,7 +813,11 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
 
   /* ★フロー①の「1画素＝何mm」は、読みこんだそのままの大きさで1回だけ決めて固定する。
        2つの窓で同じ値を使うので、左右で見た目の大きさがそろう。 */
-  const FIXED_MM_PER_PX = sideView.autoMmPerPx();
+  /* ★フロー①で使う「1画素＝何mm」。**①に入るたび** そのときの窓に合わせて
+       決め直す（下の paintViews）。決め打ちにすると、窓の広さがちがう機械で
+       モデルがぽつんと小さく見える。2つの窓で同じ値を使うので、
+       左右で見た目の大きさはそろう。 */
+  let fixed1 = null;
 
   /* ── ⑥の動き ──────────────────────────────────
      ★形は「押しきり」で作ってある。だから位置は「押しきりからどれだけ浮いているか」
@@ -1573,7 +1590,9 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
     $('.pos-bars').hidden = !move;
 
     /* ①は大きさを固定（虫眼鏡つき）、②以降はモデルに合わせて寄る */
-    for (const v of views) inTurn ? v.setFixed(FIXED_MM_PER_PX) : v.setAuto();
+    if (!inTurn) fixed1 = null;
+    else if (fixed1 === null) fixed1 = sideView.autoBase();
+    for (const v of views) inTurn ? v.setFixed(fixed1) : v.setAuto();
     for (const v of views) v.reframe();
   }
 

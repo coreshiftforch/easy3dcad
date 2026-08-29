@@ -54,7 +54,11 @@
     margin-top: 14px; line-height: 1.9;
   }
 
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 18px 64px; }
+  /* ★下のあきは詰める。高さを配る形にしたので、ここが広いと
+       そのぶん カードが小さくなる（前は64pxあいていた）。 */
+  /* ★はばは 1320px。カードを大きくすると 両どなりの のぞきも外へ出るので、
+       1180px のままだと 送りボタンが のぞきの上に乗る。 */
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 28px 18px 22px; }
 
   /* ══ つくるもの ════════════════════════════════════════
      ROOM-Maker の島と同じ組み立て。**まん中のものだけ大きく**、
@@ -79,7 +83,7 @@
 
   .deck-rail .card {
     grid-area: 1 / 1;                       /* 3枚とも同じマスへ重ねる */
-    width: min(370px, 76vw);
+    width: min(420px, 76vw);          /* ★PCではもう少し大きく */
     transition: transform .42s cubic-bezier(.22, .7, .25, 1), opacity .42s;
     will-change: transform;
   }
@@ -180,11 +184,33 @@
        上の @media（カードの幅・矢印）は .card の定義より前にあるので、
        同じ強さの素の定義（padding・place-items・絵の大きさ）に
        あとから上書きされてしまう。ここなら勝つ。 */
+  /* ★骨組みは **はばに関係なく** 効かせる。PCでも高さいっぱいに配るので、
+       画面が高いほど カードも大きくなる（前は下があきっぱなしだった）。 */
+  body { height: 100dvh; min-height: 0; overflow: hidden;
+         display: flex; flex-direction: column; }
+  .hero { flex: none; }
+  /* ★width:100% が要る。body が flex になったので margin:0 auto が
+       「まん中に寄せる」に変わり、幅が **カードの幅まで縮んで** いた。
+       その中に置いた送りボタンが カードの上に乗る。 */
+  .wrap { flex: 1 1 auto; min-height: 0; width: 100%;
+          display: flex; flex-direction: column; }
+  /* ★点（deck-dots）は deck の**中**。rail に 100% を与えると
+       点のぶんが はみ出すので、deck を たてに割って配る */
+  .deck { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .deck-rail { flex: 1 1 auto; min-height: 0; grid-template-rows: 100%; }
+  .deck-rail .card { height: 100%; }
+  /* ★絵は わくいっぱいに広げて、中で伸び縮みさせる。
+       place-items は center ではなく stretch。center のままだと
+       svg の高さが決まらず、もとの大きさ（172x125）に戻って はみ出す。 */
+  .card .art { flex: 1 1 auto; min-height: 56px; overflow: hidden;
+               place-items: stretch; }
+  .card .art svg { width: 100%; height: 100%; min-width: 0; min-height: 0; }
+  .card .body { flex: none; }
+  .deck-dots { flex: none; }
+
   @media (max-width: 720px) {
-    /* ★スマホでは たてに転がさず、1画面に収める。
-         ひょうし・カード・点を つめて 100dvh に入れる。
-         ★上のあきは 右上のボタンの帯より下に 題を置くための寸法。
-           帯は top:14 + 高さ40（スマホ用）＝ 54 まで。ここを削ると重なる。 */
+    /* ★上のあきは 右上のボタンの帯より下に 題を置くための寸法。
+         帯は top:14 + 高さ40（スマホ用）＝ 54 まで。ここを削ると重なる。 */
     .hero { padding: 60px 16px 18px; }
     .hero .lead { margin-top: 9px; line-height: 1.7; font-size: 12.5px; }
     .wrap { padding: 12px 12px 10px; }
@@ -192,38 +218,7 @@
     .deck { padding: 6px 0 2px; }
     .deck-dots { margin-top: 10px; }
 
-    /* ══ たてに転がさないための骨組み ═══════════════════════
-       ★数字を削って合わせるやり方だと、画面の高さがちがうと また
-         はみ出す。そうではなく **のこりの高さを配る** 形にする。
-           ひょうし … 中身なりの高さ（動かさない）
-           カードの段 … のこり全部
-           カード … その段いっぱい。**絵のところが縮んで**収まる
-       ★文字のところ（.body）は縮めない。縮むのは絵だけ。
-         絵が つぶれきらないように 下限をつけてある。 */
-    body { height: 100dvh; min-height: 0; overflow: hidden;
-           display: flex; flex-direction: column; }
-    .hero { flex: none; }
-    /* ★margin:0 auto を消すこと。body が flex になったので、auto の左右余白が
-         「まん中に寄せる」に変わり、.wrap の幅が **カードの幅まで縮んで** いた。
-         その中に置いた送りボタンが カードの上に乗ってしまう。 */
-    .wrap { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
-            align-self: stretch; margin: 0; }
-    /* ★点（deck-dots）は deck の**中**にある。rail に 100% を与えると
-         点のぶんが はみ出すので、deck を たてに割って配る */
-    .deck { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-    .deck-rail { flex: 1 1 auto; min-height: 0; grid-template-rows: 100%; }
-    .deck-rail .card { height: 100%; }
-    .card .body { flex: none; }
-    .deck-dots { flex: none; }
-
-    /* ★絵は **わくいっぱいに広げて、中で縮める**。
-         ★place-items は center ではなく stretch。center のままだと
-           svg の高さが決まらず、もとの大きさ（172x125）に戻って
-           カードからはみ出す。stretch なら わくの高さがそのまま入り、
-           viewBox が中で ちょうどよく縮む（まん中ぞろえは viewBox まかせ）。 */
-    .card .art { flex: 1 1 auto; min-height: 56px; overflow: hidden;
-                 padding: 14px 16px 10px; place-items: stretch; }
-    .card .art svg { width: 100%; height: 100%; min-width: 0; min-height: 0; }
+    .card .art { padding: 14px 16px 10px; }
     .card .body { gap: 8px; padding: 14px 16px 16px; }
     .card .nm { font-size: 20px; }
     .card .de { font-size: 13px; line-height: 1.7; }
@@ -321,7 +316,7 @@
       <span class="body">
         <span class="nm">クリッカーメーカー</span>
         <span class="de">3Dモデル（STL / 3MF / GLB）を入れると、キースイッチでカチカチ押せる上下2パーツにしてくれる。手もとに無ければ その場で作れる。</span>
-        <span class="tag">Cherry MX互換</span>
+        <span class="tag">Cherry MX規格対応</span>
         <span class="go">作る ▶</span>
       </span>
     </a>

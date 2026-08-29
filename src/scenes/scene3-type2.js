@@ -266,7 +266,9 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
   /* ★モデルと、あとで足す切り口の絵は窓ごとに出し分けたいので、レイヤーで分ける。
        0＝どの窓にも出すもの（スイッチの見本・赤い輪・矢印）、1＝モデル、2＝輪切りの絵、
        3＝上パーツ、4＝下パーツ。 */
-  const L_MODEL = 1, L_SLICE = 2, L_UP = 3, L_LOW = 4;
+  /* ★L_ROOM … スイッチの部屋（黄色の箱）。③で柱だけを見せる窓では
+       出したくないので、別の層に分けてある。 */
+  const L_MODEL = 1, L_SLICE = 2, L_UP = 3, L_LOW = 4, L_ROOM = 5;
   mesh.layers.set(L_MODEL);
   loopGizmo.traverse(o => o.layers.set(L_MODEL));
 
@@ -280,6 +282,8 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
     top:   { eye: [0, 0, 1],  up: [0, 1, 0], tag: '上から'   },
     x:     { eye: [1, 0, 0],  up: [0, 0, 1], tag: 'X軸から'  },
     y:     { eye: [0, 1, 0],  up: [0, 0, 1], tag: 'Y軸から'  },
+    /* ③で柱を見るための向き。上パーツの底を のぞきこむ形になる */
+    under: { eye: [0, 0, -1], up: [0, 1, 0], tag: '上パーツを下から' },
   };
 
   function makeView(host, kind) {
@@ -305,8 +309,12 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
     };
     /* fixedBase > 0 のあいだは「1画素＝何mm」を固定する。
        ★これがないと、モデルを小さくしてもカメラが寄りなおすので、
-         画面上の見た目がまったく変わらない（大きさを決めているのに分からない）。 */
+         画面上の見た目がまったく変わらない（大きさを決めているのに分からない）。
+       ★①に入るたびに **そのときの窓** で決め直す（下の autoBase）。
+         窓の広さは機械でちがうので、決め打ちの値だと スマホで小さく見える。 */
     let fixedBase = 0, zoom = 1;
+    /* 箱を渡されたら、モデル全体ではなく そこへ寄る（③の柱） */
+    let box = null;
 
     function fit() {
       const w = host.clientWidth, h = host.clientHeight;
@@ -320,6 +328,12 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
       const T = new THREE.Vector3();
       if (fixedBase) {
         mmPerPx = fixedBase / zoom;
+      } else if (box) {
+        /* ★見せたいものだけに寄る（③の「柱」）。モデル全体に合わせると、
+             柱は数ミリしかないので 点にしか見えない。 */
+        const sz3 = box.getSize(new THREE.Vector3());
+        box.getCenter(T);
+        mmPerPx = Math.max(Math.max(sz3.x, sz3.y) / w, sz3.z / h) * 1.25;
       } else {
         /* スイッチの見本より小さいモデルでも、見本が切れないように広さを取る */
         const sx = Math.max(work.span.x, SWITCH_W);
@@ -359,7 +373,18 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
     return {
       host,
       render() { if (!sized) fit(); ren.render(scene, cam); },
-      autoMmPerPx() { return mmPerPx; },
+      /* いまの窓・いまのモデルで「自動なら いくつになるか」を返す。
+         ★①で固定する値を決めるのに使う。式を書きうつさなくて済むよう、
+           いったん自動に戻して fit() をやり直し、出た値だけ受けとる。 */
+      autoBase() {
+        const keep = fixedBase;
+        fixedBase = 0;
+        fit();
+        const v = mmPerPx;
+        fixedBase = keep;
+        sized = false;                    /* つぎの描画で 正しい寄せかたに直す */
+        return v;
+      },
       reframe() { sized = false; },
       /* 大きさを固定するか、モデルに合わせるか */
       setFixed(b) { fixedBase = b; zoomer.toggleAttribute('hidden', false); paintPct(); sized = false; },
@@ -368,10 +393,15 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
       /* 窓ごとに、何を出すか。model＝モデル／slice＝輪切りの絵（0番はどちらでも出る） */
       setLayers(mode) {
         cam.layers.set(0);
-        if (mode === 'slice') cam.layers.enable(L_SLICE);
+        if (mode === 'slice') { cam.layers.enable(L_SLICE); cam.layers.enable(L_ROOM); }
+        /* ★boss … ③で「柱だけ」を見せる。部屋（黄色の箱）は出さない。
+             寄って見るので、部屋を出すと 画面いっぱいが黄色になって
+             まるか四角かが かえって分からない。 */
+        else if (mode === 'boss') cam.layers.enable(L_SLICE);
         else if (mode === 'parts') { cam.layers.enable(L_UP); cam.layers.enable(L_LOW); }
-        else cam.layers.enable(L_MODEL);
+        else { cam.layers.enable(L_MODEL); cam.layers.enable(L_ROOM); }
       },
+      setBox(b) { box = b; sized = false; },
       setTag(t) { tagEl.textContent = t; },
       /* 分けた2つが離れるぶん、画面に入れる高さを増やす */
       setExtraH(v) { if (v !== extraH) { extraH = v; sized = false; } },
@@ -404,7 +434,11 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
 
   /* ★フロー①の「1画素＝何mm」は、読みこんだそのままの大きさで1回だけ決めて固定する。
        2つの窓で同じ値を使うので、左右で見た目の大きさがそろう。 */
-  const FIXED_MM_PER_PX = sideView.autoMmPerPx();
+  /* ★フロー①で使う「1画素＝何mm」。**①に入るたび** そのときの窓に合わせて
+       決め直す（下の paintViews）。決め打ちにすると、窓の広さがちがう機械で
+       モデルがぽつんと小さく見える。2つの窓で同じ値を使うので、
+       左右で見た目の大きさはそろう。 */
+  let fixed1 = null;
 
   /* 「カチッ」のふきだし。正面の窓に重ねる */
   const clickPop = document.createElement('span');
@@ -883,6 +917,7 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
     add(new THREE.BoxGeometry(ROOM_SIDE, ROOM_SIDE, NEED_BELOW), bot, NEED_BELOW);
     add(new THREE.CylinderGeometry(POLE_D / 2, POLE_D / 2, POLE_H, 24).rotateX(Math.PI / 2),
         bot - POLE_H, POLE_H);
+    holeGroup.traverse(o => o.layers.set(L_ROOM));
     scene.add(holeGroup);
   }
 
@@ -891,6 +926,15 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
     scene.remove(bossGroup);
     bossGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); });
     bossGroup = null;
+  }
+
+  /* ③で柱に寄るための箱。
+     ★円柱と四角柱は 外まわりの大きさが同じ（BOSS_DIM）なので、
+       どちらを選んでも 寄りかたは変わらない＝見くらべられる。 */
+  function bossBox() {
+    if (!bossGroup) return null;
+    const b = new THREE.Box3().setFromObject(bossGroup);
+    return b.isEmpty() ? null : b;
   }
 
   /* 柱を立てる。上端は切り口（＝上パーツの底）。そこから下へ ENTRY だけ出る */
@@ -963,6 +1007,8 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
       if (step === 3) {
         drawRoom(swPos.x, swPos.y, zg, fits);
         drawBoss(swPos.x, swPos.y, zg);
+        /* ★柱を作り直したら、寄る箱も取り直す（円柱↔四角柱で大きさが変わる） */
+        if (step === 3) topView.setBox(bossBox());
         $('.boss-note').textContent = bossType === 'square'
           ? `四角柱 ${BOSS_DIM.sqX} × ${BOSS_DIM.sqY}（実物のステム座そのもの）。`
             + '細い切り口にも入る'
@@ -1082,7 +1128,11 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
     topView.host.toggleAttribute('hidden', solo);
     root.querySelector('.views').classList.toggle('solo', solo);
     /* ★出さない窓の向きは切りかえない。DIRS にない名前を渡すと落ちる */
-    if (!solo) topView.setDir(right);
+    if (!solo) topView.setDir(step === 3 ? 'under' : right);
+    /* ★③は「柱がまるか四角か」を見せる段。モデル全体を上から見ても
+         柱は点にしかならないので、**上パーツの底を下からのぞいて**、
+         柱とスイッチの部屋に寄る。下パーツは輪切りの絵に出ないので写らない。 */
+    topView.setBox(step === 3 ? bossBox() : null);
 
     /* ★SVG に .hidden = false と書いても消えない。hidden は HTMLElement の
          プロパティで、SVG要素にはないので、ただの野良プロパティになる。
@@ -1092,7 +1142,7 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
     loopGizmo.visible = step === 2;
     /* ②③は「上から」の窓に輪切りだけを出す（モデルは出さない。形が読みやすい）。
        穴の見本は0番なので、輪切りの上に重なって見える。 */
-    if (!solo) topView.setLayers(step === 2 || step === 3 ? 'slice' : 'model');
+    if (!solo) topView.setLayers(step === 3 ? 'boss' : step === 2 ? 'slice' : 'model');
     sideView.setLayers(step === LAST ? 'parts' : 'model');
     /* ★左の窓は いつでも つかんでまわせる */
     sideView.host.classList.toggle('clickable', true);
@@ -1101,7 +1151,9 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
     aimLight();
 
     /* ①は大きさを固定（虫眼鏡つき）、②以降はモデルに合わせて寄る */
-    for (const v of views) inTurn ? v.setFixed(FIXED_MM_PER_PX) : v.setAuto();
+    if (!inTurn) fixed1 = null;
+    else if (fixed1 === null) fixed1 = sideView.autoBase();
+    for (const v of views) inTurn ? v.setFixed(fixed1) : v.setAuto();
     for (const v of views) v.reframe();
   }
 

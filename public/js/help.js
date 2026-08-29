@@ -57,14 +57,11 @@
     '@media (max-width:700px){.hp-sheet{width:92vw;height:88dvh;padding:10px;',
     '  border-width:7px;border-radius:16px;gap:9px;}}',
 
-    /* 板にとめた名ふだ。上のまん中の丸が 画びょう */
+    /* 板にとめた名ふだ */
     '.hp-top{position:relative;flex:none;display:flex;align-items:center;gap:10px;',
     '  background:var(--c-panel,#1e293b);border:1px solid var(--c-line,#334155);',
     '  border-radius:12px;padding:9px 10px 9px 18px;',
     '  box-shadow:0 3px 8px rgba(0,0,0,.22);}',
-    '.hp-top::before{content:"";position:absolute;left:50%;top:-7px;',
-    '  width:13px;height:13px;margin-left:-6.5px;border-radius:50%;',
-    '  background:var(--c-accent2,#3b82f6);box-shadow:0 2px 4px rgba(0,0,0,.4);}',
     '.hp-top b{font-size:18px;}',
     '.hp-x{margin-left:auto;width:38px;height:38px;border-radius:50%;',
     '  border:1px solid var(--c-line,#334155);background:var(--c-panel2,#0f172a);',
@@ -139,7 +136,7 @@
     /* ★スマホでは 紙の中を たてに ころがさない。
          スタート画面と同じ考えで、**絵のところが縮んで** 収まるようにする。
          文字は縮めない（読めなくなるため）。 */
-    '  .hp-wrap{padding:12px;display:flex;}',
+    '  .hp-wrap{padding:12px;display:flex;touch-action:pan-y;}',
     '  .hp-body{display:flex;flex-direction:column;gap:11px;flex:1 1 auto;min-height:0;}',
     '  .hp-art{flex:1 1 auto;min-height:64px;place-items:stretch;padding:10px;}',
     /* place-items:stretch と組で、viewBox が わくの中で ちょうど縮む */
@@ -154,29 +151,16 @@
   ].join('\n');
 
   /* ── 絵 ─────────────────────────────────────────
-     色は3つだけ。地＝--c-panel、線＝--c-text（うすめ）、目だつところ＝--c-accent2 */
-  var A = 'var(--c-accent2,#3b82f6)', L = 'var(--c-text,#f1f5f9)', F = 'var(--c-panel,#1e293b)';
-  function svg(inner) {
-    return '<svg viewBox="0 0 260 170" role="img" aria-hidden="true">'
-      + '<g fill="none" stroke="' + L + '" stroke-width="2.4" stroke-linejoin="round" '
-      + 'stroke-linecap="round" opacity=".85">' + inner + '</g></svg>';
-  }
-
-  /* ぜんたい：3つからえらぶ → 立体 → ファイル → プリンター */
-  var ART_ALL = svg(
-    '<rect x="10" y="46" width="34" height="44" rx="7"/>'
-    + '<rect x="48" y="46" width="34" height="44" rx="7"/>'
-    + '<rect x="86" y="46" width="34" height="44" rx="7"/>'
-    + '<g fill="' + A + '" stroke="none"><rect x="18" y="56" width="18" height="4" rx="2"/>'
-    + '<rect x="56" y="56" width="18" height="4" rx="2"/><rect x="94" y="56" width="18" height="4" rx="2"/></g>'
-    + '<path d="M128 68h18m-6-6 6 6-6 6"/>'
-    + '<path d="M172 40l24 13v27l-24 13-24-13V53z"/><path d="M148 53l24 13 24-13M172 66v27"/>'
-    + '<path d="M206 68h18m-6-6 6 6-6 6"/>'
-    + '<rect x="228" y="52" width="26" height="34" rx="4"/>'
-    + '<path d="M234 62h14M234 70h14M234 78h9"/>'
-    + '<rect x="88" y="112" width="84" height="30" rx="6"/>'
-    + '<path d="M104 112v-10h52v10"/><g fill="' + A + '" stroke="none">'
-    + '<rect x="104" y="122" width="52" height="10" rx="3"/></g>');
+     ★4ページとも index.html のカードの絵をそのまま使う。色は
+       .hp-art .il-… （上のCSS）が tokens.css から引いている。
+       ここで描き起こすのは やめた（カードと見た目がずれるため）。 */
+  /* ぜんたい：**作れるものの見本を3つ並べる**。
+     ★中身は下の ART_PLATE / ART_QR / ART_CLICK と同じもの（index.html の
+       カードから持ってきた絵）。ここで描き直すと、カードと見た目がずれる。
+     ★どれも viewBox は 168x122。横に3つ、少しずつ ずらして置く。 */
+  var innerOf = function (svg) {
+    return svg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>[\s\S]*$/, '');
+  };
 
   /* なまえプレート（index.html のカードと同じ絵） */
   var ART_PLATE = [
@@ -218,6 +202,15 @@
     '        </svg>',
   ].join('\n');
 
+  /* 作れるものの見本。カードの絵を 3つ横に並べたもの */
+  var ART_ALL = [
+    '<svg viewBox="0 0 516 132" aria-hidden="true">',
+    '  <g transform="translate(4 5)">'   + innerOf(ART_PLATE) + '</g>',
+    '  <g transform="translate(174 5)">' + innerOf(ART_QR)    + '</g>',
+    '  <g transform="translate(344 5)">' + innerOf(ART_CLICK) + '</g>',
+    '</svg>',
+  ].join(String.fromCharCode(10));
+
   /* ── 中身 ───────────────────────────────────────
      ★もとの文は **漢字で書く**。ひらがなに開くのは kana.js の仕事なので、
        ここで先にひらがなで書くと、漢字ビューでも ひらがなのままになる。
@@ -253,7 +246,7 @@
 
     { t: 'クリッカーメーカー', art: ART_CLICK,
       h: '3Dモデルを、カチカチ押せる上下2つのパーツにします',
-      lead: 'キースイッチ（Cherry MX 互換）が中に入ります。'
+      lead: 'キースイッチ（Cherry MX 規格対応）が中に入ります。'
           + 'モデルが手もとに無ければ、その場で作ることもできます。',
       li: [['モデルを入れる', 'STL / 3MF / GLB を読みこむ。無ければ「モデルを作る」'],
            ['作りを選ぶ', 'タイプ1（溝で落としこむ）／タイプ2（平面で切る）／下パーツ生成'],
@@ -263,6 +256,18 @@
   ];
 
   var at = 0, veil = null, sheet = null;
+
+  /* ★いま開いているページに合う説明を、はじめに出す。
+       どのアプリでも1ページ目（ぜんたいの話）から始まると、
+       自分の使っているものを 毎回さがすことになる。
+     ★ファイル名で見分ける。スタート画面（index）は 0ページ目のまま。 */
+  function appPage() {
+    var f = (location.pathname.split('/').pop() || '').toLowerCase();
+    if (f.indexOf('nameplate') === 0) return 1;
+    if (f.indexOf('qr') === 0) return 2;
+    if (f.indexOf('clicker') === 0) return 3;
+    return 0;
+  }
 
   function render() {
     var p = PAGES[at];
@@ -284,7 +289,10 @@
     at = Math.max(0, Math.min(PAGES.length - 1, n));
     render();
   }
-  function open() { veil.classList.add('open'); sheet.classList.add('open'); render(); }
+  function open() {
+    at = appPage();
+    veil.classList.add('open'); sheet.classList.add('open'); render();
+  }
   function close() { veil.classList.remove('open'); sheet.classList.remove('open'); }
 
   function build() {
@@ -330,25 +338,67 @@
     foot.appendChild(sheet.querySelector('.hp-next'));
     /* 読む順も この並び（前 → 点 → 次）。 */
 
-    /* ★指で横になぞってもめくれるようにする（スマホ）。
-         ・たてになぞったときは 紙の中のころがしに ゆずる（|よこ| > |たて|）
+    /* ★指で横になぞってめくる（スマホ）。**指について紙が動く**。
+         ・たてになぞったときは 何もしない（|よこ| > |たて| で見分ける）
          ・マウスは対象外。押しながら動かすのは「文字を選ぶ」動きなので、
-           そちらを取りあげてしまうと PCで説明を読み写せなくなる
-         ・ボタンの上から始まったときは、そのボタンの仕事にする */
+           そちらを取りあげると PCで説明を読み写せなくなる
+         ・ボタンの上から始まったときは、そのボタンの仕事にする
+         ・はしのページで さらに はらったときは、少しだけ動いて戻る
+           （「これ以上ない」ことが 手で分かる） */
     var swipe = null;
     var paper = sheet.querySelector('.hp-wrap');
+    var body = function () { return sheet.querySelector('.hp-body'); };
+
+    /* dx だけ横へずらす。smooth=true で すべって戻る */
+    function slide(dx, smooth) {
+      var b = body();
+      b.style.transition = smooth ? 'transform .22s ease, opacity .22s ease' : 'none';
+      b.style.transform = 'translateX(' + dx + 'px)';
+      b.style.opacity = String(Math.max(0.4, 1 - Math.abs(dx) / 420));
+    }
+    function clear() {
+      var b = body();
+      b.style.transition = '';
+      b.style.transform = '';
+      b.style.opacity = '';
+    }
+
     paper.addEventListener('pointerdown', function (e) {
       if (e.pointerType === 'mouse' || e.target.closest('button')) { swipe = null; return; }
-      swipe = { x: e.clientX, y: e.clientY };
+      swipe = { x: e.clientX, y: e.clientY, on: false };
     });
-    paper.addEventListener('pointerup', function (e) {
+    paper.addEventListener('pointermove', function (e) {
       if (!swipe) return;
       var dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
-      swipe = null;
-      if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
-      go(dx < 0 ? at + 1 : at - 1);        /* 左へはらう＝つぎのページ */
+      /* 横に動かす気だと分かってから 追いかける。それまでは何もしない */
+      if (!swipe.on) {
+        if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
+        swipe.on = true;
+        paper.setPointerCapture && paper.setPointerCapture(e.pointerId);
+      }
+      /* はしのページは 手ごたえを重くして、それ以上いかないことを見せる */
+      var edge = (dx > 0 && at === 0) || (dx < 0 && at === PAGES.length - 1);
+      slide(edge ? dx * 0.25 : dx, false);
     });
-    paper.addEventListener('pointercancel', function () { swipe = null; });
+    function release(e) {
+      if (!swipe) return;
+      var on = swipe.on, dx = e.clientX - swipe.x;
+      swipe = null;
+      if (!on) return;
+      var w = paper.clientWidth || 1;
+      var far = Math.abs(dx) >= Math.min(70, w * 0.18);
+      var next = dx < 0 ? at + 1 : at - 1;
+      if (far && next >= 0 && next < PAGES.length) {
+        go(next);                                   /* 中身だけ入れかわる */
+        /* 入ってきたページを 反対がわから すべりこませる */
+        slide(dx < 0 ? w * 0.3 : -w * 0.3, false);
+        requestAnimationFrame(function () { slide(0, true); });
+      } else {
+        slide(0, true);                             /* もとの場所へ戻す */
+      }
+    }
+    paper.addEventListener('pointerup', release);
+    paper.addEventListener('pointercancel', function () { swipe = null; clear(); });
 
     sheet.querySelector('.hp-x').onclick = close;
     sheet.querySelector('.hp-prev').onclick = function () { go(at - 1); };
