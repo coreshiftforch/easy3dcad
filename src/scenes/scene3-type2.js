@@ -934,7 +934,12 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
   function bossBox() {
     if (!bossGroup) return null;
     const b = new THREE.Box3().setFromObject(bossGroup);
-    return b.isEmpty() ? null : b;
+    if (b.isEmpty()) return null;
+    /* ★柱ぴったりだと 寄りすぎて、どこに付いているのか分からない。
+         まわりを 柱の 0.7倍ずつ足して、上パーツの底も少し見えるようにする
+         （framed ＝ 柱の およそ2.4倍のはば）。 */
+    b.expandByVector(b.getSize(new THREE.Vector3()).multiplyScalar(0.7));
+    return b;
   }
 
   /* 柱を立てる。上端は切り口（＝上パーツの底）。そこから下へ ENTRY だけ出る */
@@ -1059,6 +1064,11 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
   function goto(n) {
     const from = step;
     step = n;
+    /* ★フローが変わったら 操作パネルの中を いちばん上に戻す。
+         前のフローで下まで転がしていると、新しいフローの見出しが
+         見えないところから始まってしまう。 */
+    const pnl = root.querySelector('.panel');
+    if (pnl) pnl.scrollTop = 0;
     root.querySelectorAll('.flow li').forEach(li =>
       li.classList.toggle('on', +li.dataset.step === step));
     $('.sec-size').hidden = step !== 1;

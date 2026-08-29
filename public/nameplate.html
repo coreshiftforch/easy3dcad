@@ -1645,6 +1645,11 @@ function openSaveScreen() {
 // ── ステップ切り替え ──────────────────────────────────────────────
 function goStep(i) {
   state.step = Math.max(0, Math.min(STEP_CAPS.length - 1, i));
+  /* ★段が変わったら 操作パネルの中を いちばん上に戻す。
+       前の段で下まで転がしていると、新しい段の見出しが見えないところから
+       始まってしまう（QRは goQrStep で同じことをしている）。 */
+  const pnl = document.querySelector('.panel');
+  if (pnl) pnl.scrollTop = 0;
   document.querySelectorAll('.step-page').forEach(p => p.classList.toggle('active', +p.dataset.page === state.step));
   [...stepsEl.children].forEach((dot, idx) => {
     dot.classList.toggle('active', idx === state.step);

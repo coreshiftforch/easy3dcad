@@ -862,6 +862,11 @@ export function mountScene3Lower(root, { model, onBack, onDone } = {}) {
   function goto(n) {
     const from = step;
     step = n;
+    /* ★フローが変わったら 操作パネルの中を いちばん上に戻す。
+         前のフローで下まで転がしていると、新しいフローの見出しが
+         見えないところから始まってしまう。 */
+    const pnl = root.querySelector('.panel');
+    if (pnl) pnl.scrollTop = 0;
     root.querySelectorAll('.flow li').forEach(li =>
       li.classList.toggle('on', +li.dataset.step === step));
     $('.sec-size').hidden = step !== 1;
