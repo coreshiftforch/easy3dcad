@@ -14,6 +14,8 @@
      モデルも右へ回る＝カメラは左へまわるので、方位は引いた向きと逆に足す。 */
 
 const LIMIT = 1.4;          // 見おろしの上限（ラジアン。約80°）
+/* ほぼ真上（=LIMIT）。真上ちょうどにはできない。上がどっちか決まらなくなる */
+export const TOP_EL = LIMIT;
 const SPEED = 0.011;        // 1画素あたり何ラジアンまわすか
 
 export function attachOrbit(host, { dir = [0.34, -0.78, 0.52], onChange } = {}) {
@@ -65,12 +67,59 @@ export function attachOrbit(host, { dir = [0.34, -0.78, 0.52], onChange } = {}) 
       touched = false;
       onChange?.();
     },
+    /* 決めた向きへ向ける（真上から見せたいとき等）。
+       ★見おろしは 上限までで止める。reset() と違い、
+         これは「もう自分で動かした」あつかいにする（ひとりでに回らない）。 */
+    aim(az, el) {
+      ang.az = az;
+      ang.el = Math.max(-LIMIT, Math.min(LIMIT, el));
+      touched = true;
+      onChange?.();
+    },
     dispose() {
       host.classList.remove('grabbable', 'grabbing');
       host.removeEventListener('pointerdown', down);
       host.removeEventListener('pointermove', move);
       host.removeEventListener('pointerup', up);
       host.removeEventListener('pointercancel', up);
+    },
+  };
+}
+
+/* 2本指で つまんで 大きく／小さく。
+
+   ── 使いかた ──────────────────────────────────────
+     attachPinch(host, { onScale: f => zoomBy(f) });
+
+   ★指が1本のときは 何もしない。まわす・つかむ操作と ぶつからない。
+   ★touchmove で preventDefault する（passive: false）。これをしないと
+     ブラウザが「ページごと拡大」してしまい、3Dは大きくならない。
+     CSS 側でも .view に touch-action: pan-y を入れてある。
+   ★倍率は「前の指の間かく」との比で返す。はじめとの比にすると、
+     指を置きなおしたとき とぶ。 */
+export function attachPinch(host, { onScale, onStart } = {}) {
+  let last = 0;
+  const gap = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  const start = e => { if (e.touches.length === 2) { last = gap(e.touches); onStart?.(); } };
+  const move = e => {
+    if (e.touches.length !== 2 || !last) return;
+    e.preventDefault();
+    const now = gap(e.touches);
+    if (!now) return;
+    onScale?.(now / last);
+    last = now;
+  };
+  const end = e => { if (e.touches.length < 2) last = 0; };
+  host.addEventListener('touchstart', start, { passive: true });
+  host.addEventListener('touchmove', move, { passive: false });
+  host.addEventListener('touchend', end);
+  host.addEventListener('touchcancel', end);
+  return {
+    dispose() {
+      host.removeEventListener('touchstart', start);
+      host.removeEventListener('touchmove', move);
+      host.removeEventListener('touchend', end);
+      host.removeEventListener('touchcancel', end);
     },
   };
 }

@@ -14,7 +14,7 @@ import { SHAPES, FONTS, KEEP, buildMake, NGON_MIN, NGON_MAX, NGON_DEF } from '..
 import { stlBinary } from '../io/saveModel.js';
 import { readModelFile } from '../io/loadModel.js';
 import { SWITCH_W } from '../geom/switch-mock.js';
-import { attachOrbit, resetButton, fullButton } from './orbit.js';
+import { attachOrbit, resetButton, fullButton, attachPinch, TOP_EL } from './orbit.js';
 
 /* いちばん薄いところが これより薄いと、スイッチ＋まわりの肉が入らない。
    ★シーン2の「小さすぎ」の判定と同じ値。ここで先に知らせておけば、
@@ -42,6 +42,17 @@ const btns = (cls, list, on) => list.map(o =>
   `<button class="${cls}" type="button" data-v="${o.id}"${o.id === on ? ' aria-pressed="true"' : ''}>`
   + `${o.name}</button>`).join('');
 
+/* かたちのボタン。印のない形は はじめ かくしておき、
+   「もっと見る」で出す。
+   ★入れ子の箱には入れない。ここは折り返しの並び（flex wrap）なので、
+     箱で包むと そこだけ 行が分かれてしまう。ボタン1つずつに
+     hidden を付け外しする。 */
+const shapeBtns = (on) => SHAPES.map(o =>
+  `<button class="shape-btn${o.top ? '' : ' extra'}" type="button" data-v="${o.id}"`
+  + `${o.top ? '' : ' hidden'}${o.id === on ? ' aria-pressed="true"' : ''}>`
+  + `${o.name}</button>`).join('')
+  + `<button class="more-btn" type="button" aria-expanded="false">もっと見る ▾</button>`;
+
 export function mountScene0(root, { onBack, onMade } = {}) {
   root.innerHTML = `
     <div class="scene scene0">
@@ -55,7 +66,7 @@ export function mountScene0(root, { onBack, onMade } = {}) {
         </div>
         <div class="panel">
           <p class="panel-h">かたち（上へのばして柱にする）</p>
-          <div class="shapes many k-shape">${btns('shape-btn', SHAPES, DEF.shape)}</div>
+          <div class="shapes many k-shape">${shapeBtns(DEF.shape)}</div>
           <div class="sec-ngon" hidden>
             <label class="slabel">角の数<output class="o-sides"></output></label>
             <input class="r-sides" type="range" min="${NGON_MIN}" max="${NGON_MAX}" step="1"
@@ -141,6 +152,18 @@ export function mountScene0(root, { onBack, onMade } = {}) {
       o.classList.toggle('on', o.getAttribute('aria-pressed') === 'true'));
   });
 
+  /* かくしてある形を 出す・しまう。
+     ★えらんである形が かくれていたら（前のつづきから戻ってきたとき等）、
+       だまって開ける。えらんだものが見えないのは 分かりにくい。 */
+  const moreBtn = q('.more-btn');
+  const extras = [...root.querySelectorAll('.shape-btn.extra')];
+  const showMore = (open) => {
+    extras.forEach(b => { b.hidden = !open; });
+    moreBtn.textContent = open ? 'とじる ▴' : 'もっと見る ▾';
+    moreBtn.setAttribute('aria-expanded', String(open));
+  };
+  moreBtn.onclick = () => showMore(moreBtn.getAttribute('aria-expanded') !== 'true');
+
   const opts = () => ({
     shape: pickOf('.k-shape'),
     sides: +q('.r-sides').value,
@@ -178,7 +201,18 @@ export function mountScene0(root, { onBack, onMade } = {}) {
   /* ★つかんでまわせる。まわしはじめたら、ひとりでに回るのは止める */
   const HOME_DIR = [0.34, -0.78, 0.52];
   const orb = attachOrbit(host, { dir: HOME_DIR, onChange: () => frame() });
-  resetButton(host, () => { orb.reset(); if (mesh) mesh.rotation.z = 0; frame(); });
+  /* 2本指で つまんで 寄る。カメラを近づけるのではなく、
+     モデルまでの きょりを 割って ちぢめる（0.4〜4倍まで）。 */
+  let zoomK = 1;
+  attachPinch(host, { onScale: f => {
+    zoomK = Math.min(4, Math.max(0.4, zoomK * f));
+    frame();
+  } });
+  resetButton(host, () => {
+    orb.reset(); zoomK = 1;
+    if (mesh) mesh.rotation.z = 0;
+    frame();
+  });
   fullButton(host);          /* 右下：画面いっぱいで見る */
   host.classList.add('has-full');
 
@@ -187,7 +221,7 @@ export function mountScene0(root, { onBack, onMade } = {}) {
     const halfH = halfV * camera.aspect;
     /* Z軸まわりに回るので、横に要る広さは幅ではなく中心からの半径で見る */
     const radius = Math.hypot(span.x, span.y) / 2 || 1;
-    const dist = Math.max((span.z / 2) / halfV, radius / halfH) * 1.25 + radius;
+    const dist = (Math.max((span.z / 2) / halfV, radius / halfH) * 1.25 + radius) / zoomK;
     const target = new THREE.Vector3(0, 0, span.z / 2);
     camera.position.copy(target)
       .addScaledVector(new THREE.Vector3(...orb.dir()).normalize(), dist);
@@ -289,6 +323,7 @@ export function mountScene0(root, { onBack, onMade } = {}) {
     q('.o-tpct').textContent  = `${o.textPct} %`;
     q('.o-qpct').textContent  = `${o.qrPct} %`;
     q('.o-depth').textContent = `${o.depth.toFixed(1)} mm`;
+    if (extras.some(b => b.hidden && b.getAttribute('aria-pressed') === 'true')) showMore(true);
     /* ★0は「まん中」と出す。数字の0だと、何の0か分からない */
     q('.o-dx').textContent = o.decoX ? `${o.decoX > 0 ? '右' : '左'}へ ${Math.abs(o.decoX)}` : 'まん中';
     q('.o-dy').textContent = o.decoY ? `${o.decoY > 0 ? '上' : '下'}へ ${Math.abs(o.decoY)}` : 'まん中';
@@ -312,13 +347,26 @@ export function mountScene0(root, { onBack, onMade } = {}) {
     root.querySelectorAll('.panel').forEach(el => FoldInfo.apply(el));
   }
 
+  /* ★「置く場所」をいじっている あいだは 真上から見せる。
+       ななめのままだと、どちらへ どれだけ寄ったのか 読み取れない。
+       ひとりでに回るのも止まる（aim が「自分で動かした」印を付ける）。 */
+  const topView = () => {
+    orb.aim(0, TOP_EL);
+    if (mesh) mesh.rotation.z = 0;
+  };
+  for (const sel of ['.r-dx', '.r-dy']) q(sel).addEventListener('pointerdown', topView);
+
   q('.mid-btn').onclick = () => {
     q('.r-dx').value = 0;
     q('.r-dy').value = 0;
+    topView();
     paint();
   };
 
   for (const ev of ['input', 'change']) root.querySelector('.panel').addEventListener(ev, paint);
+  root.querySelector('.panel').addEventListener('input', e => {
+    if (e.target.matches('.r-dx, .r-dy')) topView();      // 指でも キーでも
+  });
   paint();
 
   /* ── できたものを、読みこんだモデルとして渡す ───────────

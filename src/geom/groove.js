@@ -48,6 +48,64 @@ export function offsetLoop(pts, d) {
   return out;
 }
 
+/* 自分と交わってしまった輪を ほどく（8の字を 1つの輪に戻す）。
+
+   内へ寄せた輪は、細いところで 向かいがわの線と ぶつかる。
+   そのままだと 赤い線が交差して見え、溝にすると 裏返った小さい輪が
+   形をこわす。
+
+   ★交わった点で 輪を2つに切り、**広いほう**だけを残す。
+     小さいほうは たいてい 裏返っている（面積の向きが逆）。
+   ★1回ほどいても べつのところで交わっていることがあるので、
+     交わりが無くなるまで くり返す（多くても20回で打ち切り）。
+   ★となり合う辺（はしを共有する辺）は 数えない。必ず点で
+     つながっているため。 */
+const AREA2 = (pts) => {
+  let a = 0;
+  for (let i = 0, n = pts.length; i < n; i++) {
+    const p = pts[i], q = pts[(i + 1) % n];
+    a += p[0] * q[1] - q[0] * p[1];
+  }
+  return Math.abs(a) / 2;
+};
+
+/* 線分どうしの交わり。交わっていれば その点、なければ null */
+function crossAt(a, b, c, d) {
+  const rx = b[0] - a[0], ry = b[1] - a[1];
+  const sx = d[0] - c[0], sy = d[1] - c[1];
+  const den = rx * sy - ry * sx;
+  if (Math.abs(den) < 1e-12) return null;              // 平行
+  const t = ((c[0] - a[0]) * sy - (c[1] - a[1]) * sx) / den;
+  const u = ((c[0] - a[0]) * ry - (c[1] - a[1]) * rx) / den;
+  const E = 1e-9;
+  if (t <= E || t >= 1 - E || u <= E || u >= 1 - E) return null;
+  return [a[0] + rx * t, a[1] + ry * t];
+}
+
+export function unkink(pts) {
+  let loop = pts.map(q => [q[0], q[1]]);
+  for (let pass = 0; pass < 20; pass++) {
+    const n = loop.length;
+    if (n < 4) return loop;
+    let cut = null;
+    outer:
+    for (let i = 0; i < n; i++) {
+      const a = loop[i], b = loop[(i + 1) % n];
+      for (let j = i + 2; j < n; j++) {
+        if (i === 0 && j === n - 1) continue;           // となり合う辺
+        const x = crossAt(a, b, loop[j], loop[(j + 1) % n]);
+        if (x) { cut = { i, j, x }; break outer; }
+      }
+    }
+    if (!cut) return loop;
+    /* 交わった点で できる2つの輪 */
+    const inner = [cut.x, ...loop.slice(cut.i + 1, cut.j + 1)];
+    const rest  = [cut.x, ...loop.slice(cut.j + 1), ...loop.slice(0, cut.i + 1)];
+    loop = AREA2(inner) >= AREA2(rest) ? inner : rest;
+  }
+  return loop;
+}
+
 function norm(x, y) {
   const l = Math.hypot(x, y) || 1;
   return [x / l, y / l];

@@ -29,7 +29,7 @@ import { PRESS_NOTE, BOSS_NOTE, travelNote } from './notes.js';
 import { splitByStep, pickShellAt } from '../geom/split.js';
 import { capFlat } from '../geom/caps.js';
 import { roomBox, roomSquare, roomFits, cutRoom } from '../geom/room.js';
-import { resetButton, fullButton } from './orbit.js';
+import { resetButton, fullButton, attachPinch } from './orbit.js';
 
 const FLOW = ['大きさと向き', '切る高さ', '穴の種類', 'プレビュー'];
 const BUILT = 4;                       // 作ってあるのは④まで
@@ -333,7 +333,7 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
              柱は数ミリしかないので 点にしか見えない。 */
         const sz3 = box.getSize(new THREE.Vector3());
         box.getCenter(T);
-        mmPerPx = Math.max(Math.max(sz3.x, sz3.y) / w, sz3.z / h) * 1.25;
+        mmPerPx = Math.max(Math.max(sz3.x, sz3.y) / w, sz3.z / h) * 1.25 / zoom;
       } else {
         /* スイッチの見本より小さいモデルでも、見本が切れないように広さを取る */
         const sx = Math.max(work.span.x, SWITCH_W);
@@ -342,7 +342,7 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
         /* まわすときは、どの向きでも切れないように長いほうで取る */
         const wide  = orbit ? Math.max(sx, sy) : (kind === 'x' ? sy : sx);
         const needH = flat ? sy : sz;                      // 画面の縦に来る寸法
-        mmPerPx = Math.max(wide / w, needH / h) * 1.14;
+        mmPerPx = Math.max(wide / w, needH / h) * 1.14 / zoom;
         if (!flat) T.set(0, 0, sz / 2);
       }
       cam.position.set(d.eye[0] * FAR + T.x, d.eye[1] * FAR + T.y, d.eye[2] * FAR + T.z);
@@ -367,6 +367,9 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
     };
     host.querySelector('.zoom.in').onclick  = () => zoomBy(1.25);
     host.querySelector('.zoom.out').onclick = () => zoomBy(1 / 1.25);
+    /* ★2本指でも 寄れる。つまんだら 虫めがねの目もりも出す
+         （どれだけ寄っているか 分からなくなるため）。 */
+    attachPinch(host, { onScale: f => { zoomBy(f); zoomer.hidden = false; } });
     const ro = new ResizeObserver(() => { sized = false; });
     ro.observe(host);
     fit();
@@ -377,11 +380,14 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
          ★①で固定する値を決めるのに使う。式を書きうつさなくて済むよう、
            いったん自動に戻して fit() をやり直し、出た値だけ受けとる。 */
       autoBase() {
-        const keep = fixedBase;
-        fixedBase = 0;
+        const keep = fixedBase, keepZoom = zoom;
+        /* ★つまみ（虫めがね）も 1 に戻して測る。ここで出す値は
+             「①に入ったときの ちょうどいい寄りかた」なので、
+             そのとき つまんでいた ぶんを混ぜてはいけない。 */
+        fixedBase = 0; zoom = 1;
         fit();
         const v = mmPerPx;
-        fixedBase = keep;
+        fixedBase = keep; zoom = keepZoom;
         sized = false;                    /* つぎの描画で 正しい寄せかたに直す */
         return v;
       },
@@ -1162,7 +1168,18 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
 
     /* ①は大きさを固定（虫眼鏡つき）、②以降はモデルに合わせて寄る */
     if (!inTurn) fixed1 = null;
-    else if (fixed1 === null) fixed1 = sideView.autoBase();
+    else if (fixed1 === null) {
+      /* ★①の「1画素＝何mm」は **出ている窓ぜんぶ**で測って、
+           いちばん粗い（＝モデルがいちばん小さくなる）値を使う。
+           正面の窓だけで決めていたときは、たて長の窓で モデルが
+           はみ出した。窓ごとに たて・よこ の比がちがうため。
+         ★大きさが 0 の窓（かくれている・まだ置かれていない）は
+           測れない。混ぜると でたらめな値になるので のぞく。 */
+      const bases = views
+        .filter(v => v.host.clientWidth && v.host.clientHeight)
+        .map(v => v.autoBase());
+      fixed1 = bases.length ? Math.max(...bases) : sideView.autoBase();
+    }
     for (const v of views) inTurn ? v.setFixed(fixed1) : v.setAuto();
     for (const v of views) v.reframe();
   }

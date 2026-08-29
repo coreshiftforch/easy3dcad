@@ -12,6 +12,7 @@
     "check:colors": "node 検算/colors.mjs",
     "check:make": "node 検算/make-shapes.mjs",
     "check:room": "node 検算/room-through.mjs",
+    "check:loop": "node 検算/loop-unkink.mjs",
     "check:paths": "node 検算/paths.mjs"
   },
   "devDependencies": {

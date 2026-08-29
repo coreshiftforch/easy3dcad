@@ -1023,3 +1023,31 @@ body {
   .foldinfo > summary { padding: 6px 10px; font-size: 12px; }
   .fi-body { padding: 0 10px 8px; gap: 6px; }
 }
+
+/* ── かたちの「もっと見る」──────────────────────────
+   ★かたちのボタンと同じ並びの中に置く。見た目は はっきり変えて、
+     形の1つと まちがえないようにする。
+   ★この決まりは いちばん下に置くこと。上に .shape-btn の
+     詰めかたがあり、同じ強さなら **後に書いたほうが勝つ**。 */
+.more-btn {
+  flex: none;
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dim);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 6px 14px;
+  min-height: 34px;
+  cursor: pointer;
+}
+.more-btn:hover { border-style: solid; color: var(--ink); }
+
+/* ── 3Dの窓は 2本指で寄れる ────────────────────────
+   ★touch-action を pan-y にすると、ブラウザは たてのスクロールだけ
+     引き受け、**つまむ操作はページに渡さない**。これが無いと、指2本で
+     ページごと拡大されて 3Dは大きくならない。
+   ★.clickable / .drawing の窓は もっと強い none が別に当たっている。
+     この決まりは いちばん下に置くこと（同じ強さなら後に書いたほうが勝つ）。 */
+.view { touch-action: pan-y; }
+.view.clickable, .view.drawing { touch-action: none; }

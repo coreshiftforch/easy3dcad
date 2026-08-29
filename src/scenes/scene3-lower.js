@@ -42,7 +42,7 @@ import { pointInPoly } from '../geom/section.js';
 import { bowlSolid, digPocket } from '../geom/bowl.js';
 import { BOSS } from '../geom/boss.js';
 import { PRESS_NOTE, travelNote } from './notes.js';
-import { resetButton, fullButton } from './orbit.js';
+import { resetButton, fullButton, attachPinch } from './orbit.js';
 
 const FLOW = ['大きさと向き', 'おわん', 'プレビュー'];
 const BUILT = 3;                       // 作ってあるのは③まで
@@ -338,6 +338,9 @@ export function mountScene3Lower(root, { model, onBack, onDone } = {}) {
     };
     host.querySelector('.zoom.in').onclick  = () => zoomBy(1.25);
     host.querySelector('.zoom.out').onclick = () => zoomBy(1 / 1.25);
+    /* ★2本指でも 寄れる。つまんだら 虫めがねの目もりも出す
+         （どれだけ寄っているか 分からなくなるため）。 */
+    attachPinch(host, { onScale: f => { zoomBy(f); zoomer.hidden = false; } });
     const ro = new ResizeObserver(() => { sized = false; });
     ro.observe(host);
     fit();
@@ -348,11 +351,14 @@ export function mountScene3Lower(root, { model, onBack, onDone } = {}) {
          ★①で固定する値を決めるのに使う。式を書きうつさなくて済むよう、
            いったん自動に戻して fit() をやり直し、出た値だけ受けとる。 */
       autoBase() {
-        const keep = fixedBase;
-        fixedBase = 0;
+        const keep = fixedBase, keepZoom = zoom;
+        /* ★つまみ（虫めがね）も 1 に戻して測る。ここで出す値は
+             「①に入ったときの ちょうどいい寄りかた」なので、
+             そのとき つまんでいた ぶんを混ぜてはいけない。 */
+        fixedBase = 0; zoom = 1;
         fit();
         const v = mmPerPx;
-        fixedBase = keep;
+        fixedBase = keep; zoom = keepZoom;
         sized = false;                    /* つぎの描画で 正しい寄せかたに直す */
         return v;
       },
@@ -964,7 +970,18 @@ export function mountScene3Lower(root, { model, onBack, onDone } = {}) {
     aimLight();
     /* ①は大きさを固定（虫眼鏡つき）、②以降はモデルに合わせて寄る */
     if (!inTurn) fixed1 = null;
-    else if (fixed1 === null) fixed1 = sideView.autoBase();
+    else if (fixed1 === null) {
+      /* ★①の「1画素＝何mm」は **出ている窓ぜんぶ**で測って、
+           いちばん粗い（＝モデルがいちばん小さくなる）値を使う。
+           正面の窓だけで決めていたときは、たて長の窓で モデルが
+           はみ出した。窓ごとに たて・よこ の比がちがうため。
+         ★大きさが 0 の窓（かくれている・まだ置かれていない）は
+           測れない。混ぜると でたらめな値になるので のぞく。 */
+      const bases = views
+        .filter(v => v.host.clientWidth && v.host.clientHeight)
+        .map(v => v.autoBase());
+      fixed1 = bases.length ? Math.max(...bases) : sideView.autoBase();
+    }
     for (const v of views) inTurn ? v.setFixed(fixed1) : v.setAuto();
     for (const v of views) v.reframe();
   }

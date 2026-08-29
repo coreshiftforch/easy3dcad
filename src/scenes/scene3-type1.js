@@ -18,7 +18,7 @@ import { buildGeometry, transformed } from '../geom/model.js';
 import { findNecks } from '../geom/necks.js';
 import { SHAPES, USES_SIZE, makeLoop, smoothLoop } from '../geom/loop.js';
 import { thin, sectionSegs, sectionSegsY, buildLoops, nestLoops, safeZ, pointInPoly } from '../geom/section.js';
-import { grooveGeometry, offsetLoop, DEFAULT_SIDE, DEFAULT_FLOOR } from '../geom/groove.js';
+import { grooveGeometry, offsetLoop, unkink, DEFAULT_SIDE, DEFAULT_FLOOR } from '../geom/groove.js';
 import { splitByStep, pickShellAt } from '../geom/split.js';
 import { capUpper, capLower } from '../geom/caps.js';
 import { cutRoom, roomBox, roomSquare, roomFits } from '../geom/room.js';
@@ -28,7 +28,7 @@ import { makeSwitchMock, SWITCH_H, SWITCH_W, BELOW_PLATE, HOLE_DEPTH, TRAVEL } f
 import { makeGizmo, AXIS_VEC } from '../geom/gizmo.js';
 import { makeBoss, bossSolid, holeDepth, BOSS, BOSS_TYPES, ENTRY } from '../geom/boss.js';
 import { PRESS_NOTE, BOSS_NOTE, travelNote } from './notes.js';
-import { resetButton, fullButton } from './orbit.js';
+import { resetButton, fullButton, attachPinch } from './orbit.js';
 
 const FLOW = ['大きさと向き', '溝を決める', '溝を作る', 'クリッカーの位置',
               '十字の穴', 'プレビュー'];
@@ -702,7 +702,7 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
         /* 見せたいものだけに寄る（⑤の「上パーツだけ」の窓） */
         const sz3 = box.getSize(new THREE.Vector3());
         box.getCenter(T);
-        mmPerPx = Math.max(Math.max(sz3.x, sz3.y) / w, sz3.z / h) * 1.25;
+        mmPerPx = Math.max(Math.max(sz3.x, sz3.y) / w, sz3.z / h) * 1.25 / zoom;
       } else {
         /* スイッチの見本より小さいモデルでも、見本が切れないように広さを取る */
         const sx = Math.max(work.span.x, SWITCH_W);
@@ -711,7 +711,7 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
         /* まわすときは、どの向きでも切れないように長いほうで取る */
         const wide  = orbit ? Math.max(sx, sy) : (kind === 'x' ? sy : sx);
         const needH = flat ? sy : sz;                       // 画面の縦に来る寸法
-        mmPerPx = Math.max(wide / w, needH / h) * 1.14;
+        mmPerPx = Math.max(wide / w, needH / h) * 1.14 / zoom;
         c = flat ? 0 : sz / 2;
         T.set(0, 0, c);
       }
@@ -737,6 +737,9 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
     };
     host.querySelector('.zoom.in').onclick  = () => zoomBy(1.25);
     host.querySelector('.zoom.out').onclick = () => zoomBy(1 / 1.25);
+    /* ★2本指でも 寄れる。つまんだら 虫めがねの目もりも出す
+         （どれだけ寄っているか 分からなくなるため）。 */
+    attachPinch(host, { onScale: f => { zoomBy(f); zoomer.hidden = false; } });
     const ro = new ResizeObserver(() => { sized = false; });
     ro.observe(host);
     fit();
@@ -795,11 +798,14 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
          ★①で固定する値を決めるのに使う。式を書きうつさなくて済むよう、
            いったん自動に戻して fit() をやり直し、出た値だけ受けとる。 */
       autoBase() {
-        const keep = fixedBase;
-        fixedBase = 0;
+        const keep = fixedBase, keepZoom = zoom;
+        /* ★つまみ（虫めがね）も 1 に戻して測る。ここで出す値は
+             「①に入ったときの ちょうどいい寄りかた」なので、
+             そのとき つまんでいた ぶんを混ぜてはいけない。 */
+        fixedBase = 0; zoom = 1;
         fit();
         const v = mmPerPx;
-        fixedBase = keep;
+        fixedBase = keep; zoom = keepZoom;
         sized = false;                    /* つぎの描画で 正しい寄せかたに直す */
         return v;
       },
@@ -1159,7 +1165,10 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
          ★寄せる量は 輪郭の細いほうの半分を目安にする。原点からの距離
            （minR）は、原点が形の外にあると あてにならない。 */
       const d = (sec.thinR || 0) * (1 - (+rInset.value) / 100);
-      return d > 0.05 ? offsetLoop(sec.outline, -d) : sec.outline;
+      /* ★内へ寄せると、細いところで 線が向かいがわと ぶつかる。
+           そのままだと 赤い線が交差し、溝も こわれる。
+           交わった点で切って 広いほうだけ残す（unkink）。 */
+      return d > 0.05 ? unkink(offsetLoop(sec.outline, -d)) : sec.outline;
     }
     if (shape === 'free')  return freePts;
     return makeLoop(shape, r, 96, +rCorner.value / 100);
@@ -1656,7 +1665,18 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
 
     /* ①は大きさを固定（虫眼鏡つき）、②以降はモデルに合わせて寄る */
     if (!inTurn) fixed1 = null;
-    else if (fixed1 === null) fixed1 = sideView.autoBase();
+    else if (fixed1 === null) {
+      /* ★①の「1画素＝何mm」は **出ている窓ぜんぶ**で測って、
+           いちばん粗い（＝モデルがいちばん小さくなる）値を使う。
+           正面の窓だけで決めていたときは、たて長の窓で モデルが
+           はみ出した。窓ごとに たて・よこ の比がちがうため。
+         ★大きさが 0 の窓（かくれている・まだ置かれていない）は
+           測れない。混ぜると でたらめな値になるので のぞく。 */
+      const bases = views
+        .filter(v => v.host.clientWidth && v.host.clientHeight)
+        .map(v => v.autoBase());
+      fixed1 = bases.length ? Math.max(...bases) : sideView.autoBase();
+    }
     for (const v of views) inTurn ? v.setFixed(fixed1) : v.setAuto();
     for (const v of views) v.reframe();
   }

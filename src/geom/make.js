@@ -47,8 +47,6 @@ export const FUSE = 0.4; // のせるとき、土台にどれだけ食いこま�
 const RING = 5;          // 上のふちを丸めるときの、リングの数
 
 /* ══ かたち（断面）═══════════════════════════════════════════
-   inner  … 文字やQRを置いてよい内がわの割合（まるい形ほど、四すみが
-            使えないぶん小さい）
    taper  … てっぺんで、断面を何倍まで縮めるか（1＝まっすぐな柱）
    fillet … 上のふちを丸める高さ（高さに対する割合）
 
@@ -57,34 +55,36 @@ const RING = 5;          // 上のふちを丸めるときの、リングの数
    ★2つ以上のかたちでできている形（ねこ・くるま等）は、**はじめの1つを「顔」**
      として、文字やQRはそこにだけ彫る。顔からはみ出す穴は earcut がこわせない
      ので、置いてよい場所を1つにしぼっている。 */
+/* ★top … はじめから見せる形。24個ぜんぶ並べると えらぶ前に つかれてしまうので、
+     9個だけ出して 残りは「もっと見る」に入れる。 */
 export const SHAPES = [
   /* キーボードのキーを1つ抜いてきたような形。先すぼまりで、上のふちが丸い。
      クリッカーにするなら いちばん それらしいので、はじめに置いてある */
-  { id: 'keycap',  name: 'キーキャップ', inner: 0.80, taper: 0.80, fillet: 0.16 },
-  { id: 'round',   name: '四角',       inner: 0.86 },
-  { id: 'square',  name: '正方形',     inner: 0.84 },
-  { id: 'longrect',name: '長四角',     inner: 0.88 },
-  { id: 'circle',  name: 'まる',       inner: 0.68 },
-  { id: 'ellipse', name: 'たまご',     inner: 0.70 },
-  { id: 'hexagon', name: '六角',       inner: 0.74 },
-  /* ★角の数を 3〜16 で選べる。inner（文字を置ける広さ）は角の数で変わるので、
-     ここには置かず innerOf() で出す（三角は 0.50、五角より多いと 0.74 で頭打ち） */
-  { id: 'ngon',    name: '多角形',     inner: 0.74 },
-  { id: 'triangle',name: '三角',       inner: 0.50 },
-  { id: 'diamond', name: 'ひしがた',   inner: 0.52 },
-  { id: 'star',    name: '星',         inner: 0.44 },
-  { id: 'heart',   name: 'ハート',     inner: 0.56 },
-  { id: 'onigiri', name: 'おにぎり',   inner: 0.52 },
-  { id: 'web',     name: 'くもの巣',   inner: 0.62 },
-  { id: 'cloud',   name: 'くも',       inner: 0.62 },
-  { id: 'fish',    name: 'さかな',     inner: 0.52 },
-  { id: 'cat',     name: 'ねこ',       inner: 0.62 },
-  { id: 'car',     name: 'くるま',     inner: 0.66 },
-  { id: 'train',   name: 'でんしゃ',   inner: 0.70 },
-  { id: 'flower',  name: 'はな',       inner: 0.46 },
-  { id: 'clover',  name: 'クローバー', inner: 0.44 },
-  { id: 'ribbon',  name: 'リボン',     inner: 0.52 },
-  { id: 'bubble',  name: 'ふきだし',   inner: 0.74 },
+  { top: true, id: 'keycap',   name: 'キーキャップ', taper: 0.80, fillet: 0.16 },
+  { top: true, id: 'round',    name: '四角' },
+  {            id: 'square',   name: '正方形' },
+  {            id: 'longrect', name: '長四角' },
+  { top: true, id: 'circle',   name: 'まる' },
+  {            id: 'ellipse',  name: 'たまご' },
+  {            id: 'hexagon',  name: '六角' },
+  /* ★角の数を 3〜16 で選べる */
+  { top: true, id: 'ngon',     name: '多角形' },
+  { top: true, id: 'triangle', name: '三角' },
+  {            id: 'diamond',  name: 'ひしがた' },
+  { top: true, id: 'star',     name: '星' },
+  { top: true, id: 'heart',    name: 'ハート' },
+  {            id: 'onigiri',  name: 'おにぎり' },
+  {            id: 'web',      name: 'くもの巣' },
+  {            id: 'cloud',    name: 'くも' },
+  {            id: 'fish',     name: 'さかな' },
+  { top: true, id: 'cat',      name: 'ねこ' },
+  { top: true, id: 'paw',      name: 'ねこの手' },
+  {            id: 'car',      name: 'くるま' },
+  {            id: 'train',    name: 'でんしゃ' },
+  {            id: 'flower',   name: 'はな' },
+  {            id: 'clover',   name: 'クローバー' },
+  {            id: 'ribbon',   name: 'リボン' },
+  {            id: 'bubble',   name: 'ふきだし' },
 ];
 
 /* ── 書体（public/fonts にある）─────────────────────
@@ -186,12 +186,6 @@ const sidesOf = n => {
   return Number.isFinite(v) ? Math.max(NGON_MIN, Math.min(NGON_MAX, v)) : NGON_DEF;
 };
 
-/* 文字やQRを置ける広さ。多角形は 角が少ないほど てっぺんがせまい。
-   ★内接円の半径の割合 cos(π/n) が目安。三角で 0.50、五角から先は
-     0.74 で止める（ほかの形と同じ上限）。 */
-const innerOf = (sh, sides) =>
-  sh.id === 'ngon' ? Math.min(0.74, Math.cos(Math.PI / sidesOf(sides))) : sh.inner;
-
 /* とがりの数だけ角のある多角形 */
 const ngon = (n, r, round, turn = 0) => roundedPoly(
   Array.from({ length: n }, (_, i) => {
@@ -215,7 +209,13 @@ function shapeParts(id, sides) {
     }
     case 'triangle': return [roundedPoly([[0, 62], [-58, -40], [58, -40]], 16)];
     case 'diamond':  return [roundedPoly([[0, 66], [56, 0], [0, -66], [-56, 0]], 14)];
-    case 'onigiri':  return [roundedPoly([[0, 60], [-64, -44], [64, -44]], 22)];
+    /* 三角とならぶと 見分けがつかなかったので、角を大きく丸め、
+       へりも ふくらませてある。
+       ★roundedPoly は 丸めの半径を「辺の半分」までに抑えるので、
+         辺のまん中にも点を置いて 大きな半径を渡すと、角ばったところの
+         ない ひと続きの曲線になる（＝おにぎりらしい ふくらみ）。 */
+    case 'onigiri':  return [roundedPoly(
+      [[0, 66], [38, 14], [64, -46], [0, -54], [-64, -46], [-38, 14]], 60)];
     case 'star': {
       const outR = 74, inR = 34, n = 5, verts = [];
       for (let i = 0; i < n * 2; i++) {
@@ -255,6 +255,12 @@ function shapeParts(id, sides) {
       return [ell(0, -4, 56, 48),
         roundedPoly([[-50, 8], [-34, 56], [-6, 24]], 7),
         roundedPoly([[50, 8], [34, 56], [6, 24]], 7)];
+    /* 肉球。**いちばん大きい やわらかいところ**が「顔」なので、
+       文字はそこに乗る。指の球は そのまわりに置くだけ。 */
+    case 'paw':
+      return [ell(0, -20, 56, 40),
+        ell(-54, 16, 17, 21), ell(-19, 42, 18, 23),
+        ell(19, 42, 18, 23), ell(54, 16, 17, 21)];
     case 'car':
       return [rect(152, 46, 14, 0, 2), rect(84, 42, 14, -8, 32),
         ell(-46, -26, 21, 21), ell(46, -26, 21, 21)];
@@ -262,24 +268,105 @@ function shapeParts(id, sides) {
       return [rect(160, 76, 14, 0, 6),
         ell(-60, -30, 17, 17), ell(-30, -30, 17, 17),
         ell(30, -30, 17, 17), ell(60, -30, 17, 17)];
+    /* ★まん中の円は「顔」。文字はここにしか彫れないので、花びらに
+         隠れるぶんも見こんで 大きめにしてある（30→38）。 */
     case 'flower':
-      return [ell(0, 0, 30, 30),
+      return [ell(0, 0, 38, 38),
         ...Array.from({ length: 5 }, (_, i) => {
           const a = Math.PI / 2 + i * Math.PI * 2 / 5;
           return ell(Math.cos(a) * 38, Math.sin(a) * 38, 27, 27);
         })];
     case 'clover':
-      return [rect(48, 48, 12),
+      return [rect(60, 60, 14),
         ...[[0, 36], [0, -36], [-36, 0], [36, 0]].map(([cx, cy]) => ell(cx, cy, 30, 30))];
     case 'ribbon':
-      return [rect(44, 44, 10),
-        roundedPoly([[-10, -17], [-78, -40], [-78, 40], [-10, 17]], 10),
-        roundedPoly([[10, 17], [78, 40], [78, -40], [10, -17]], 10)];
+      return [rect(70, 50, 12),
+        roundedPoly([[-24, -19], [-78, -40], [-78, 40], [-24, 19]], 10),
+        roundedPoly([[24, 19], [78, 40], [78, -40], [24, -19]], 10)];
     case 'bubble':
       return [rect(154, 86, 26, 0, 8), roundedPoly([[-46, -26], [-58, -74], [-6, -30]], 6)];
     case 'keycap':  return [rect(120, 120, 20)];
     default:        return [rect(158, 90, 16)];      // 'round'（四角）
   }
+}
+
+/* ══ 顔の中に本当に入る長方形（内接長方形）═══════════════════
+   文字やQRを置ける場所。**外わく × 形ごとの係数** で出していたときは、
+   細長い形やへこみのある形で 極端に小さくなった
+   （実測：リボンで 字が 3.5mm、クローバーで 3.9mm）。
+
+   やりかた
+     ① 顔を 格子で塗って、「肉の上」のマスに印をつける（穴の中は除く）
+     ② 印のついたマスだけでできる いちばん大きい長方形をさがす
+        （各行を柱の高さと見て、ヒストグラムの最大長方形を求める定石）
+
+   ★格子は 96×96。これ以上こまかくしても、置き場所の精度は目に見えて
+     変わらない（1マスが 0.6mm ていど）。
+   ★同じ形なら 結果は同じなので、形ごとに1回だけ出して覚えておく。 */
+const GRID = 96;
+
+function inRing(x, y, ring) {
+  let hit = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i], b = ring[j];
+    if ((a.y > y) !== (b.y > y) &&
+        x < (b.x - a.x) * (y - a.y) / (b.y - a.y) + a.x) hit = !hit;
+  }
+  return hit;
+}
+
+/* 印のついたマスの中で いちばん大きい長方形（行・列の番号で返す） */
+function biggestRect(mask, W, H) {
+  const h = new Int32Array(W);
+  let best = { a: 0, r0: 0, r1: -1, c0: 0, c1: -1 };
+  const st = [];
+  for (let r = 0; r < H; r++) {
+    for (let c = 0; c < W; c++) h[c] = mask[r * W + c] ? h[c] + 1 : 0;
+    st.length = 0;
+    for (let c = 0; c <= W; c++) {
+      const cur = c === W ? 0 : h[c];
+      while (st.length && h[st[st.length - 1]] >= cur) {
+        const top = st.pop();
+        const left = st.length ? st[st.length - 1] + 1 : 0;
+        const a = h[top] * (c - left);
+        if (a > best.a) best = { a, r0: r - h[top] + 1, r1: r, c0: left, c1: c - 1 };
+      }
+      st.push(c);
+    }
+  }
+  return best;
+}
+
+const rectCache = new Map();
+function innerRect(face, key) {
+  if (rectCache.has(key)) return rectCache.get(key);
+  const b = bboxOf([face]);
+  const cw = b.w / GRID, ch = b.h / GRID;
+  const mask = new Uint8Array(GRID * GRID);
+  for (let r = 0; r < GRID; r++) {
+    const y = b.y0 + (r + 0.5) * ch;
+    for (let c = 0; c < GRID; c++) {
+      const x = b.x0 + (c + 0.5) * cw;
+      if (!inRing(x, y, face.outer)) continue;
+      let inHole = false;
+      for (const h of face.holes) if (inRing(x, y, h)) { inHole = true; break; }
+      if (!inHole) mask[r * GRID + c] = 1;
+    }
+  }
+  const g = biggestRect(mask, GRID, GRID);
+  let out;
+  if (g.a <= 0) {
+    out = { w: 0, h: 0, cx: 0, cy: 0 };
+  } else {
+    const x0 = b.x0 + g.c0 * cw, x1 = b.x0 + (g.c1 + 1) * cw;
+    const y0 = b.y0 + g.r0 * ch, y1 = b.y0 + (g.r1 + 1) * ch;
+    /* ★ふちぎりぎりには置かない。刷ったとき、字の角が
+         オブジェクトの角と重なると もろくなる。 */
+    const M = 0.94;
+    out = { w: (x1 - x0) * M, h: (y1 - y0) * M, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
+  }
+  rectCache.set(key, out);
+  return out;
 }
 
 /* えらんだ形を、よこ幅 width mm にそろえて返す。
@@ -291,7 +378,12 @@ function baseOf(id, width, sides) {
   const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
   const fix = p => mapPoly(p, q => ({ x: (q.x - cx) * k, y: (q.y - cy) * k }));
   const all = parts.map(fix);
-  return { face: all[0], extras: all.slice(1), size: { x: b.w * k, y: b.h * k } };
+  /* ★覚えるときの合いことばに 幅は入れない。幅で伸ばしているだけなので、
+       同じ形なら 比は変わらない。ここでは 幅にそろえたあとの顔で出す。 */
+  /* ★同じ形・同じ角の数・同じ幅なら 答えは変わらないので、覚えておく。
+       格子を96×96 塗るのは そこそこ重い（形1つで 9千マス）。 */
+  const rect = innerRect(all[0], `${id}:${sides || ''}:${width}`);
+  return { face: all[0], extras: all.slice(1), rect, size: { x: b.w * k, y: b.h * k } };
 }
 
 /* ── 文字のかたち ────────────────────────────────
@@ -463,8 +555,12 @@ export async function decoPolys(opt) {
   /* 文字やQRは **てっぺんの面**に乗る。先すぼまりの形では、その面のぶんだけ
      置ける場所がせまい。いちばん上のリングの縮めぐあいをかけておく。 */
   const top = ringsFor(opt.thick, sh, Math.max(fb.w, fb.h) / 2).at(-1).s;
-  const inner = innerOf(sh, opt.sides);
-  const room = k => ({ w: fb.w * inner * top * k, h: fb.h * inner * top * k });
+  /* ★置ける場所は「顔の中に入る いちばん大きい長方形」。
+       外わく × 係数 だと、細長い形で 字が読めない大きさになる。 */
+  const rc = base.rect;
+  const room = k => ({ w: rc.w * top * k, h: rc.h * top * k });
+  /* その長方形のまん中。すぼまりのぶんだけ 原点へ寄る */
+  const home = { x: rc.cx * top, y: rc.cy * top };
 
   /* のせるものを 左右・上下へ動かす。decoX / decoY は −100〜100（％）で、
      100 が「置ける場所のはしまで」。
@@ -474,8 +570,8 @@ export async function decoPolys(opt) {
   const shift = (polys, size) => {
     const full = room(1);
     const cap = v => Math.max(-100, Math.min(100, +v || 0));
-    const dx = Math.max(0, (full.w - size.w) / 2) * cap(opt.decoX) / 100;
-    const dy = Math.max(0, (full.h - size.h) / 2) * cap(opt.decoY) / 100;
+    const dx = home.x + Math.max(0, (full.w - size.w) / 2) * cap(opt.decoX) / 100;
+    const dy = home.y + Math.max(0, (full.h - size.h) / 2) * cap(opt.decoY) / 100;
     if (!dx && !dy) return polys;
     return polys.map(p => mapPoly(p, q => ({ x: q.x + dx, y: q.y + dy })));
   };
