@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { buildGeometry } from '../geom/model.js';
-import { attachOrbit, resetButton } from './orbit.js';
+import { attachOrbit, resetButton, fullButton } from './orbit.js';
 import { SWITCH_H, SWITCH_W } from '../geom/switch-mock.js';
 
 /* ── 大きさの目安 ─────────────────────────────────
@@ -223,6 +223,8 @@ export function mountScene2(root, { model, onBack, onConfirm } = {}) {
        （両方いっぺんに動くと、どっちが自分の操作か分からない）。 */
   const orb = attachOrbit(host, { dir: dirNear.toArray(), onChange: place });
   resetButton(host, () => { orb.reset(); mesh.rotation.z = 0; place(); });
+  fullButton(host);          /* 右下：画面いっぱいで見る */
+  host.classList.add('has-full');
 
   /* ── 入りのアニメーション ───────────────────────
      遠くから作業スペースへ寄っていく。1秒ちょっとで落ちつく。 */

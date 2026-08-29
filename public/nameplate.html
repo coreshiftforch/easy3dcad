@@ -24,6 +24,8 @@
   <link rel="stylesheet" href="css/common.css">
   <!-- つづきから再開（window.Resume を作る。モジュールより先に読む） -->
   <script src="./js/resume.js"></script>
+  <!-- つまみの下の説明を「情報」にたたむ。★本文より先に読むこと -->
+  <script src="./js/foldinfo.js"></script>
 </head>
 <body>
 
@@ -85,7 +87,7 @@
         <div class="lab"><span>重ねる傾き</span><b id="subRVal">0°</b></div>
         <input type="range" id="sliderSubR" min="-180" max="180" step="1" value="0">
       </div>
-      <div id="joinMsg" class="hint-line" style="display:none;"></div>
+      <div id="joinMsg" class="hint-line" data-keep style="display:none;"></div>
     </div>
 
   </div>
@@ -95,7 +97,7 @@
     <div class="panel-title">② 名前を入れよう <small>12文字まで</small></div>
     <input type="text" id="charsInput" class="chars-input" maxlength="12" placeholder="なまえ">
     <div class="hint-line" id="charsHint">ひらがな・カタカナ・英語・数字・記号（ ( ) _ - ! ? & @ など）が使えるよ</div>
-    <div class="hint-line" id="fontStatus" style="color:#64748b;">フォント読みこみ中…</div>
+    <div class="hint-line" data-keep id="fontStatus" style="color:#64748b;">フォント読みこみ中…</div>
   </div>
 
   <!-- ③ フォント -->
@@ -1908,6 +1910,13 @@ goStep(state.step || 0);
 
 <!-- ひらがな切替（ヘッダー右上にボタンを足す） -->
 <!-- 使いかた（右上の「？」）-->
+<script>
+/* ── つまみの下の説明を、フローごとに1つの「情報」へ ───────────
+   ★知らせ（data-keep）は そのまま見えるところに残す。 */
+document.querySelectorAll('.step-page').forEach(function (pg) {
+  if (window.FoldInfo) FoldInfo.apply(pg);
+});
+</script>
 <script src="./js/save.js"></script>
 <script src="./js/help.js"></script>
 <script src="./js/kana.js"></script>

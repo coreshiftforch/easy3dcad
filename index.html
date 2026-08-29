@@ -113,12 +113,15 @@
   @media (max-width: 720px) {
     /* ★せまい画面では、まん中を細くして 左右をもっと見せる。
          のぞきが細いと「まだ他にもある」ことが伝わらない。 */
-    .deck-rail .card { width: 70vw; }
-    .card[data-pos="-1"] { transform: translateX(-84%) scale(.68); opacity: .45; }
-    .card[data-pos="1"]  { transform: translateX(84%)  scale(.68); opacity: .45; }
-    .deck-arrow { width: 38px; height: 38px; font-size: 13px; opacity: .92; }
-    .deck-arrow.prev { left: 2px; }
-    .deck-arrow.next { right: 2px; }
+    .deck-rail .card { width: 66vw; }
+    .card[data-pos="-1"] { transform: translateX(-86%) scale(.66); opacity: .5; }
+    .card[data-pos="1"]  { transform: translateX(86%)  scale(.66); opacity: .5; }
+    /* ★送りボタンは 画面の**両はし**。まん中のカードにかからない位置。
+         うすくなった両どなりのカードの上には少しかかるが、カードは縦に長く、
+         ボタンは小さい丸なので「まだ他にもある」ことは見えている。 */
+    .deck-arrow { width: 36px; height: 36px; font-size: 13px; opacity: .92; }
+    .deck-arrow.prev { left: 4px; }
+    .deck-arrow.next { right: 4px; }
 
   }
 
@@ -200,7 +203,11 @@
     body { height: 100dvh; min-height: 0; overflow: hidden;
            display: flex; flex-direction: column; }
     .hero { flex: none; }
-    .wrap { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+    /* ★margin:0 auto を消すこと。body が flex になったので、auto の左右余白が
+         「まん中に寄せる」に変わり、.wrap の幅が **カードの幅まで縮んで** いた。
+         その中に置いた送りボタンが カードの上に乗ってしまう。 */
+    .wrap { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+            align-self: stretch; margin: 0; }
     /* ★点（deck-dots）は deck の**中**にある。rail に 100% を与えると
          点のぶんが はみ出すので、deck を たてに割って配る */
     .deck { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }

@@ -25,6 +25,8 @@
 <link rel="stylesheet" href="css/common.css">
 <!-- つづきから再開（window.Resume を作る。モジュールより先に読む） -->
 <script src="./js/resume.js"></script>
+<!-- つまみの下の説明を「情報」にたたむ。★本文より先に読むこと -->
+<script src="./js/foldinfo.js"></script>
 <style>
 /* ── QRキーホルダー固有の見た目 ────────────────────────
    もとのアプリの class 名（.sec / .cards / .swatches / aria-pressed …）は
@@ -221,25 +223,6 @@ details.adv[open] summary { margin-bottom: 8px; }
   .recipe-grid { grid-template-columns: 1fr; }
 }
 
-/* ── たたんでおく情報（⑤ダウンロードの下）────────────────────
-   ★寸法と印刷のこつは、同じものが さいごのダウンロード画面にも出る。
-     ここで最初から広げると、肝心の「ダウンロードへ」が押しづらい。
-     はじめは閉じておいて、見たい人だけ開く。 */
-.foldinfo {
-  margin-top: 10px;
-  border: 1px solid var(--line); border-radius: 10px; background: var(--panel2);
-}
-.foldinfo > summary {
-  list-style: none; cursor: pointer; user-select: none;
-  display: flex; align-items: center; gap: 7px;
-  padding: 10px 12px; font-size: 13.5px; font-weight: bold; color: var(--muted);
-}
-.foldinfo > summary::-webkit-details-marker { display: none; }
-.foldinfo > summary::before { content: '▶'; font-size: 10px; transition: transform .15s; }
-.foldinfo[open] > summary::before { transform: rotate(90deg); }
-.foldinfo > summary:hover { color: var(--text); }
-.foldinfo .info { margin: 0; padding: 0 12px 12px; }
-.foldinfo .info + .info { padding-top: 10px; }
 </style>
 </head>
 <body>
@@ -409,7 +392,8 @@ details.adv[open] summary { margin-bottom: 8px; }
       </div>
 
       <div id="err"></div>
-      <div class="info" id="qrinfo" style="margin-top:9px"></div>
+      <!-- ★これは「小さすぎて読めないおそれ」を出すところ。知らせなので たたまない -->
+      <div class="info" id="qrinfo" style="margin-top:9px" data-keep></div>
     </div>
 
     <div id="secSize" class="sec">
@@ -488,11 +472,8 @@ details.adv[open] summary { margin-bottom: 8px; }
         <button class="primary" id="toSave">ダウンロードへ ▶
           <small>ファイルの形と名前を えらべます</small></button>
       </div>
-      <details class="foldinfo">
-        <summary>情報</summary>
-        <div class="info" id="partinfo"></div>
-        <div class="info" id="howto"></div>
-      </details>
+      <div class="info" id="partinfo"></div>
+      <div class="info" id="howto"></div>
     </div>
 
     </div><!-- /.panel -->
@@ -3234,6 +3215,14 @@ if (back && back.data) {
 syncSlotUrls();
 syncMagnet();
 syncQrEach();
+
+/* ── つまみの下の説明を、フローごとに1つの「情報」へ ───────────
+   ★知らせ（data-keep）は そのまま見えるところに残る。 */
+function foldNotes() {
+  if (!window.FoldInfo) return;
+  document.querySelectorAll('.sec').forEach(sec => FoldInfo.apply(sec));
+}
+foldNotes();
 </script>
 
 <!-- ひらがな切替（ヘッダー右上にボタンを足す） -->

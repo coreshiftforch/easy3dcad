@@ -14,7 +14,7 @@ import { SHAPES, FONTS, KEEP, buildMake, NGON_MIN, NGON_MAX, NGON_DEF } from '..
 import { stlBinary } from '../io/saveModel.js';
 import { readModelFile } from '../io/loadModel.js';
 import { SWITCH_W } from '../geom/switch-mock.js';
-import { attachOrbit, resetButton } from './orbit.js';
+import { attachOrbit, resetButton, fullButton } from './orbit.js';
 
 /* いちばん薄いところが これより薄いと、スイッチ＋まわりの肉が入らない。
    ★シーン2の「小さすぎ」の判定と同じ値。ここで先に知らせておけば、
@@ -65,7 +65,7 @@ export function mountScene0(root, { onBack, onMade } = {}) {
           <input class="r-width" type="range" min="25" max="120" step="1" value="${DEF.width}">
           <label class="slabel">厚み<output class="o-thick"></output></label>
           <input class="r-thick" type="range" min="6" max="45" step="0.5" value="${DEF.thick}">
-          <p class="note n-thick"></p>
+          <p class="note n-thick" data-keep></p>
 
           <p class="panel-h">のせるもの</p>
           <div class="shapes k-deco">${btns('shape-btn',
@@ -169,6 +169,8 @@ export function mountScene0(root, { onBack, onMade } = {}) {
   const HOME_DIR = [0.34, -0.78, 0.52];
   const orb = attachOrbit(host, { dir: HOME_DIR, onChange: () => frame() });
   resetButton(host, () => { orb.reset(); if (mesh) mesh.rotation.z = 0; frame(); });
+  fullButton(host);          /* 右下：画面いっぱいで見る */
+  host.classList.add('has-full');
 
   function frame() {
     const halfV = Math.tan(camera.fov * Math.PI / 360);
@@ -287,6 +289,16 @@ export function mountScene0(root, { onBack, onMade } = {}) {
     clearTimeout(wait);
     wait = setTimeout(build, 140);
   }
+
+  /* ── つまみの下の説明を、フローごとに1つの「情報」へ ───────────
+     ★フローの区切りは .sec-… 。先に中を、そのあと外に残ったぶんを
+       パネルごとまとめる（すでに入れたものは飛ばされる）。
+     ★知らせ（.hint / data-keep）は たたまない。その場で直してほしい内容なので */
+  if (window.FoldInfo) {
+    root.querySelectorAll('.panel [class*="sec-"]').forEach(el => FoldInfo.apply(el));
+    root.querySelectorAll('.panel').forEach(el => FoldInfo.apply(el));
+  }
+
   for (const ev of ['input', 'change']) root.querySelector('.panel').addEventListener(ev, paint);
   paint();
 

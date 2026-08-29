@@ -29,7 +29,7 @@ import { PRESS_NOTE, BOSS_NOTE, travelNote } from './notes.js';
 import { splitByStep, pickShellAt } from '../geom/split.js';
 import { capFlat } from '../geom/caps.js';
 import { roomBox, roomSquare, roomFits, cutRoom } from '../geom/room.js';
-import { resetButton } from './orbit.js';
+import { resetButton, fullButton } from './orbit.js';
 
 const FLOW = ['大きさと向き', '切る高さ', '穴の種類', 'プレビュー'];
 const BUILT = 4;                       // 作ってあるのは④まで
@@ -86,7 +86,8 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
   let work = base;                     // 大きさと向きをかけたあとの形
 
   const flowHTML = FLOW.map((t, i) =>
-    `<li data-step="${i + 1}"${i + 1 > BUILT ? ' class="todo"' : ''}>`
+    `<li data-step="${i + 1}"${i + 1 > BUILT ? ' class="todo"' : ''}`
+    + `${i + 1 > BUILT ? '' : ' role="button" tabindex="0"'}>`
     + `<b>${i + 1}</b><span>${t}</span></li>`).join('');
 
   root.innerHTML = [
@@ -1057,11 +1058,22 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
        Y … 正面だけ（正面がそのままY軸から見た図なので、矢印は正面に）
        Z … 左＝正面／右＝上から（＝Z軸から、矢印は右） */
   const AXIS_VIEW = { x: 'x', y: null, z: 'top' };   // null＝正面がその軸から見た図
+
+  /* ★スマホでは 窓を1つにして、そのぶん大きく見せる。
+       つかんでまわせば 上からでも横からでも見られるので、
+       小さい窓を2つ3つ並べるより ずっと見やすい。
+     ★ただし **その窓でないと できないこと** があるときは残す。
+       ・「自分で描く」… なぞる場所そのもの
+       ・断面（タイプ1の⑤）… まわしても中は見えない
+       ★せまい画面では たてに積む（style.css の @media 899px）。 */
+  const phone = () => matchMedia('(max-width: 899px)').matches;
+
   function paintViews() {
     const inTurn = step === 1;
     /* ④は正面ひとつを大きく使う（上から見てもクリックの動きは見えない） */
     const right = inTurn ? AXIS_VIEW[axis] : step === LAST ? null : 'top';
-    const solo  = right === null;
+    /* タイプ2には なぞって描くところが無いので、スマホでは いつも1つ */
+    const solo = right === null || phone();
     /* ★窓を1つにするときは、入れもの（.col）ごと消す。中の窓を隠すだけだと
          入れものが場所を取ったままで、左の窓が半分の幅にしかならない。 */
     topView.host.toggleAttribute('hidden', solo);
@@ -1100,6 +1112,10 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
     aimLight();
     repaint();
   });
+  /* 右下：画面いっぱいで見る。★has-full を付けると、右下に出る虫めがねが
+     このボタンの上へ逃げる（style.css の .has-full .zoomer） */
+  fullButton(sideView.host);
+  sideView.host.classList.add('has-full');
 
   /* ── 操作 ────────────────────────────────────── */
   root.querySelectorAll('.cut-btn').forEach(b => {
@@ -1227,6 +1243,38 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
 
   /* 左上はタイプ選択（シーン2）へ。ひとつ前のフローへは「次へ」の左のボタン */
   $('.back-btn').onclick = () => onBack?.();
+  /* ★フローの番号を押したら、そこへ移る。
+       ★とばさずに **1つずつ通す**。goto は「①から②へ来た」ときにだけ
+         外まわりの一覧表を作る、といった「となりへ動いたこと」を当てにして
+         いるので、いきなり飛ばすと その仕度が抜ける。
+       ★まだ作っていないフロー（.todo）へは行かせない。 */
+  function jump(n) {
+    n = Math.max(1, Math.min(LAST, n));
+    while (step !== n) goto(step + (n > step ? 1 : -1));
+  }
+  $('.flow').addEventListener('click', e => {
+    const li = e.target.closest('li');
+    if (!li || li.classList.contains('todo')) return;
+    jump(+li.dataset.step);
+  });
+  $('.flow').addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const li = e.target.closest('li');
+    if (!li || li.classList.contains('todo')) return;
+    e.preventDefault();
+    jump(+li.dataset.step);
+  });
+
+
+  /* ── つまみの下の説明を、フローごとに1つの「情報」へ ───────────
+     ★フローの区切りは .sec-… 。先に中を、そのあと外に残ったぶんを
+       パネルごとまとめる（すでに入れたものは飛ばされる）。
+     ★知らせ（.hint / data-keep）は たたまない。その場で直してほしい内容なので */
+  if (window.FoldInfo) {
+    root.querySelectorAll('.panel [class*="sec-"]').forEach(el => FoldInfo.apply(el));
+    root.querySelectorAll('.panel').forEach(el => FoldInfo.apply(el));
+  }
+
   $('.prev-btn').onclick = () => { if (step > 1) goto(step - 1); };
   nextBtn.onclick = () => {
     if (step < LAST) return goto(step + 1);

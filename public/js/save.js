@@ -93,6 +93,10 @@
     '.sv-msg{margin:10px 0 0;font-size:13.5px;font-weight:bold;min-height:20px;',
     '  color:var(--c-ok2,#15803d);}',
     '.sv-msg.bad{color:var(--c-err2,#b91c1c);}',
+    /* ★三角と地の色は foldinfo.js が持っている。ここは並びだけ */
+    '.sv-more{margin:0;}',
+    '.sv-more .fi-body{gap:12px;}',
+    '.sv-more .sv-h{margin:0;}',
     '@media (max-width:899px){',
     '  .sv-view{height:230px;}',
     '  .sv-file{font-size:16px;} .sv-h{font-size:14px;}}',
@@ -191,21 +195,29 @@
         }).join('')
       + '</div><p class="sv-msg"></p>');
 
+    /* ★大きさ・部品・印刷のこつは、ここでは たたんでおく。
+         押すところ（名前とダウンロード）を先に目に入れたい。
+         中身は そのまま。開けば ぜんぶ読める。 */
+    var more = '';
     if (opt.info && opt.info.length)
-      html += card('できあがり', '<div class="sv-list">'
+      more += '<p class="sv-h">できあがり</p><div class="sv-list">'
         + opt.info.map(function (x) {
             return '<div><b>' + x[0] + '</b><span>' + x[1] + '</span></div>';
-          }).join('') + '</div>');
+          }).join('') + '</div>';
 
     if (opt.parts && opt.parts.length)
-      html += card('部品', '<div class="sv-list">'
+      more += '<p class="sv-h">部品</p><div class="sv-list">'
         + opt.parts.map(function (p) {
             return '<div><b>' + p.name + '</b><span>' + (p.note || '') + '</span></div>';
-          }).join('') + '</div>');
+          }).join('') + '</div>';
 
     if (opt.howto && opt.howto.length)
-      html += card('印刷のしかた', '<p class="sv-note" style="margin:0">'
-        + opt.howto.join('<br>') + '</p>');
+      more += '<p class="sv-h">印刷のしかた</p><p class="sv-note" style="margin:0">'
+        + opt.howto.join('<br>') + '</p>';
+
+    if (more)
+      html += '<details class="foldinfo sv-more"><summary>情報</summary>'
+        + '<div class="fi-body">' + more + '</div></details>';
 
     col.innerHTML = html;
     col.querySelector('.sv-name').value = opt.name || '';

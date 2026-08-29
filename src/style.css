@@ -270,10 +270,6 @@ body {
   overflow: hidden;
 }
 .viewer canvas { display: block; width: 100%; height: 100%; }
-/* ★フロー②だけ、「視点」は窓の右下に置く。左下だと まわす指と
-     ぶつかりやすく、下のタイプ選択とも近い。ほかの窓（.view）は
-     左下のまま（右下には 虫めがねが出ることがある）。 */
-.viewer .view-reset { left: auto; right: 10px; bottom: 10px; }
 
 /* 作りの選択肢。3つ横並び */
 .choices { display: flex; gap: 10px; flex: none; }
@@ -456,6 +452,11 @@ body {
 .flow li.on b { background: var(--accent-fill); border-color: var(--accent); color: #fff; }
 /* まだ作っていないフロー（タイプ2の②〜④）。薄くして、押せないことを見せる */
 .flow li.todo { opacity: .45; }
+/* ★番号を押すと そのフローへ移れる（作ってあるところだけ）。
+     .todo は まだ作っていないので、押せない見た目のまま */
+.flow li[role="button"] { cursor: pointer; }
+.flow li[role="button"]:hover { border-color: var(--accent); color: var(--ink); }
+.flow li[role="button"]:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 /* 横から／上から の2つの窓 */
 .views { flex: 1 1 auto; min-height: 0; display: flex; gap: 10px; }
@@ -474,18 +475,25 @@ body {
 .grabbable { cursor: grab; touch-action: none; }
 .grabbing  { cursor: grabbing; }
 
-/* 窓のすみの「視点リセット」。3Dの上に浮かせる */
-.view-reset {
-  position: absolute; left: 10px; bottom: 10px; z-index: 2;
+/* 窓のすみのボタン（左下＝視点リセット／右下＝全画面）。3Dの上に浮かせる */
+.view-reset,
+.view-full {
+  position: absolute; bottom: 10px; z-index: 2;
   display: inline-flex; align-items: center; gap: 5px;
   min-height: 32px; padding: 6px 11px;
   border: 1px solid var(--line); border-radius: 9px;
   background: var(--card); color: var(--dim);
   font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
 }
-.view-reset svg { width: 14px; height: 14px; }
-.view-reset:hover { color: var(--ink); border-color: var(--accent); }
-@media (max-width: 899px) { .view-reset { font-size: 13px; min-height: 40px; } }
+.view-reset { left: 10px; }
+.view-full  { right: 10px; }
+.view-reset svg,
+.view-full  svg { width: 14px; height: 14px; }
+.view-reset:hover,
+.view-full:hover { color: var(--ink); border-color: var(--accent); }
+@media (max-width: 899px) {
+  .view-reset, .view-full { font-size: 13px; min-height: 40px; }
+}
 /* ⑥は、つかんでまわせる（動かさずに離すと「押した」） */
 .view.clickable { cursor: grab; touch-action: none; }
 .view.clickable:active { cursor: grabbing; }
@@ -755,10 +763,17 @@ body {
 }
 .click-pop.on { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
 
-/* せまい画面では、3つの窓を縦に積む */
+/* せまい画面では、窓を縦に積む。
+   ★スマホでは そもそも窓を1つにしている（scene3-*.js の phone()）。
+     2つ出るのは「自分で描く」ときと ⑤の断面だけなので、
+     そのときは 上下に分けたほうが どちらも大きく見える。 */
 @media (max-width: 899px) {
-  .views.three { flex-direction: column; }
-  .views.three .col { flex-direction: row; }
+  .views { flex-direction: column; }
+  .views .col { flex-direction: row; }
+  /* ★min-height:0 が要る。たてに並べると min-height の初期値 auto が
+       「中身より小さくならない」と言い張って、flex の配分より強く効く。
+       そのせいで 断面の窓ばかり大きくなっていた（114px 対 267px）。 */
+  .views > *, .views .col > * { min-height: 0; }
 
   /* ★body を overflow:hidden にしてページ全体が伸びなくなったので、
        中身が長いときは操作パネルの中をスクロールさせる。
@@ -963,3 +978,16 @@ body {
   .scene4 .right { flex: 0 0 34%; margin-right: 16px; opacity: 1; overflow: auto; }
   .scene4 .ok-btn { width: 100%; }
 }
+
+/* ── 3Dの窓を 画面いっぱいにする ───────────────────────
+   ★Fullscreen API は使わない（iPhone の Safari は動画にしか効かない）。
+     CSS で広げるので、どの機械でも同じに動く。orbit.js の fullButton。
+   ★クラスを2つ重ねて書いてあるのは、.view / .viewer の flex や
+     border-radius に **必ず勝つ** ため（同じ強さだと 書いた順で負ける）。 */
+.view-fs.view-fs {
+  position: fixed; inset: 0; z-index: 90;
+  width: auto; height: auto; max-width: none; max-height: none;
+  margin: 0; border-radius: 0; border-width: 0;
+}
+/* 虫めがねは右下に出る。全画面ボタンと重なるので、あるときだけ上へ逃がす */
+.has-full .zoomer { bottom: 56px; }
