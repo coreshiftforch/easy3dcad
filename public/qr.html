@@ -27,6 +27,8 @@
 <script src="./js/resume.js"></script>
 <!-- つまみの下の説明を「情報」にたたむ。★本文より先に読むこと -->
 <script src="./js/foldinfo.js"></script>
+<!-- フィラメントの色（なまえプレートと共通）。★本文より先に読むこと -->
+<script src="./js/filaments.js"></script>
 <style>
 /* ── QRキーホルダー固有の見た目 ────────────────────────
    もとのアプリの class 名（.sec / .cards / .swatches / aria-pressed …）は
@@ -228,7 +230,7 @@ details.adv[open] summary { margin-bottom: 8px; }
 <body>
 
 <header>
-  <a class="home-link" href="index.html">◀ メニュー</a>
+  <a class="home-link" href="index.html">◀ スタート画面</a>
   <span class="title">🔳 QRキーホルダー</span>
 </header>
 
@@ -494,11 +496,9 @@ import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
 /* ══════════════════════════════════════════════════════════════
    設定
    ══════════════════════════════════════════════════════════════ */
-const FILAMENTS = [
-  { name:'黒',   hex:0x1a1a1a }, { name:'白',   hex:0xf2f2f2 }, { name:'灰',  hex:0x8f959c },
-  { name:'水色', hex:0x2ea7e0 }, { name:'桃',   hex:0xe86a9a }, { name:'橙',  hex:0xf08a24 },
-  { name:'緑',   hex:0x3fa96b }, { name:'黄',   hex:0xf5cf3d },
-];
+// フィラメントの色。★中身は public/js/filaments.js（なまえプレートと共通）。
+//   同じフィラメントを刷るので、2つのページで色がちがってはいけない。
+const FILAMENTS = window.FILAMENTS;
 // 既定は100円ショップの丸型磁石（φ6.5×3mm）。ほかは手持ちのネオジムに合わせて選ぶ用
 const MAGNETS = { '6.5x3':[6.5,3], '6x2':[6,2], '6x3':[6,3], '8x3':[8,3] };
 // 分解ビューに出す磁石の見本の色（銀色の金属）。印刷する部品ではないのでフィラメントとは別
@@ -596,7 +596,9 @@ const state = {
   magOn:'on',     // 'on'＝磁石でQRタイルを外せる／'off'＝べた一の1枚もの
   tilt:22, depth:55, sheet:5.0, bend:10,
   // 色は5つ：QR①／QR②／QRの本体（タイル・プレート）／本体（わく・中ぶた・脚）／ロゴ
-  cQr1:0x1a1a1a, cQr2:0x8f959c, cTile:0xf2f2f2, cBody:0xf2f2f2, cLogo:0x2ea7e0,
+  /* ★既定は FILAMENTS の値そのもの。ここが一覧に無い値だと、
+       どの色見本も「選ばれている」にならない */
+  cQr1:0x000000, cQr2:0x8e9089, cTile:0xffffff, cBody:0xffffff, cLogo:0x00b1b7,
   view:'assembled',
   coin:false,                   // 大きさ比べの10円玉を出すか
   plate:'p1s', sets:1,          // まとめ刷り（既定は1セット。増やすときは「いっぱいまで」）
@@ -2415,7 +2417,17 @@ function resize() {
   const w = box.clientWidth, h = box.clientHeight;
   if (!w || !h) return;
   renderer.setSize(w, h, false);
-  camera.aspect = w / h; camera.updateProjectionMatrix();
+  camera.aspect = w / h;
+  /* ★書き出し画面へ貸しているあいだ、窓が細いときだけ たての画角をひろげて
+       横に入る量を保つ。カメラの位置は動かさない（まわす操作と けんかしないため）。
+     ★台の上では今までどおり。ここでもひろげると ふだんの画面まで引きになる。 */
+  const BASE_FOV = 38, REF_AR = 1.5;
+  const lent = renderer.domElement.closest('.sv-view');
+  /* 広げる前の比が書いてあれば それを基準にする（save.js が入れる） */
+  const ref = lent ? (+lent.dataset.baseAr || REF_AR) : 0;
+  camera.fov = (!lent || camera.aspect >= ref) ? BASE_FOV
+    : 2 * Math.atan(Math.tan(BASE_FOV * Math.PI / 360) * (ref / camera.aspect)) * 180 / Math.PI;
+  camera.updateProjectionMatrix();
 }
 new ResizeObserver(resize).observe(view);
 /* ★窓そのものも見る。貸し借りで入れものが変わったときは
@@ -2996,6 +3008,20 @@ function swatches(id, key, nameId) {
     el.appendChild(b);
     if (state[key] === f.hex) document.getElementById(nameId).textContent = f.name;
   });
+  /* ★いちばん最後に「その他の色」。押すと OSのカラーパネルが開く。
+       つまみを動かすたびに色が返ってくるので、その場で立体に映す。 */
+  const other = FilamentPicker.other('', () => state[key], hex => {
+    state[key] = hex;
+    [...el.children].forEach(x => x.setAttribute('aria-pressed', x === other));
+    document.getElementById(nameId).textContent = FilamentPicker.hexStr(hex);
+    other.paint();
+    requestRebuild(false);
+  });
+  if (FilamentPicker.isOther(state[key])) {
+    other.setAttribute('aria-pressed', 'true');
+    document.getElementById(nameId).textContent = FilamentPicker.hexStr(state[key]);
+  }
+  el.appendChild(other);
 }
 swatches('cQr1',  'cQr1',  'c1n');
 swatches('cQr2',  'cQr2',  'c2n');

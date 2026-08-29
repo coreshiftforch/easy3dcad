@@ -1523,8 +1523,11 @@ export function mountScene3Type1(root, { model, onBack, onDone } = {}) {
          ・⑤の断面 … まわしても中は見えないので 断面の窓を残す
        断面のときは、上の窓だけ消して「正面＋断面」の2つにする。 */
     const draw = step === 2 && shape === 'free';
+    /* ②の上の窓は「溝の高さで切った輪切り」（下の setLayers('slice')）。
+       まわしても中は見えないので、スマホでも残す。 */
+    const slice = step === 2;
     const small = phone();
-    const solo = right === null || (small && !draw && !cut);
+    const solo = right === null || (small && !draw && !cut && !slice);
     topView.host.toggleAttribute('hidden', solo || (small && cut));
     /* ★窓を1つにするときは、入れもの（.col）ごと消す。中の窓を隠すだけだと
          入れものが場所を取ったままで、左の窓が半分の幅にしかならない。 */

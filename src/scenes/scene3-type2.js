@@ -1072,8 +1072,11 @@ export function mountScene3Type2(root, { model, onBack, onDone } = {}) {
     const inTurn = step === 1;
     /* ④は正面ひとつを大きく使う（上から見てもクリックの動きは見えない） */
     const right = inTurn ? AXIS_VIEW[axis] : step === LAST ? null : 'top';
-    /* タイプ2には なぞって描くところが無いので、スマホでは いつも1つ */
-    const solo = right === null || phone();
+    /* ★②③の上の窓は「切る高さで切った輪切り」（下の setLayers('slice')）。
+         まわしても中は見えないので、スマホでも残す。
+       ★タイプ2には なぞって描くところが無いので、ほかは いつも1つ。 */
+    const slice = step === 2 || step === 3;
+    const solo = right === null || (phone() && !slice);
     /* ★窓を1つにするときは、入れもの（.col）ごと消す。中の窓を隠すだけだと
          入れものが場所を取ったままで、左の窓が半分の幅にしかならない。 */
     topView.host.toggleAttribute('hidden', solo);

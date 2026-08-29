@@ -28,16 +28,16 @@ export function mountScene1(root, { onLoaded, onCreate } = {}) {
         </div>
       </div>
       <div class="notice" hidden></div>
-      <input class="picker" type="file" accept="application/octet-stream" hidden>
+      <input class="picker" type="file" accept=".stl,.3mf,.glb,.obj,application/octet-stream" hidden>
     </div>`;
-  /* ★accept は **拡張子で書かない**。iPhone の「ファイル」アプリは
-       拡張子ではなく UTI で絞りこむので、.stl や .3mf と書くと
-       ぜんぶグレーアウトして1つも選べなくなる（前にそうなった）。
-     ★かといって accept を付けないと、iPhone は
-       「写真またはビデオを撮る／フォトライブラリ／ファイルを選択」の
-       3つを出す。3Dモデルに写真は関係ないので まぎらわしい。
-     ★application/octet-stream は UTI の public.data に当たる。
-       ファイルアプリの中身は そのまま選べて、写真の欄だけが消える。
+  /* ★accept は **拡張子と application/octet-stream の両方**を書く。
+     ・拡張子だけ … PCでは正しく絞れるが、iPhone の「ファイル」アプリは
+       拡張子ではなく UTI で見るので、ぜんぶグレーアウトして選べなくなる
+     ・octet-stream だけ … iPhone は public.data として ぜんぶ選べるが、
+       **PCの選択窓が「octet-stream」で絞ってしまい、STLが選べなくなった**
+     ・付けない … iPhone が「写真またはビデオを撮る／フォトライブラリ」を出す。
+       3Dモデルに写真は関係ないので まぎらわしい
+     両方書けば、PCは拡張子で絞り、iPhone は public.data で ぜんぶ選べる。
      どちらにしても、選ばれたあと 先頭の数バイトで中身を見て判断する。 */
 
   const scene   = root.querySelector('.scene1');

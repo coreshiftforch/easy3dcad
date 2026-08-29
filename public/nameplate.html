@@ -26,11 +26,13 @@
   <script src="./js/resume.js"></script>
   <!-- つまみの下の説明を「情報」にたたむ。★本文より先に読むこと -->
   <script src="./js/foldinfo.js"></script>
+  <!-- フィラメントの色（QRと共通）。★本文より先に読むこと -->
+  <script src="./js/filaments.js"></script>
 </head>
 <body>
 
 <header>
-  <a class="home-link" href="index.html">◀ メニュー</a>
+  <a class="home-link" href="index.html">◀ スタート画面</a>
   <span class="title">🪪 なまえプレート</span>
 </header>
 
@@ -262,17 +264,9 @@ const DEPTH_LEVELS = [
   { depth: 5, name: '高い', mm: '5mm' },
 ];
 
-// フィラメントの色（Bambu Lab 純正 PLA Basic・公式hex）
-// 使用プリンター: Bambu Lab P1S / 純正フィラメント
-const FILAMENTS = [
-  { name: '黒',      short: '黒', hex: 0x000000 },  // Black
-  { name: '白',      short: '白', hex: 0xffffff },  // Jade White
-  { name: '灰色',    short: '灰', hex: 0x8e9089 },  // Gray
-  { name: '水色',    short: '水', hex: 0x00b1b7 },  // Turquoise
-  { name: 'ピンク',  short: '桃', hex: 0xf5547c },  // Hot Pink
-  { name: 'オレンジ', short: '橙', hex: 0xff6a13 },  // Orange
-  { name: '緑',      short: '緑', hex: 0x00ae42 },  // Bambu Green
-];
+// フィラメントの色。★中身は public/js/filaments.js（QRキーホルダーと共通）。
+//   同じフィラメントを刷るので、2つのページで色がちがってはいけない。
+const FILAMENTS = window.FILAMENTS;
 
 // ── 土台の形の定義 ───────────────────────────────────────────────
 // half: 文字を動かせる範囲（土台の内側のおよその半分の大きさ mm）
@@ -471,10 +465,29 @@ grid.rotation.x = Math.PI / 2;
 grid.position.z = -0.5;
 scene.add(grid);
 
+/* ★よこ幅が足りないときは、たての画角をひろげて **横に入る量**を保つ。
+     カメラの位置は動かさない（つかんでまわす操作と けんかしないため）。
+     これが無いと、細長い窓（スマホ・書き出し画面の全画面）で
+     モデルが左右で切れる。 */
+const BASE_FOV = 45, REF_AR = 1.7;
+function fitFov() {
+  /* ★ひろげるのは **書き出し画面へ貸しているあいだだけ**。
+       あちらは「完成」のアニメでぐっと寄った位置のままなので、
+       窓の形が細くなると 左右が切れる。
+     ★台の上でも同じことをすると、ふだんの画面まで引きになってしまう
+       （実際に小さくなった）。 */
+  const lent = canvas.closest('.sv-view');
+  /* 広げる前の比が書いてあれば それを基準にする（save.js が入れる）。
+     無ければ REF_AR を使う。 */
+  const ref = lent ? (+lent.dataset.baseAr || REF_AR) : 0;
+  camera.fov = (!lent || camera.aspect >= ref) ? BASE_FOV
+    : 2 * Math.atan(Math.tan(BASE_FOV * Math.PI / 360) * (ref / camera.aspect)) * 180 / Math.PI;
+}
 function onResize() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h || 1;
+  fitFov();
   camera.updateProjectionMatrix();
 }
 new ResizeObserver(onResize).observe(canvas);
@@ -1457,8 +1470,10 @@ colorModeSeg.querySelectorAll('button').forEach(btn => {
 });
 applyColorMode();
 const hexStr = hex => '#' + hex.toString(16).padStart(6, '0');
-const nameOf = hex => (FILAMENTS.find(f => f.hex === hex) || {}).name || '';
-const shortOf = hex => (FILAMENTS.find(f => f.hex === hex) || {}).short || '';
+/* ★一覧に無い色＝カラーパネルで自分で選んだ色。名前が無いので
+     #rrggbb をそのまま出す。ファイル名には「他」を使う（長くしないため） */
+const nameOf = hex => (FILAMENTS.find(f => f.hex === hex) || {}).name || hexStr(hex);
+const shortOf = hex => (FILAMENTS.find(f => f.hex === hex) || {}).short || '他';
 // 各カードの「現在の色」見本と色名を更新
 function updateColorLabels() {
   document.getElementById('baseSwatch').style.background = hexStr(state.baseColor);
@@ -1483,6 +1498,18 @@ function buildColorList(which, getVal, setVal) {
     };
     box.appendChild(b);
   });
+  /* ★いちばん最後に「その他の色」。押すと OSのカラーパネルが開く。
+       つまみを動かすたびに色が返ってくるので、その場で立体に映す。 */
+  const other = FilamentPicker.other('color-btn', getVal, hex => {
+    setVal(hex);
+    [...box.children].forEach(c => c.classList.remove('active'));
+    other.classList.add('active');
+    other.paint();
+    updateColors();
+    updateColorLabels();
+  });
+  if (FilamentPicker.isOther(getVal())) other.classList.add('active');
+  box.appendChild(other);
 }
 buildColorList('base', () => state.baseColor, v => state.baseColor = v);
 buildColorList('text', () => state.textColor, v => state.textColor = v);

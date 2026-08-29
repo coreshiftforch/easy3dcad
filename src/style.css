@@ -775,13 +775,17 @@ body {
        そのせいで 断面の窓ばかり大きくなっていた（114px 対 267px）。 */
   .views > *, .views .col > * { min-height: 0; }
 
+  /* ★3Dの窓は 画面の高さの半分ぶん。なまえプレート／QRが
+       操作がわを 50dvh で止めているのと 表うら同じ考え。
+     ★あまりを操作パネルが使い、長いときは中をころがす。 */
+  .views { flex: 0 0 50dvh; }
+
   /* ★body を overflow:hidden にしてページ全体が伸びなくなったので、
        中身が長いときは操作パネルの中をスクロールさせる。
        （なまえプレート／QRの .panel と同じふるまい） */
   .panel {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     min-height: 0;
-    max-height: 52dvh;
     overflow-y: auto;
     overscroll-behavior: contain;
   }

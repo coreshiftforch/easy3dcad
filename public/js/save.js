@@ -58,6 +58,19 @@
     '  border-radius:16px;height:300px;position:relative;overflow:hidden;}',
     /* 借りてきた窓（canvas でも div でも）を いっぱいに広げる */
     '.sv-view > *{display:block;width:100%;height:100%;}',
+    /* 窓の右下の 拡大ボタン。押すと 3Dだけが画面いっぱいになる */
+    '.sv-full{position:absolute;right:10px;bottom:10px;z-index:2;',
+    '  width:38px;height:38px;padding:0;border-radius:10px;',
+    '  display:grid;place-items:center;',
+    '  border:1px solid var(--c-line,#cbd5e1);background:var(--c-panel,#fff);',
+    '  color:var(--c-muted,#5b6b80);font:inherit;cursor:pointer;}',
+    '.sv-full svg{width:17px;height:17px;}',
+    '.sv-full:hover{color:var(--c-accent2,#1d4ed8);border-color:var(--c-accent2,#1d4ed8);}',
+    /* ★Fullscreen API は使わない。iPhone の Safari は動画にしか効かないので、
+         CSS で広げる（クリッカーの .view-fs と同じ考え）。
+       ★.sv-view より1つ強く書くこと。高さ（300px／スマホ 230px）に勝つ必要がある */
+    '.sv-view.sv-fs{position:fixed;inset:0;z-index:80;height:auto;',
+    '  border-radius:0;border-width:0;}',
     '.sv-col{display:grid;gap:14px;align-content:start;}',
     '.sv-card{background:var(--c-panel,#fff);border:1px solid var(--c-line,#cbd5e1);',
     '  border-radius:16px;padding:14px 16px;}',
@@ -156,9 +169,53 @@
       back && back();
     };
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && sheet.classList.contains('open'))
-        sheet.querySelector('.sv-back').click();
+      if (e.key !== 'Escape' || !sheet.classList.contains('open')) return;
+      /* ★画面いっぱいのときは、まず それを閉じる。いきなり前の画面へ
+           戻ると、広げただけのつもりが 書き出しをやり直しになる */
+      var fs = sheet.querySelector('.sv-view.sv-fs');
+      if (fs) { fs.querySelector('.sv-full').click(); return; }   /* ボタンが切りかえる */
+      sheet.querySelector('.sv-back').click();
     });
+  }
+
+  /* 窓の右下に置く「画面いっぱい」ボタン。開いているあいだは しるしが変わる */
+  var FULL_ICON = function (on) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"'
+      + ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+      + (on ? '<path d="M9 3v6H3M15 3v6h6M15 21v-6h6M9 21v-6H3"/>'
+            : '<path d="M9 3H3v6M15 3h6v6M15 21h6v-6M9 21H3v-6"/>')
+      + '</svg>';
+  };
+
+  function fullButton(view) {
+    var b = document.createElement('button');
+    b.className = 'sv-full';
+    b.type = 'button';
+    b.setAttribute('data-no-kana', '');
+    function paint() {
+      var on = view.classList.contains('sv-fs');
+      b.title = on ? 'もとの大きさに戻す' : '画面いっぱいで見る';
+      b.setAttribute('aria-label', b.title);
+      b.setAttribute('aria-pressed', String(on));
+      b.innerHTML = FULL_ICON(on);
+    }
+    b.onclick = function (e) {
+      e.stopPropagation();
+      /* ★広げる前の たて・よこの比を書きのこす。
+           貸してくれたアプリは、この比を手がかりに
+           「横に入っていた量」を保つ（そうしないと左右が切れる）。
+           アプリ側が読まなくても、ただの属性なので害はない。 */
+      if (!view.classList.contains('sv-fs')) {
+        var r = view.getBoundingClientRect();
+        if (r.height) view.dataset.baseAr = (r.width / r.height).toFixed(3);
+      }
+      view.classList.toggle('sv-fs');
+      paint();
+    };
+    /* ★3Dの窓は つかんでまわせる。ボタンの上では つかませない */
+    b.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+    paint();
+    return b;
   }
 
   function card(title, inner) {
@@ -222,7 +279,11 @@
     col.innerHTML = html;
     col.querySelector('.sv-name').value = opt.name || '';
     /* ★借りものなので、書きかえのたびに 入れ直す（update でも消えないように） */
-    if (opt.preview) col.querySelector('.sv-view').appendChild(opt.preview);
+    if (opt.preview) {
+      var view = col.querySelector('.sv-view');
+      view.appendChild(opt.preview);
+      view.appendChild(fullButton(view));
+    }
 
     col.querySelectorAll('.sv-seg').forEach(function (seg) {
       var o = opt.options[+seg.dataset.opt];
