@@ -466,6 +466,20 @@ export async function decoPolys(opt) {
   const inner = innerOf(sh, opt.sides);
   const room = k => ({ w: fb.w * inner * top * k, h: fb.h * inner * top * k });
 
+  /* のせるものを 左右・上下へ動かす。decoX / decoY は −100〜100（％）で、
+     100 が「置ける場所のはしまで」。
+     ★動ける範囲は room(1) の中まで。ここは textPct=100 のときに字が
+       占めるところと同じなので、はみ出しの心配は もとから無い。
+       これより外へ出すと、彫るときに 面の外へ抜けて earcut がこわれる。 */
+  const shift = (polys, size) => {
+    const full = room(1);
+    const cap = v => Math.max(-100, Math.min(100, +v || 0));
+    const dx = Math.max(0, (full.w - size.w) / 2) * cap(opt.decoX) / 100;
+    const dy = Math.max(0, (full.h - size.h) / 2) * cap(opt.decoY) / 100;
+    if (!dx && !dy) return polys;
+    return polys.map(p => mapPoly(p, q => ({ x: q.x + dx, y: q.y + dy })));
+  };
+
   if (opt.deco === 'text' && opt.text.trim()) {
     const font = await loadFont(opt.fontId);
     const text = opt.text.trim();
@@ -478,7 +492,7 @@ export async function decoPolys(opt) {
     const r = room(opt.textPct / 100);
     const t = textPolys(font, text, r.w, r.h);
     info.text = t.size;
-    return { deco: t.polys, info, base };
+    return { deco: shift(t.polys, t.size), info, base };
   }
 
   if (opt.deco === 'qr' && opt.url.trim()) {
@@ -495,15 +509,16 @@ export async function decoPolys(opt) {
     if (qr.module < 0.6)
       info.warn.push(`QRの1マスが ${qr.module.toFixed(2)}mm しかありません。`
                    + 'QRを大きくするか、URLを短くしてください');
-    return { deco: qr.polys, info, base };
+    return { deco: shift(qr.polys, { w: side, h: side }), info, base };
   }
 
   return { deco: [], info, base };
 }
 
 /* ══ 本体 ═══════════════════════════════════════════════════
-   opt … { shape, width, thick, deco:'none'|'text'|'qr', how:'raise'|'carve',
-           depth, text, fontId, textPct, url, ec, qrPct }
+   opt … { shape, width, thick, sides, deco:'none'|'text'|'qr', how:'raise'|'carve',
+           depth, text, fontId, textPct, url, ec, qrPct,
+           decoX, decoY … のせるものの位置（−100〜100％。0＝まん中）}
    返すもの … { positions, size, info }（info は画面に出す数字と注意） */
 export async function buildMake(opt) {
   const sh = SHAPES.find(s => s.id === opt.shape) || SHAPES[0];

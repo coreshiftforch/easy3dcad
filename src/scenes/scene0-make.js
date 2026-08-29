@@ -23,7 +23,7 @@ const WALL = 1.6;
 const MIN_THICK = SWITCH_W + WALL * 2;      // 18.8
 
 const DEF = {
-  shape: 'keycap', width: 60, thick: 22, sides: NGON_DEF,
+  shape: 'keycap', width: 60, thick: 22, sides: NGON_DEF, decoX: 0, decoY: 0,
   deco: 'text', how: 'carve', depth: 1.2,
   text: 'ぽち', fontId: 'gothic', textPct: 80,
   url: 'https://example.com', ec: 'M', qrPct: 85,
@@ -102,6 +102,14 @@ export function mountScene0(root, { onBack, onMade } = {}) {
               [{ id: 'carve', name: '彫る' }, { id: 'raise', name: 'のせる' }], DEF.how)}</div>
             <label class="slabel">深さ／高さ<output class="o-depth"></output></label>
             <input class="r-depth" type="range" min="0.4" max="3" step="0.1" value="${DEF.depth}">
+
+            <p class="panel-h">置く場所</p>
+            <label class="slabel">よこ<output class="o-dx"></output></label>
+            <input class="r-dx" type="range" min="-100" max="100" step="1" value="${DEF.decoX}">
+            <label class="slabel">たて<output class="o-dy"></output></label>
+            <input class="r-dy" type="range" min="-100" max="100" step="1" value="${DEF.decoY}">
+            <p class="note">まん中が0。はしまで動かしても、面からはみ出さないところで止まる</p>
+            <div class="go-row"><button class="mid-btn" type="button">まん中に戻す</button></div>
           </div>
 
           <div class="panel-foot">
@@ -141,6 +149,8 @@ export function mountScene0(root, { onBack, onMade } = {}) {
     deco:  pickOf('.k-deco'),
     how:   pickOf('.k-how'),
     depth: +q('.r-depth').value,
+    decoX: +q('.r-dx').value,
+    decoY: +q('.r-dy').value,
     text:  q('.i-text').value,
     fontId: pickOf('.k-font'),
     textPct: +q('.r-tpct').value,
@@ -279,6 +289,9 @@ export function mountScene0(root, { onBack, onMade } = {}) {
     q('.o-tpct').textContent  = `${o.textPct} %`;
     q('.o-qpct').textContent  = `${o.qrPct} %`;
     q('.o-depth').textContent = `${o.depth.toFixed(1)} mm`;
+    /* ★0は「まん中」と出す。数字の0だと、何の0か分からない */
+    q('.o-dx').textContent = o.decoX ? `${o.decoX > 0 ? '右' : '左'}へ ${Math.abs(o.decoX)}` : 'まん中';
+    q('.o-dy').textContent = o.decoY ? `${o.decoY > 0 ? '上' : '下'}へ ${Math.abs(o.decoY)}` : 'まん中';
     q('.n-thick').textContent = o.thick < MIN_THICK
       ? `スイッチが入るには ${MIN_THICK}mm 要る` : '';
     /* 角の数のバーは、多角形をえらんだときだけ出す */
@@ -298,6 +311,12 @@ export function mountScene0(root, { onBack, onMade } = {}) {
     root.querySelectorAll('.panel [class*="sec-"]').forEach(el => FoldInfo.apply(el));
     root.querySelectorAll('.panel').forEach(el => FoldInfo.apply(el));
   }
+
+  q('.mid-btn').onclick = () => {
+    q('.r-dx').value = 0;
+    q('.r-dy').value = 0;
+    paint();
+  };
 
   for (const ev of ['input', 'change']) root.querySelector('.panel').addEventListener(ev, paint);
   paint();

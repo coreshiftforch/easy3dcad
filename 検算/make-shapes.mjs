@@ -86,6 +86,25 @@ for (const s of SHAPES) {
      + (m.info.parts > 1 ? `（${m.info.parts}つのかたちが重なっている）` : ''));
 }
 
+/* ── ③c のせるものを動かしても、彫った量が変わらないか ─────
+   ★位置を変えても 字の面積は変わらないので、彫った量も同じはず。
+     ちがったら「面の外へ出て、彫りそこねている」ということ。 */
+console.log('\n③c のせるものを動かしても 彫った量が同じか');
+{
+  const opt = { ...BASE, shape: 'round', deco: 'text', how: 'carve', text: 'あお', textPct: 70 };
+  const mid = volumeOf((await buildMake(opt)).positions);
+  for (const [x, y] of [[100, 0], [-100, 0], [0, 100], [0, -100], [100, 100], [-100, -100]]) {
+    const v = volumeOf((await buildMake({ ...opt, decoX: x, decoY: y })).positions);
+    ok(Math.abs(v - mid) < 1,
+       `よこ${String(x).padStart(4)} たて${String(y).padStart(4)} → ${(v / 1000).toFixed(3)}cm³`
+       + `（まん中 ${(mid / 1000).toFixed(3)}cm³）`);
+  }
+  /* 範囲の外を渡しても、はしで止まること */
+  const far = volumeOf((await buildMake({ ...opt, decoX: 999, decoY: 999 })).positions);
+  const edge = volumeOf((await buildMake({ ...opt, decoX: 100, decoY: 100 })).positions);
+  ok(Math.abs(far - edge) < 1, '999 を渡しても はし（100）で止まる');
+}
+
 /* ── ②b 多角形：角の数を 3〜16 まで動かしても壊れないか ─────
    ★角が少ないと てっぺんがせまい。文字を置ける広さ（inner）を
      角の数から出しているので、両はしと まん中を通しておく。

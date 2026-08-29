@@ -826,31 +826,14 @@ body {
   .size-fix .sf-msg { font-size: 14px; }
   .size-fix .sf-note { font-size: 13px; }
 
-  /* かたちが23個あると、たてに積んで7だん（約290px）。パネルを食いつぶし、
-     ほかのつまみが画面の外へ出てしまう。
-     ★せまい画面では **よこに2だんの帯** にして、横スワイプでえらぶ。
-       パネルのたてスクロールと向きが違うので、指の動きがぶつからない
-       （ステップの帯 .flow が、せまい画面で横スクロールなのと同じ考え）。
-     ★しくみは「たてに並べて、はみ出したら次の列へ（column wrap）」＋高さ固定。 */
-  .shapes.many {
-    /* ★flex: none を忘れないこと。パネル（たて flex）の中で、
-         よこスクロールする箱は「0まで縮んでよい」あつかいになり、
-         高さを書いても つぶれて見えなくなる。 */
-    flex: none;
-    flex-flow: column wrap;
-    align-content: flex-start;
-    /* 46px × 2だん ＋ すきま5px ＝ 97px。パソコンの細い画面では下に
-       よこスクロールの棒が出て10pxほど食うので、そのぶんを見こんでおく
-       （見こまないと1だんに減る）。スマホの棒は場所を取らない。 */
-    height: 112px;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: thin;
-  }
-  .shapes.many .shape-btn { flex: none; font-size: 14px; min-height: 46px; padding: 8px 14px; }
-
-  /* 帯にしたぶんパネルが短くなるので、そのぶんを3Dの窓にまわす */
-  .scene0 .panel { max-height: 46dvh; }
+  /* かたちは23個。前は **よこに2だんの帯**（column wrap ＋ 横スクロール）に
+     していたが、パネルの中で横に動くのは 分かりにくかった。
+     ★ふつうに折り返す。だんは増えるが、パネルは もともと たてに転がるので
+       指の動きは1方向で済む。ボタンは下の「詰めかた」で小さくしてある。
+     ★.scene0 .panel の max-height も外した。帯をやめたぶん、
+       パネルには もっと高さが要る（残りは .views 50dvh が決める）。 */
+  .shapes.many { flex: none; flex-flow: row wrap; }
+  .shapes.many .shape-btn { flex: none; }
 }
 
 .pos-bars[hidden] { display: none; }
@@ -1014,7 +997,15 @@ body {
   .back-btn { min-height: 36px; padding: 6px 12px; font-size: 13px; }
   .file-name { font-size: 12px; }
 
-  .panel { gap: 6px; padding: 8px 11px; }
+  /* ★overflow-y だけ auto にすると、CSSの決まりで overflow-x も auto に
+       なる（片方が visible でなくなると、もう片方は auto へ）。
+       下の飾り（panel-foot）が数pxはみ出すだけで 横に動いてしまうので、
+       ここで はっきり止める。 */
+  .panel { gap: 6px; padding: 8px 11px; overflow-x: hidden; }
+  /* ★下の帯は 負のよはくで パネルのはしまで地を敷いている。
+       パネルの内よはくを 14→11px にしたので、ここも合わせること。
+       合っていないと 3pxぶん はみ出して 横に動く。 */
+  .panel-foot { margin: 0 -11px -8px; padding: 7px 11px 8px; bottom: -8px; }
   .panel-h { font-size: 12px; }
   .slabel { font-size: 12px; margin-top: 1px; }
   .shapes { gap: 5px; }
