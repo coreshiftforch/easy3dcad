@@ -57,7 +57,10 @@ export function stlBinary(tris, title = 'clicker-maker') {
   const n = tris.length / 9;
   const buf = new ArrayBuffer(84 + 50 * n);
   const dv = new DataView(buf);
-  const head = new TextEncoder().encode(title.slice(0, 79));
+  /* ★見出しは半角だけにする。日本語のまま入れると、多くのスライサーが
+     ここをASCII扱いで表示するので文字化けする（印刷には関係ない飾りの欄）。 */
+  const asciiTitle = String(title).replace(/[^\x20-\x7e]/g, '_').slice(0, 79) || 'model';
+  const head = new TextEncoder().encode(asciiTitle);
   new Uint8Array(buf).set(head, 0);
   dv.setUint32(80, n, true);
   let o = 84;
